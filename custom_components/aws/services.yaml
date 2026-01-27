@@ -1,0 +1,22 @@
+refresh_account:
+  name: Refresh Account
+  description: Force refresh of all AWS data for a specific account (optionally in a specific region)
+  fields:
+    account_name:
+      name: Account Name
+      description: Name of the AWS account to refresh
+      required: true
+      example: "production"
+      selector:
+        text:
+    region:
+      name: Region
+      description: Specific region to refresh (optional, refreshes all regions if omitted)
+      required: false
+      example: "us-east-1"
+      selector:
+        text:
+
+refresh_all_accounts:
+  name: Refresh All Accounts
+  description: Force refresh of all AWS data for all configured accounts and regions

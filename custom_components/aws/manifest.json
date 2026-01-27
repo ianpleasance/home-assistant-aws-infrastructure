@@ -1,0 +1,13 @@
+{
+  "domain": "aws",
+  "name": "AWS Infrastructure Monitor",
+  "codeowners": ["@ianpleasance"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/ianpleasance/home-assistant-aws",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/ianpleasance/home-assistant-aws/issues",
+  "requirements": ["boto3==1.35.76", "botocore==1.35.76"],
+  "version": "0.1.0"
+}
