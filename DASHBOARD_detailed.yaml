@@ -1,0 +1,484 @@
+title: AWS Detailed
+views:
+  - title: Overview
+    path: aws-overview
+    icon: mdi:aws
+    cards:
+      - type: markdown
+        content: >
+          # 🌍 AWS Overview
+
+
+          **{{ states('sensor.aws_live_global_summary') }} Resources** • {% set
+          yesterday = states('sensor.aws_live_cost_yesterday') %}{% if yesterday
+          not in ['unknown', 'unavailable'] %}**${{ yesterday }}** yesterday{%
+          else %}_Cost data loading..._{% endif %}
+      - type: markdown
+        content: >
+          | Resource | Count |
+
+          |----------|-------|
+
+          | 🟢 EC2 Running | {{ state_attr('sensor.aws_live_global_summary',
+          'ec2_running') }} |
+
+          | 🔴 EC2 Stopped | {{ state_attr('sensor.aws_live_global_summary',
+          'ec2_stopped') }} |
+
+          | ⚡ Lambda | {{ state_attr('sensor.aws_live_global_summary',
+          'lambda_functions') }} |
+
+          | 🗄️ RDS | {{ state_attr('sensor.aws_live_global_summary',
+          'rds_instances') }} |
+
+          | 🌐 Load Balancers | {{ state_attr('sensor.aws_live_global_summary',
+          'load_balancers') }} |
+
+          | 📈 ASG | {{ state_attr('sensor.aws_live_global_summary',
+          'auto_scaling_groups') }} |
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: sensor.aws_live_cost_yesterday
+            state_not: unknown
+          - condition: state
+            entity: sensor.aws_live_cost_yesterday
+            state_not: unavailable
+        card:
+          type: history-graph
+          title: 📈 Cost Trends (7 Days)
+          hours_to_show: 168
+          entities:
+            - entity: sensor.aws_live_cost_yesterday
+              name: Daily Cost
+  - title: EC2
+    path: aws-ec2
+    icon: mdi:server
+    cards:
+      - type: markdown
+        content: >
+          # 🖥️ EC2 Instances
+
+
+          {% set running = state_attr('sensor.aws_live_global_summary',
+          'ec2_running') %}
+
+          {% set stopped = state_attr('sensor.aws_live_global_summary',
+          'ec2_stopped') %}
+
+          **{{ running }} running** • {{ stopped }} stopped
+
+
+          ---
+
+
+          {% for state in states.sensor %}
+
+          {% if 'aws_live' in state.entity_id and '_ec2_i_' in state.entity_id
+          and '_state' in state.entity_id %}
+
+          {% set parts = state.entity_id.split('_') %}
+
+          {% set region = parts[2] + '-' + parts[3] + '-' + parts[4] %}
+
+          {% set instance_id = state_attr(state.entity_id, 'instance_id') or
+          'Unknown' %}
+
+          {% set tags = state_attr(state.entity_id, 'tags') or {} %}
+
+          {% set instance_name = tags.get('Name', 'Unnamed') %}
+
+          {% set instance_state = states(state.entity_id) %}
+
+          {% set icon = '🟢' if instance_state == 'running' else '🔴' if
+          instance_state == 'stopped' else '⚫' %}
+
+
+          ### {{ icon }} {{ instance_name }} ({{ region | upper }})
+
+          - **Instance ID**: {{ instance_id }}
+
+          - **State**: {{ instance_state }}
+
+          - **Type**: {{ state_attr(state.entity_id, 'instance_type') }}
+
+          - **Private IP**: {{ state_attr(state.entity_id, 'private_ip') or
+          'N/A' }}
+
+          - **Public IP**: {{ state_attr(state.entity_id, 'public_ip') or 'N/A'
+          }}
+
+          - **Launched**: {{ state_attr(state.entity_id, 'launch_time') }}
+
+          {% if tags | length > 1 %}
+
+          - **Tags**: {% for key, value in tags.items() %}{% if key != 'Name'
+          %}{{ key }}={{ value }}{% if not loop.last %}, {% endif %}{% endif
+          %}{% endfor %}
+
+          {% endif %}
+
+
+          {% endif %}
+
+          {% endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search',
+          'aws_live.*_ec2_i_.*_state') | list | length == 0 %}
+
+          _No EC2 instances found_
+
+          {% endif %}
+  - title: Lambda
+    path: aws-lambda
+    icon: mdi:lambda
+    cards:
+      - type: markdown
+        content: >
+          # ⚡ Lambda Functions
+
+
+          **{{ state_attr('sensor.aws_live_global_summary', 'lambda_functions')
+          }} functions**
+
+
+          ---
+
+
+          {% for state in states.sensor %}
+
+          {% if 'aws_live' in state.entity_id and '_lambda_' in state.entity_id
+          and '_state' in state.entity_id and '_lambda_total' not in
+          state.entity_id %}
+
+          {% set parts = state.entity_id.split('_') %}
+
+          {% set region = parts[2] + '-' + parts[3] + '-' + parts[4] %}
+
+          {% set function_name = state_attr(state.entity_id, 'function_name') or
+          'Unknown' %}
+
+          {% set function_state = states(state.entity_id) %}
+
+          {% set runtime = state_attr(state.entity_id, 'runtime') %}
+
+          {% set icon = '🟢' if function_state == 'Active' else '⚫' %}
+
+
+          ### {{ icon }} {{ function_name }}
+
+          - **Region**: {{ region | upper }}
+
+          - **State**: {{ function_state }}
+
+          - **Runtime**: {{ runtime }}
+
+          - **Memory**: {{ state_attr(state.entity_id, 'memory_size') }} MB
+
+          - **Timeout**: {{ state_attr(state.entity_id, 'timeout') }} sec
+
+          - **Code Size**: {{ (state_attr(state.entity_id, 'code_size') / 1024)
+          | round(1) }} KB
+
+          - **Modified**: {{ state_attr(state.entity_id, 'last_modified') }}
+
+
+          {% endif %}
+
+          {% endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search',
+          'aws_live.*_lambda_.*_state') | rejectattr('entity_id', 'search',
+          '_lambda_total_') | list | length == 0 %}
+
+          _No Lambda functions found_
+
+          {% endif %}
+  - title: RDS
+    path: aws-rds
+    icon: mdi:database
+    cards:
+      - type: markdown
+        content: >
+          # 🗄️ RDS Databases
+
+
+          **{{ state_attr('sensor.aws_live_global_summary', 'rds_instances') }}
+          databases**
+
+
+          ---
+
+
+          {% for state in states.sensor %}
+
+          {% if 'aws_live' in state.entity_id and '_rds_' in state.entity_id and
+          '_status' in state.entity_id and '_rds_total' not in state.entity_id
+          %}
+
+          {% set parts = state.entity_id.split('_') %}
+
+          {% set region = parts[2] + '-' + parts[3] + '-' + parts[4] %}
+
+          {% set db_id = state_attr(state.entity_id, 'db_instance_identifier')
+          or 'Unknown' %}
+
+          {% set db_status = states(state.entity_id) %}
+
+          {% set engine = state_attr(state.entity_id, 'engine') %}
+
+          {% set engine_version = state_attr(state.entity_id, 'engine_version')
+          %}
+
+          {% set icon = '🟢' if db_status == 'available' else '⚫' %}
+
+
+          ### {{ icon }} {{ db_id }}
+
+          - **Region**: {{ region | upper }}
+
+          - **Status**: {{ db_status }}
+
+          - **Engine**: {{ engine }} {{ engine_version }}
+
+          - **Class**: {{ state_attr(state.entity_id, 'instance_class') }}
+
+          - **Storage**: {{ state_attr(state.entity_id, 'allocated_storage') }}
+          GB
+
+          - **Multi-AZ**: {{ state_attr(state.entity_id, 'multi_az') }}
+
+          - **Endpoint**: `{{ state_attr(state.entity_id, 'endpoint') }}:{{
+          state_attr(state.entity_id, 'port') }}`
+
+
+          {% endif %}
+
+          {% endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search',
+          'aws_live.*_rds_.*_status') | rejectattr('entity_id', 'search',
+          '_rds_total_') | list | length == 0 %}
+
+          _No RDS databases found_
+
+          {% endif %}
+  - title: LB
+    path: aws-lb
+    icon: mdi:shuffle-variant
+    cards:
+      - type: markdown
+        content: >
+          # 🌐 Load Balancers
+
+
+          **{{ state_attr('sensor.aws_live_global_summary', 'load_balancers') }}
+          load balancers**
+
+
+          ---
+
+
+          {% for state in states.sensor %}
+
+          {% if 'aws_live' in state.entity_id and '_lb_' in state.entity_id and
+          '_state' in state.entity_id %}
+
+          {% set parts = state.entity_id.split('_') %}
+
+          {% set region = parts[2] + '-' + parts[3] + '-' + parts[4] %}
+
+          {% set lb_name = state_attr(state.entity_id, 'load_balancer_name') or
+          'Unknown' %}
+
+          {% set lb_state = states(state.entity_id) %}
+
+          {% set lb_type = state_attr(state.entity_id, 'type') %}
+
+          {% set scheme = state_attr(state.entity_id, 'scheme') %}
+
+          {% set icon = '🟢' if lb_state == 'active' else '⚫' %}
+
+
+          ### {{ icon }} {{ lb_name }}
+
+          - **Region**: {{ region | upper }}
+
+          - **State**: {{ lb_state }}
+
+          - **Type**: {{ lb_type | upper }}
+
+          - **Scheme**: {{ scheme }}
+
+          - **DNS**: `{{ state_attr(state.entity_id, 'dns_name') }}`
+
+          - **VPC**: {{ state_attr(state.entity_id, 'vpc_id') }}
+
+          - **Zones**: {{ state_attr(state.entity_id, 'availability_zones') |
+          join(', ') }}
+
+
+          {% endif %}
+
+          {% endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search',
+          'aws_live.*_lb_.*_state') | list | length == 0 %}
+
+          _No Load Balancers found_
+
+          {% endif %}
+  - title: ASG
+    path: aws-asg
+    icon: mdi:chart-line
+    cards:
+      - type: markdown
+        content: >
+          # 📈 Auto Scaling Groups
+
+
+          **{{ state_attr('sensor.aws_live_global_summary',
+          'auto_scaling_groups') }} groups**
+
+
+          ---
+
+
+          {% for state in states.sensor %}
+
+          {% if 'aws_live' in state.entity_id and '_asg_' in state.entity_id and
+          '_instances' in state.entity_id %}
+
+          {% set parts = state.entity_id.split('_') %}
+
+          {% set region = parts[2] + '-' + parts[3] + '-' + parts[4] %}
+
+          {% set asg_name = state_attr(state.entity_id, 'asg_name') or 'Unknown'
+          %}
+
+          {% set instance_count = states(state.entity_id) %}
+
+          {% set desired = state_attr(state.entity_id, 'desired_capacity') %}
+
+          {% set healthy = state_attr(state.entity_id, 'healthy_instances') %}
+
+
+          ### {{ asg_name }}
+
+          - **Region**: {{ region | upper }}
+
+          - **Current**: {{ instance_count }} instances ({{ healthy }} healthy)
+
+          - **Desired**: {{ desired }}
+
+          - **Range**: {{ state_attr(state.entity_id, 'min_size') }} - {{
+          state_attr(state.entity_id, 'max_size') }}
+
+          - **Zones**: {{ state_attr(state.entity_id, 'availability_zones') |
+          join(', ') }}
+
+
+          {% endif %}
+
+          {% endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search',
+          'aws_live.*_asg_.*_instances') | list | length == 0 %}
+
+          _No Auto Scaling Groups found_
+
+          {% endif %}
+  - title: Costs
+    path: aws-costs
+    icon: mdi:cash
+    cards:
+      - type: markdown
+        content: >
+          # 💰 AWS Costs
+
+
+          {% set yesterday = states('sensor.aws_live_cost_yesterday') %}
+
+          {% set mtd = states('sensor.aws_live_cost_month_to_date') %}
+
+
+          {% if yesterday in ['unknown', 'unavailable'] or mtd in ['unknown',
+          'unavailable'] %}
+
+          ## ⏳ Cost Data Loading...
+
+
+          AWS Cost Explorer data typically takes **24 hours** to populate.
+
+          Check back tomorrow!
+
+          {% else %}
+
+          **Yesterday:** ${{ yesterday }} • **Month to Date:** ${{ mtd }}
+
+          {% endif %}
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: sensor.aws_live_cost_yesterday
+            state_not: unknown
+          - condition: state
+            entity: sensor.aws_live_cost_yesterday
+            state_not: unavailable
+        card:
+          type: history-graph
+          title: Daily Cost Trend (30 Days)
+          hours_to_show: 720
+          entities:
+            - entity: sensor.aws_live_cost_yesterday
+              name: Daily Cost
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: sensor.aws_live_cost_month_to_date
+            state_not: unknown
+        card:
+          type: history-graph
+          title: Month to Date Growth
+          hours_to_show: 720
+          entities:
+            - entity: sensor.aws_live_cost_month_to_date
+              name: MTD Cost
+      - type: markdown
+        content: >
+          ## 💳 Cost by Service
+
+
+          {% set service_sensors = states.sensor | selectattr('entity_id',
+          'search', 'sensor.aws_live_cost_service_') | list %}
+
+          {% if service_sensors | length > 0 %}
+
+          | Rank | Service | Cost | % |
+
+          |------|---------|------|---|
+
+          {% for sensor in service_sensors | sort(attribute='state',
+          reverse=true) %}
+
+          {% if sensor.state not in ['unknown', 'unavailable'] %}
+
+          | {{ sensor.attributes.rank or loop.index }} | {{
+          sensor.attributes.service_name or sensor.name }} | ${{ sensor.state }}
+          | {{ sensor.attributes.percentage or 0 }}% |
+
+          {% endif %}
+
+          {% endfor %}
+
+          {% else %}
+
+          _Service breakdown will appear after 24 hours_
+
+          {% endif %}
+

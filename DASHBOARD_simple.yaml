@@ -1,0 +1,333 @@
+title: AWS Overview
+views:
+  - title: Overview
+    path: aws-overview
+    icon: mdi:aws
+    cards:
+      - type: markdown
+        content: >
+          # 🌍 AWS Global Overview
+
+
+          {% set global_total = states('sensor.aws_live_global_summary') %}
+
+          {% set global_attrs = state_attr('sensor.aws_live_global_summary',
+          'active_regions') %}
+
+
+          {# Fallback: Calculate from region sensors if global is unknown #}
+
+          {% if global_total in ['unknown', 'unavailable', 'None'] or
+          global_attrs is none %}
+
+          {% set total_resources = 0 %}
+
+          {% set total_ec2_running = 0 %}
+
+          {% set total_ec2_stopped = 0 %}
+
+          {% set total_lambda = 0 %}
+
+          {% set total_rds = 0 %}
+
+          {% set total_lb = 0 %}
+
+          {% set total_asg = 0 %}
+
+          {% set active_regions = 0 %}
+
+          {% for state in states.sensor %}
+            {% if 'aws_live' in state.entity_id and state.entity_id.endswith('_summary') and 'global' not in state.entity_id %}
+              {% if states(state.entity_id) not in ['unknown', 'unavailable'] %}
+                {% set count = states(state.entity_id) | int(0) %}
+                {% if count > 0 %}
+                  {% set active_regions = active_regions + 1 %}
+                {% endif %}
+                {% set total_resources = total_resources + count %}
+                {% set total_ec2_running = total_ec2_running + (state.attributes.ec2_running or 0) %}
+                {% set total_ec2_stopped = total_ec2_stopped + (state.attributes.ec2_stopped or 0) %}
+                {% set total_lambda = total_lambda + (state.attributes.lambda_functions or 0) %}
+                {% set total_rds = total_rds + (state.attributes.rds_instances or 0) %}
+                {% set total_lb = total_lb + (state.attributes.load_balancers or 0) %}
+                {% set total_asg = total_asg + (state.attributes.auto_scaling_groups or 0) %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+
+          **Total Resources:** {{ total_resources }}
+
+          **Active Regions:** {{ active_regions }}
+
+          {% else %}
+
+          **Total Resources:** {{ global_total }}
+
+          **Active Regions:** {{ global_attrs }}
+
+          {% set total_ec2_running =
+          state_attr('sensor.aws_live_global_summary', 'ec2_running') or 0 %}
+
+          {% set total_ec2_stopped =
+          state_attr('sensor.aws_live_global_summary', 'ec2_stopped') or 0 %}
+
+          {% set total_lambda = state_attr('sensor.aws_live_global_summary',
+          'lambda_functions') or 0 %}
+
+          {% set total_rds = state_attr('sensor.aws_live_global_summary',
+          'rds_instances') or 0 %}
+
+          {% set total_lb = state_attr('sensor.aws_live_global_summary',
+          'load_balancers') or 0 %}
+
+          {% set total_asg = state_attr('sensor.aws_live_global_summary',
+          'auto_scaling_groups') or 0 %}
+
+          {% endif %}
+
+
+          ### 💻 Compute
+
+          - **EC2 Running:** {{ total_ec2_running }}
+
+          - EC2 Stopped: {{ total_ec2_stopped }}
+
+          - **Lambda Functions:** {{ total_lambda }}
+
+
+          ### 🗄️ Data & Storage
+
+          - **RDS Databases:** {{ total_rds }}
+
+
+          ### 🌐 Networking
+
+          - **Load Balancers:** {{ total_lb }}
+
+          - Auto Scaling Groups: {{ total_asg }}
+      - type: markdown
+        content: >
+          ## 💰 Current AWS Costs
+
+
+          {% set yesterday = states('sensor.aws_live_cost_yesterday') %}
+
+          {% set mtd = states('sensor.aws_live_cost_month_to_date') %}
+
+
+          {% if yesterday in ['unknown', 'unavailable'] or mtd in ['unknown',
+          'unavailable'] %}
+
+          **⏳ Cost data is being collected...**
+
+
+          AWS Cost Explorer data typically takes 24 hours to populate after
+          initial setup.
+
+          Check back tomorrow!
+
+          {% else %}
+
+          | Period | Amount |
+
+          |--------|--------|
+
+          | 💵 Yesterday | ${{ yesterday }} |
+
+          | 📅 Month to Date | ${{ mtd }} |
+
+          {% endif %}
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: sensor.aws_live_cost_yesterday
+            state_not: unknown
+          - condition: state
+            entity: sensor.aws_live_cost_yesterday
+            state_not: unavailable
+        card:
+          type: history-graph
+          title: 📈 Daily Cost Trend (Last 7 Days)
+          hours_to_show: 168
+          entities:
+            - entity: sensor.aws_live_cost_yesterday
+              name: Daily Cost
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: sensor.aws_live_cost_month_to_date
+            state_not: unknown
+          - condition: state
+            entity: sensor.aws_live_cost_month_to_date
+            state_not: unavailable
+        card:
+          type: history-graph
+          title: 📊 Month to Date Cost Growth
+          hours_to_show: 720
+          entities:
+            - entity: sensor.aws_live_cost_month_to_date
+              name: MTD Cost
+      - type: markdown
+        content: >
+          ## 🔝 Top Service Costs (Yesterday)
+
+
+          {% set service_sensors = states.sensor | selectattr('entity_id',
+          'search', 'sensor.aws_live_cost_service_') | list %}
+
+          {% if service_sensors | length > 0 %}
+
+          | Service | Cost | % |
+
+          |---------|------|---|
+
+          {% for sensor in service_sensors | sort(attribute='state',
+          reverse=true) %}
+
+          {% if sensor.state not in ['unknown', 'unavailable'] %}
+
+          | {{ sensor.attributes.service_name or sensor.name | replace('cost
+          service ', '') | title }} | ${{ sensor.state }} | {{
+          sensor.attributes.percentage or 0 }}% |
+
+          {% endif %}
+
+          {% endfor %}
+
+          {% else %}
+
+          _Cost breakdown will appear after 24 hours_
+
+          {% endif %}
+      - type: markdown
+        content: >
+          # 🌍 Resources by Region
+
+
+          {% set regions = state_attr('sensor.aws_live_global_summary',
+          'regions') %}
+
+          {% if regions %}
+
+          {% for region, data in regions.items() | sort(attribute='1.total',
+          reverse=true) %}
+
+          {% if data.total > 0 %}
+
+          ### {{ region | upper | replace('-', ' ') | replace('_', ' ') }}
+
+          **Total:** {{ data.total }} resources
+
+          - EC2: {{ data.ec2_running }} running
+
+          - Lambda: {{ data.lambda_functions }} functions
+
+          - RDS: {{ data.rds_instances }} databases
+
+          {% endif %}
+
+          {% endfor %}
+
+          {% else %}
+
+          _No active regions_
+
+          {% endif %}
+      - type: markdown
+        content: >
+          # 📍 Regional Details
+
+
+          {% for state in states.sensor %}
+
+          {% if 'aws_live' in state.entity_id and
+          state.entity_id.endswith('_summary') and 'global' not in
+          state.entity_id %}
+
+          {% if states(state.entity_id) not in ['unknown', 'unavailable'] and
+          states(state.entity_id) | int(0) > 0 %}
+
+          {% set region = state.attributes.region %}
+
+          {% set region_name = region | upper | replace('-', ' ') %}
+
+          {% set flag_map = {
+            'us-east-1': '🇺🇸', 'us-east-2': '🇺🇸', 'us-west-1': '🇺🇸', 'us-west-2': '🇺🇸',
+            'eu-west-1': '🇮🇪', 'eu-west-2': '🇬🇧', 'eu-west-3': '🇫🇷', 
+            'eu-central-1': '🇩🇪', 'eu-north-1': '🇸🇪', 'eu-south-1': '🇮🇹',
+            'ap-south-1': '🇮🇳', 'ap-northeast-1': '🇯🇵', 'ap-northeast-2': '🇰🇷', 
+            'ap-northeast-3': '🇯🇵', 'ap-southeast-1': '🇸🇬', 'ap-southeast-2': '🇦🇺',
+            'ca-central-1': '🇨🇦', 'sa-east-1': '🇧🇷'
+          } %}
+
+          {% set flag = flag_map.get(region, '🌍') %}
+
+
+          ### {{ flag }} {{ region_name }}
+
+          **Total Resources:** {{ states(state.entity_id) }}
+
+
+          | Resource | Count |
+
+          |----------|-------|
+
+          | 🟢 EC2 Running | {{ state.attributes.ec2_running or 0 }} |
+
+          | 🔴 EC2 Stopped | {{ state.attributes.ec2_stopped or 0 }} |
+
+          | ⚡ Lambda Functions | {{ state.attributes.lambda_functions or 0 }} |
+
+          | 🗄️ RDS Databases | {{ state.attributes.rds_instances or 0 }} |
+
+          | 🌐 Load Balancers | {{ state.attributes.load_balancers or 0 }} |
+
+          | 📈 Auto Scaling Groups | {{ state.attributes.auto_scaling_groups or
+          0 }} |
+
+
+          ---
+
+          {% endif %}
+
+          {% endif %}
+
+          {% endfor %}
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Refresh AWS Data
+            icon: mdi:refresh
+            tap_action:
+              action: call-service
+              service: aws.refresh_account
+              service_data:
+                account_name: live
+          - type: button
+            name: AWS Console
+            icon: mdi:aws
+            tap_action:
+              action: url
+              url_path: https://console.aws.amazon.com/
+      - type: markdown
+        content: |
+          ### 💡 Dashboard Info
+
+          **Cost Data**: Updates once per day (24hr delay for new accounts)
+
+          **Resource Counts**: Updates every 5 minutes
+
+          **Dynamic Regions**: Only shows regions with resources
+
+          **Set up cost alerts:**
+          ```yaml
+          automation:
+            trigger:
+              platform: numeric_state
+              entity_id: sensor.aws_live_cost_yesterday
+              above: 100
+            action:
+              service: notify.mobile_app
+              data:
+                message: "AWS cost: ${{ states('sensor.aws_live_cost_yesterday') }}"
+          ```
+

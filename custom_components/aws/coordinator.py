@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .aws_client import AwsClient
+from .const import slugify_service_name
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class AwsBaseCoordinator(DataUpdateCoordinator):
 
 
 class AwsCostCoordinator(AwsBaseCoordinator):
-    """Coordinator for AWS cost data."""
+    """Coordinator for Cost Explorer data."""
 
     def __init__(
         self,
@@ -66,37 +67,78 @@ class AwsCostCoordinator(AwsBaseCoordinator):
 
     async def _fetch_data(self) -> dict[str, Any]:
         """Fetch cost data."""
-        if self.region != "us-east-1":
-            return {"message": "Cost data only available in us-east-1"}
-
         return await self.hass.async_add_executor_job(self._fetch_cost_data_sync)
 
     def _fetch_cost_data_sync(self) -> dict[str, Any]:
         """Sync method to fetch cost data."""
         try:
-            ce_client = self.aws_client.get_cost_explorer_client()
+            from datetime import date
 
-            today = datetime.now().date()
+            ce_client = self.aws_client.get_ce_client()
+
+            # Get yesterday's cost
+            today = date.today()
             yesterday = today - timedelta(days=1)
-            start_of_month = today.replace(day=1)
-
             response_yesterday = ce_client.get_cost_and_usage(
-                TimePeriod={"Start": str(yesterday), "End": str(today)},
+                TimePeriod={
+                    "Start": yesterday.isoformat(),
+                    "End": today.isoformat(),
+                },
                 Granularity="DAILY",
                 Metrics=["UnblendedCost"],
                 GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
             )
 
+            # Get month-to-date cost
+            month_start = date(today.year, today.month, 1)
             response_mtd = ce_client.get_cost_and_usage(
-                TimePeriod={"Start": str(start_of_month), "End": str(today)},
+                TimePeriod={
+                    "Start": month_start.isoformat(),
+                    "End": today.isoformat(),
+                },
                 Granularity="MONTHLY",
                 Metrics=["UnblendedCost"],
-                GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
             )
+
+            # Parse service costs for individual sensors
+            service_costs = {}
+            results_yesterday = response_yesterday.get("ResultsByTime", [])
+            if results_yesterday and "Groups" in results_yesterday[0]:
+                rank = 1
+                total_cost = 0
+                
+                # First pass: calculate total for percentages
+                for group in results_yesterday[0]["Groups"]:
+                    amount = float(group["Metrics"]["UnblendedCost"]["Amount"])
+                    total_cost += amount
+                
+                # Second pass: create service entries
+                for group in results_yesterday[0]["Groups"]:
+                    service_name = group["Keys"][0]
+                    amount = float(group["Metrics"]["UnblendedCost"]["Amount"])
+                    if amount > 0:
+                        service_slug = slugify_service_name(service_name)
+                        percentage = (amount / total_cost * 100) if total_cost > 0 else 0
+                        service_costs[service_slug] = {
+                            "amount": round(amount, 2),
+                            "name": service_name,
+                            "rank": rank,
+                            "percentage": round(percentage, 1),
+                        }
+                        rank += 1
+
+            # Sort by amount and take top 10
+            sorted_services = sorted(
+                service_costs.items(),
+                key=lambda x: x[1]["amount"],
+                reverse=True
+            )[:10]
+            service_costs = dict(sorted_services)
 
             return {
                 "cost_yesterday": response_yesterday,
                 "cost_mtd": response_mtd,
+                "service_costs": service_costs,
                 "last_update": datetime.now().isoformat(),
             }
 
@@ -191,7 +233,6 @@ class AwsRdsCoordinator(AwsBaseCoordinator):
                     "instance_class": db_instance["DBInstanceClass"],
                     "allocated_storage": db_instance["AllocatedStorage"],
                     "multi_az": db_instance.get("MultiAZ", False),
-                    "publicly_accessible": db_instance.get("PubliclyAccessible", False),
                     "endpoint": db_instance.get("Endpoint", {}).get("Address"),
                     "port": db_instance.get("Endpoint", {}).get("Port"),
                 }
@@ -230,13 +271,13 @@ class AwsLambdaCoordinator(AwsBaseCoordinator):
             for function in response.get("Functions", []):
                 function_name = function["FunctionName"]
                 functions[function_name] = {
+                    "state": function.get("State", "Active"),
                     "runtime": function.get("Runtime"),
                     "handler": function.get("Handler"),
                     "memory_size": function.get("MemorySize"),
                     "timeout": function.get("Timeout"),
-                    "last_modified": function.get("LastModified"),
                     "code_size": function.get("CodeSize"),
-                    "state": function.get("State"),
+                    "last_modified": function.get("LastModified"),
                 }
 
             return {"functions": functions, "last_update": datetime.now().isoformat()}
@@ -257,7 +298,9 @@ class AwsLoadBalancerCoordinator(AwsBaseCoordinator):
         update_interval_minutes: int,
     ) -> None:
         """Initialize coordinator."""
-        super().__init__(hass, aws_client, account_name, "LoadBalancer", update_interval_minutes)
+        super().__init__(
+            hass, aws_client, account_name, "LoadBalancer", update_interval_minutes
+        )
 
     async def _fetch_data(self) -> dict[str, Any]:
         """Fetch load balancers."""
@@ -266,27 +309,30 @@ class AwsLoadBalancerCoordinator(AwsBaseCoordinator):
     def _fetch_lb_data_sync(self) -> dict[str, Any]:
         """Sync method to fetch load balancer data."""
         try:
-            elbv2_client = self.aws_client.get_elbv2_client()
-            response = elbv2_client.describe_load_balancers()
+            elb_client = self.aws_client.get_elb_client()
+            response = elb_client.describe_load_balancers()
 
             load_balancers = {}
             for lb in response.get("LoadBalancers", []):
                 lb_name = lb["LoadBalancerName"]
                 load_balancers[lb_name] = {
-                    "type": lb["Type"],
-                    "scheme": lb["Scheme"],
-                    "state": lb["State"]["Code"],
-                    "dns_name": lb["DNSName"],
+                    "state": lb.get("State", {}).get("Code", "unknown"),
+                    "type": lb.get("Type"),
+                    "scheme": lb.get("Scheme"),
+                    "dns_name": lb.get("DNSName"),
                     "vpc_id": lb.get("VpcId"),
                     "availability_zones": [
-                        az["ZoneName"] for az in lb.get("AvailabilityZones", [])
+                        az.get("ZoneName") for az in lb.get("AvailabilityZones", [])
                     ],
                     "created_time": lb.get("CreatedTime", "").isoformat()
                     if lb.get("CreatedTime")
                     else None,
                 }
 
-            return {"load_balancers": load_balancers, "last_update": datetime.now().isoformat()}
+            return {
+                "load_balancers": load_balancers,
+                "last_update": datetime.now().isoformat(),
+            }
 
         except Exception as err:
             _LOGGER.error("Error fetching load balancer data: %s", err)
@@ -294,7 +340,7 @@ class AwsLoadBalancerCoordinator(AwsBaseCoordinator):
 
 
 class AwsAutoScalingCoordinator(AwsBaseCoordinator):
-    """Coordinator for Auto Scaling data."""
+    """Coordinator for Auto Scaling Group data."""
 
     def __init__(
         self,
@@ -304,36 +350,40 @@ class AwsAutoScalingCoordinator(AwsBaseCoordinator):
         update_interval_minutes: int,
     ) -> None:
         """Initialize coordinator."""
-        super().__init__(hass, aws_client, account_name, "AutoScaling", update_interval_minutes)
+        super().__init__(
+            hass, aws_client, account_name, "AutoScaling", update_interval_minutes
+        )
 
     async def _fetch_data(self) -> dict[str, Any]:
-        """Fetch Auto Scaling groups."""
+        """Fetch auto scaling groups."""
         return await self.hass.async_add_executor_job(self._fetch_asg_data_sync)
 
     def _fetch_asg_data_sync(self) -> dict[str, Any]:
         """Sync method to fetch ASG data."""
         try:
-            asg_client = self.aws_client.get_autoscaling_client()
+            asg_client = self.aws_client.get_asg_client()
             response = asg_client.describe_auto_scaling_groups()
 
-            groups = {}
+            auto_scaling_groups = {}
             for asg in response.get("AutoScalingGroups", []):
                 asg_name = asg["AutoScalingGroupName"]
-                groups[asg_name] = {
-                    "desired_capacity": asg["DesiredCapacity"],
-                    "min_size": asg["MinSize"],
-                    "max_size": asg["MaxSize"],
-                    "instances": len(asg.get("Instances", [])),
+                instances = asg.get("Instances", [])
+                auto_scaling_groups[asg_name] = {
+                    "instances": len(instances),
+                    "desired_capacity": asg.get("DesiredCapacity", 0),
+                    "min_size": asg.get("MinSize", 0),
+                    "max_size": asg.get("MaxSize", 0),
                     "healthy_instances": sum(
-                        1
-                        for i in asg.get("Instances", [])
-                        if i.get("HealthStatus") == "Healthy"
+                        1 for i in instances if i.get("HealthStatus") == "Healthy"
                     ),
                     "availability_zones": asg.get("AvailabilityZones", []),
                 }
 
-            return {"auto_scaling_groups": groups, "last_update": datetime.now().isoformat()}
+            return {
+                "auto_scaling_groups": auto_scaling_groups,
+                "last_update": datetime.now().isoformat(),
+            }
 
         except Exception as err:
-            _LOGGER.error("Error fetching Auto Scaling data: %s", err)
+            _LOGGER.error("Error fetching ASG data: %s", err)
             return {"auto_scaling_groups": {}}
