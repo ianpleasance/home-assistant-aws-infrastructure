@@ -5,113 +5,45 @@ views:
     icon: mdi:aws
     cards:
       - type: markdown
-        content: >
+        content: |
           # 🌍 AWS Global Overview
 
+          {% set total = states('sensor.aws_live_global_summary') | int(0) %} {%
+          set active_regions = state_attr('sensor.aws_live_global_summary',
+          'active_regions') | int(0) %} {% set ec2_running =
+          state_attr('sensor.aws_live_global_summary', 'ec2_running') | int(0)
+          %} {% set ec2_stopped = state_attr('sensor.aws_live_global_summary',
+          'ec2_stopped') | int(0) %} {% set lambda_count =
+          state_attr('sensor.aws_live_global_summary', 'lambda_functions') |
+          int(0) %} {% set rds_count =
+          state_attr('sensor.aws_live_global_summary', 'rds_instances') | int(0)
+          %} {% set lb_count = state_attr('sensor.aws_live_global_summary',
+          'load_balancers') | int(0) %} {% set asg_count =
+          state_attr('sensor.aws_live_global_summary', 'auto_scaling_groups') |
+          int(0) %}
 
-          {% set global_total = states('sensor.aws_live_global_summary') %}
-
-          {% set global_attrs = state_attr('sensor.aws_live_global_summary',
-          'active_regions') %}
-
-
-          {# Fallback: Calculate from region sensors if global is unknown #}
-
-          {% if global_total in ['unknown', 'unavailable', 'None'] or
-          global_attrs is none %}
-
-          {% set total_resources = 0 %}
-
-          {% set total_ec2_running = 0 %}
-
-          {% set total_ec2_stopped = 0 %}
-
-          {% set total_lambda = 0 %}
-
-          {% set total_rds = 0 %}
-
-          {% set total_lb = 0 %}
-
-          {% set total_asg = 0 %}
-
-          {% set active_regions = 0 %}
-
-          {% for state in states.sensor %}
-            {% if 'aws_live' in state.entity_id and state.entity_id.endswith('_summary') and 'global' not in state.entity_id %}
-              {% if states(state.entity_id) not in ['unknown', 'unavailable'] %}
-                {% set count = states(state.entity_id) | int(0) %}
-                {% if count > 0 %}
-                  {% set active_regions = active_regions + 1 %}
-                {% endif %}
-                {% set total_resources = total_resources + count %}
-                {% set total_ec2_running = total_ec2_running + (state.attributes.ec2_running or 0) %}
-                {% set total_ec2_stopped = total_ec2_stopped + (state.attributes.ec2_stopped or 0) %}
-                {% set total_lambda = total_lambda + (state.attributes.lambda_functions or 0) %}
-                {% set total_rds = total_rds + (state.attributes.rds_instances or 0) %}
-                {% set total_lb = total_lb + (state.attributes.load_balancers or 0) %}
-                {% set total_asg = total_asg + (state.attributes.auto_scaling_groups or 0) %}
-              {% endif %}
-            {% endif %}
-          {% endfor %}
-
-          **Total Resources:** {{ total_resources }}
-
+          **Total Resources:** {{ total }}
           **Active Regions:** {{ active_regions }}
 
-          {% else %}
-
-          **Total Resources:** {{ global_total }}
-
-          **Active Regions:** {{ global_attrs }}
-
-          {% set total_ec2_running =
-          state_attr('sensor.aws_live_global_summary', 'ec2_running') or 0 %}
-
-          {% set total_ec2_stopped =
-          state_attr('sensor.aws_live_global_summary', 'ec2_stopped') or 0 %}
-
-          {% set total_lambda = state_attr('sensor.aws_live_global_summary',
-          'lambda_functions') or 0 %}
-
-          {% set total_rds = state_attr('sensor.aws_live_global_summary',
-          'rds_instances') or 0 %}
-
-          {% set total_lb = state_attr('sensor.aws_live_global_summary',
-          'load_balancers') or 0 %}
-
-          {% set total_asg = state_attr('sensor.aws_live_global_summary',
-          'auto_scaling_groups') or 0 %}
-
-          {% endif %}
-
-
           ### 💻 Compute
-
-          - **EC2 Running:** {{ total_ec2_running }}
-
-          - EC2 Stopped: {{ total_ec2_stopped }}
-
-          - **Lambda Functions:** {{ total_lambda }}
-
+          - **EC2 Running:** {{ ec2_running }}
+          - EC2 Stopped: {{ ec2_stopped }}
+          - **Lambda Functions:** {{ lambda_count }}
 
           ### 🗄️ Data & Storage
-
-          - **RDS Databases:** {{ total_rds }}
-
+          - **RDS Databases:** {{ rds_count }}
 
           ### 🌐 Networking
-
-          - **Load Balancers:** {{ total_lb }}
-
-          - Auto Scaling Groups: {{ total_asg }}
+          - **Load Balancers:** {{ lb_count }}
+          - Auto Scaling Groups: {{ asg_count }}
       - type: markdown
         content: >
           ## 💰 Current AWS Costs
 
 
-          {% set yesterday = states('sensor.aws_live_cost_yesterday') %}
+          {% set yesterday = states('sensor.aws_live_global_cost_yesterday') %}
 
-          {% set mtd = states('sensor.aws_live_cost_month_to_date') %}
+          {% set mtd = states('sensor.aws_live_global_cost_month_to_date') %}
 
 
           {% if yesterday in ['unknown', 'unavailable'] or mtd in ['unknown',
@@ -172,7 +104,7 @@ views:
 
 
           {% set service_sensors = states.sensor | selectattr('entity_id',
-          'search', 'sensor.aws_live_cost_service_') | list %}
+          'search', 'sensor.aws_live_global_cost_service_') | list %}
 
           {% if service_sensors | length > 0 %}
 
@@ -299,7 +231,7 @@ views:
             icon: mdi:refresh
             tap_action:
               action: call-service
-              service: aws.refresh_account
+              service: aws_infrastructure.refresh_account
               service_data:
                 account_name: live
           - type: button
@@ -328,6 +260,5 @@ views:
             action:
               service: notify.mobile_app
               data:
-                message: "AWS cost: ${{ states('sensor.aws_live_cost_yesterday') }}"
+                message: "AWS cost yesterday exceeded expected budget"
           ```
-

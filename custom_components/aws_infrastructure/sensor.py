@@ -428,9 +428,12 @@ class AwsCostYesterdaySensor(CoordinatorEntity, SensorEntity):
             return None
 
         results = self.coordinator.data["cost_yesterday"].get("ResultsByTime", [])
-        if results:
-            amount = results[0]["Total"]["UnblendedCost"]["Amount"]
-            return round(float(amount), 2)
+        if results and len(results) > 0:
+            try:
+                amount = results[0]["Total"]["UnblendedCost"]["Amount"]
+                return round(float(amount), 2)
+            except (KeyError, ValueError, TypeError):
+                return None
         return None
 
     @property
@@ -481,9 +484,12 @@ class AwsCostMonthToDateSensor(CoordinatorEntity, SensorEntity):
             return None
 
         results = self.coordinator.data["cost_mtd"].get("ResultsByTime", [])
-        if results:
-            amount = results[0]["Total"]["UnblendedCost"]["Amount"]
-            return round(float(amount), 2)
+        if results and len(results) > 0:
+            try:
+                amount = results[0]["Total"]["UnblendedCost"]["Amount"]
+                return round(float(amount), 2)
+            except (KeyError, ValueError, TypeError):
+                return None
         return None
 
     @property
@@ -571,6 +577,9 @@ class AwsCostTodaySensor(CoordinatorEntity, SensorEntity):
     _attr_attribution = ATTRIBUTION
     _attr_has_entity_name = True
     _attr_icon = "mdi:cash"
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_native_unit_of_measurement = "USD"
 
     def __init__(
         self,
@@ -602,9 +611,12 @@ class AwsCostTodaySensor(CoordinatorEntity, SensorEntity):
             return None
 
         results = self.coordinator.data["cost_yesterday"].get("ResultsByTime", [])
-        if results:
-            amount = results[0]["Total"]["UnblendedCost"]["Amount"]
-            return round(float(amount), 2)
+        if results and len(results) > 0:
+            try:
+                amount = results[0]["Total"]["UnblendedCost"]["Amount"]
+                return round(float(amount), 2)
+            except (KeyError, ValueError, TypeError):
+                return None
         return None
 
     @property
@@ -638,6 +650,9 @@ class AwsCostMtdSensor(CoordinatorEntity, SensorEntity):
     _attr_attribution = ATTRIBUTION
     _attr_has_entity_name = True
     _attr_icon = "mdi:calendar-cash"
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_native_unit_of_measurement = "USD"
 
     def __init__(
         self,
@@ -669,9 +684,12 @@ class AwsCostMtdSensor(CoordinatorEntity, SensorEntity):
             return None
 
         results = self.coordinator.data["cost_mtd"].get("ResultsByTime", [])
-        if results:
-            amount = results[0]["Total"]["UnblendedCost"]["Amount"]
-            return round(float(amount), 2)
+        if results and len(results) > 0:
+            try:
+                amount = results[0]["Total"]["UnblendedCost"]["Amount"]
+                return round(float(amount), 2)
+            except (KeyError, ValueError, TypeError):
+                return None
         return None
 
     @property

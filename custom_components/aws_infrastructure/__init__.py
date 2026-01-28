@@ -11,6 +11,7 @@ import voluptuous as vol
 
 from .aws_client import AwsClient
 from .const import (
+    AWS_REGIONS,
     CONF_ACCOUNT_NAME,
     CONF_AWS_ACCESS_KEY_ID,
     CONF_AWS_SECRET_ACCESS_KEY,
@@ -101,8 +102,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass, aws_client, account_name, refresh_interval
         )
 
+        # Skip initial refresh if requested (faster startup)
+        # Data will be fetched on first scheduled update
+        skip_initial_refresh = entry.options.get("skip_initial_refresh", False)
+        
         for coordinator in coordinators.values():
-            await coordinator.async_config_entry_first_refresh()
+            if skip_initial_refresh:
+                # Schedule first refresh without blocking startup
+                await coordinator.async_refresh()
+            else:
+                # Traditional blocking refresh (ensures data on startup)
+                await coordinator.async_config_entry_first_refresh()
 
         all_coordinators[region] = coordinators
 
@@ -125,6 +135,56 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle options update."""
+    # Get old regions from options (stored before update)
+    old_region_mode = entry.options.get("_old_region_mode", REGION_MODE_ALL)
+    old_regions = entry.options.get("_old_regions", [])
+    
+    # Get new regions from updated entry data
+    new_regions = entry.data.get(CONF_REGIONS, [])
+    new_region_mode = entry.data.get(CONF_REGION_MODE, REGION_MODE_ALL)
+    
+    # Determine which regions to keep
+    if old_region_mode == REGION_MODE_ALL:
+        old_active_regions = set(AWS_REGIONS)
+    else:
+        old_active_regions = set(old_regions)
+    
+    if new_region_mode == REGION_MODE_ALL:
+        new_active_regions = set(AWS_REGIONS)
+    else:
+        new_active_regions = set(new_regions)
+    
+    # Find removed regions
+    removed_regions = old_active_regions - new_active_regions
+    
+    # Clean up entities from removed regions
+    if removed_regions:
+        from homeassistant.helpers import entity_registry as er
+        entity_reg = er.async_get(hass)
+        account_name = entry.data[CONF_ACCOUNT_NAME].lower()
+        
+        _LOGGER.info(f"Removing entities for deselected regions: {removed_regions}")
+        
+        # Find entities that belong to removed regions
+        entities_to_remove = []
+        for entity_entry in entity_reg.entities.values():
+            if entity_entry.config_entry_id == entry.entry_id:
+                # Check if entity belongs to a removed region
+                for region in removed_regions:
+                    region_normalized = region.replace("-", "_")
+                    # Match pattern: aws_{account}_{region}_
+                    if f"_{region_normalized}_" in entity_entry.entity_id:
+                        entities_to_remove.append(entity_entry.entity_id)
+                        break
+        
+        # Remove entities
+        for entity_id in entities_to_remove:
+            entity_reg.async_remove(entity_id)
+            _LOGGER.info(f"Removed entity {entity_id}")
+        
+        _LOGGER.info(f"Cleanup complete: removed {len(entities_to_remove)} entities")
+    
+    # Reload the integration to apply changes
     await hass.config_entries.async_reload(entry.entry_id)
 
 

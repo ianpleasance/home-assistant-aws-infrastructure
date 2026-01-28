@@ -1,6 +1,6 @@
 """Constants for the AWS Infrastructure integration."""
 
-DOMAIN = "aws"
+DOMAIN = "aws_infrastructure"
 PLATFORMS = ["sensor", "binary_sensor"]
 
 # Service names
@@ -15,6 +15,8 @@ CONF_REGION_MODE = "region_mode"
 CONF_REGIONS = "regions"
 CONF_REFRESH_INTERVAL = "refresh_interval_minutes"
 CONF_CREATE_INDIVIDUAL_COUNT_SENSORS = "create_individual_count_sensors"
+CONF_SKIP_INITIAL_REFRESH = "skip_initial_refresh"
+
 
 # Region mode options
 REGION_MODE_ALL = "all"
@@ -23,6 +25,8 @@ REGION_MODE_SELECT = "select"
 # Default values
 DEFAULT_REFRESH_INTERVAL = 5
 DEFAULT_CREATE_INDIVIDUAL_COUNT_SENSORS = False
+DEFAULT_SKIP_INITIAL_REFRESH = False
+
 MIN_REFRESH_INTERVAL = 1
 MAX_REFRESH_INTERVAL = 1440
 
@@ -105,3 +109,4 @@ def slugify_service_name(service_name: str) -> str:
     slug = slug.split(" - ")[0]  # Take first part before dash
     slug = "".join(c for c in slug if c.isalnum())
     return slug[:20]  # Limit length
+

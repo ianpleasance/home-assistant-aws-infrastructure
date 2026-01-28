@@ -74,7 +74,7 @@ class AwsCostCoordinator(AwsBaseCoordinator):
         try:
             from datetime import date
 
-            ce_client = self.aws_client.get_ce_client()
+            ce_client = self.aws_client.get_cost_explorer_client()
 
             # Get yesterday's cost
             today = date.today()
@@ -361,7 +361,7 @@ class AwsAutoScalingCoordinator(AwsBaseCoordinator):
     def _fetch_asg_data_sync(self) -> dict[str, Any]:
         """Sync method to fetch ASG data."""
         try:
-            asg_client = self.aws_client.get_asg_client()
+            asg_client = self.aws_client.get_autoscaling_client()
             response = asg_client.describe_auto_scaling_groups()
 
             auto_scaling_groups = {}

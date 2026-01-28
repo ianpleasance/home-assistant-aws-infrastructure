@@ -1,0 +1,66 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AWS Infrastructure Monitor",
+        "description": "Configure your AWS account for monitoring",
+        "data": {
+          "account_name": "Account Name",
+          "aws_access_key_id": "AWS Access Key ID",
+          "aws_secret_access_key": "AWS Secret Access Key",
+          "region_mode": "Region Mode",
+          "refresh_interval_minutes": "Refresh Interval (minutes)",
+          "create_individual_count_sensors": "Create individual count sensors"
+        },
+        "data_description": {
+          "account_name": "A friendly name for this AWS account",
+          "refresh_interval_minutes": "How often to poll AWS APIs (5-60 minutes)",
+          "create_individual_count_sensors": "Enables history graphs for resource counts (uses more sensors)"
+        }
+      },
+      "regions": {
+        "title": "Select AWS Regions",
+        "description": "Choose which regions to monitor",
+        "data": {
+          "regions": "Regions to Monitor"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid AWS credentials. Please check your Access Key ID and Secret Access Key."
+    },
+    "abort": {
+      "already_configured": "This AWS account is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AWS Infrastructure Options",
+        "description": "Configure integration settings",
+        "data": {
+          "refresh_interval_minutes": "Refresh Interval (minutes)",
+          "region_mode": "Region Mode",
+          "create_individual_count_sensors": "Create individual count sensors",
+          "skip_initial_refresh": "Skip initial refresh on startup"
+        },
+        "data_description": {
+          "refresh_interval_minutes": "How often to poll AWS APIs (5-60 minutes)",
+          "region_mode": "Choose whether to monitor all regions or select specific ones",
+          "create_individual_count_sensors": "Enables history graphs for resource counts (uses more sensors)",
+          "skip_initial_refresh": "Speeds up Home Assistant startup (data appears after first refresh cycle)"
+        }
+      },
+      "select_regions": {
+        "title": "Select AWS Regions",
+        "description": "Choose which regions to monitor",
+        "data": {
+          "regions": "Regions to Monitor"
+        },
+        "data_description": {
+          "regions": "Select one or more AWS regions. Deselect all to monitor no regions."
+        }
+      }
+    }
+  }
+}
