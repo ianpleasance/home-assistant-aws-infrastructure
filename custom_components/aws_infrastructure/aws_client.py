@@ -59,6 +59,34 @@ class AwsClient:
         """Get CloudWatch client."""
         return self._session.client("cloudwatch")
 
+    def get_dynamodb_client(self):
+        """Get DynamoDB client."""
+        return self._session.client("dynamodb")
+
+    def get_elasticache_client(self):
+        """Get ElastiCache client."""
+        return self._session.client("elasticache")
+
+    def get_ecs_client(self):
+        """Get ECS client."""
+        return self._session.client("ecs")
+
+    def get_eks_client(self):
+        """Get EKS client."""
+        return self._session.client("eks")
+
+    def get_sns_client(self):
+        """Get SNS client."""
+        return self._session.client("sns")
+
+    def get_sqs_client(self):
+        """Get SQS client."""
+        return self._session.client("sqs")
+
+    def get_s3_client(self):
+        """Get S3 client."""
+        return self._session.client("s3")
+
     @property
     def region(self) -> str:
         """Return the region."""

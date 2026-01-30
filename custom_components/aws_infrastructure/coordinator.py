@@ -1,7 +1,7 @@
 """Coordinators for AWS Infrastructure integration."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 import logging
 from typing import Any
 
@@ -9,7 +9,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .aws_client import AwsClient
-from .const import slugify_service_name
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,7 +29,6 @@ class AwsBaseCoordinator(DataUpdateCoordinator):
         self.account_name = account_name
         self.service_name = service_name
         self.region = aws_client.region
-
         super().__init__(
             hass,
             _LOGGER,
@@ -41,349 +39,756 @@ class AwsBaseCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from API."""
         try:
-            return await self._fetch_data()
+            # Run the synchronous _fetch_data in executor
+            return await self.hass.async_add_executor_job(self._fetch_data)
         except Exception as err:
             raise UpdateFailed(
                 f"Error fetching {self.service_name} data: {err}"
             ) from err
 
-    async def _fetch_data(self) -> dict[str, Any]:
-        """Override this in subclasses."""
+    def _fetch_data(self) -> dict[str, Any]:
+        """Override this in subclasses - runs in executor."""
         raise NotImplementedError
 
 
 class AwsCostCoordinator(AwsBaseCoordinator):
-    """Coordinator for Cost Explorer data."""
+    """Coordinator for AWS Cost Explorer data."""
 
     def __init__(
-        self,
-        hass: HomeAssistant,
-        aws_client: AwsClient,
-        account_name: str,
-        update_interval_minutes: int,
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
     ) -> None:
-        """Initialize coordinator."""
-        super().__init__(hass, aws_client, account_name, "Cost", update_interval_minutes)
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"Cost Explorer ({aws_client.region})",
+            refresh_interval,
+        )
 
-    async def _fetch_data(self) -> dict[str, Any]:
+    def _fetch_data(self) -> dict:
         """Fetch cost data."""
-        return await self.hass.async_add_executor_job(self._fetch_cost_data_sync)
+        from datetime import datetime, timezone
 
-    def _fetch_cost_data_sync(self) -> dict[str, Any]:
-        """Sync method to fetch cost data."""
         try:
-            from datetime import date
-
             ce_client = self.aws_client.get_cost_explorer_client()
-
-            # Get yesterday's cost
-            today = date.today()
-            yesterday = today - timedelta(days=1)
-            response_yesterday = ce_client.get_cost_and_usage(
-                TimePeriod={
-                    "Start": yesterday.isoformat(),
-                    "End": today.isoformat(),
-                },
+            
+            # Get current date
+            now = datetime.now(timezone.utc)
+            
+            # Yesterday's cost
+            yesterday_start = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+            yesterday_end = now.strftime("%Y-%m-%d")
+            
+            cost_yesterday = ce_client.get_cost_and_usage(
+                TimePeriod={"Start": yesterday_start, "End": yesterday_end},
                 Granularity="DAILY",
                 Metrics=["UnblendedCost"],
                 GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
             )
-
-            # Get month-to-date cost
-            month_start = date(today.year, today.month, 1)
-            response_mtd = ce_client.get_cost_and_usage(
-                TimePeriod={
-                    "Start": month_start.isoformat(),
-                    "End": today.isoformat(),
-                },
+            
+            # Month-to-date cost
+            month_start = now.replace(day=1).strftime("%Y-%m-%d")
+            today = now.strftime("%Y-%m-%d")
+            
+            cost_mtd = ce_client.get_cost_and_usage(
+                TimePeriod={"Start": month_start, "End": today},
                 Granularity="MONTHLY",
                 Metrics=["UnblendedCost"],
+                GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
             )
-
-            # Parse service costs for individual sensors
+            
+            # Process service costs for yesterday
             service_costs = {}
-            results_yesterday = response_yesterday.get("ResultsByTime", [])
-            if results_yesterday and "Groups" in results_yesterday[0]:
-                rank = 1
-                total_cost = 0
+            if cost_yesterday.get("ResultsByTime"):
+                groups = cost_yesterday["ResultsByTime"][0].get("Groups", [])
+                # Sort by cost descending
+                sorted_groups = sorted(
+                    groups,
+                    key=lambda x: float(x["Metrics"]["UnblendedCost"]["Amount"]),
+                    reverse=True,
+                )
                 
-                # First pass: calculate total for percentages
-                for group in results_yesterday[0]["Groups"]:
-                    amount = float(group["Metrics"]["UnblendedCost"]["Amount"])
-                    total_cost += amount
+                # Get top 10 services
+                total_cost = sum(
+                    float(g["Metrics"]["UnblendedCost"]["Amount"]) for g in groups
+                )
                 
-                # Second pass: create service entries
-                for group in results_yesterday[0]["Groups"]:
+                for idx, group in enumerate(sorted_groups[:10], 1):
                     service_name = group["Keys"][0]
                     amount = float(group["Metrics"]["UnblendedCost"]["Amount"])
-                    if amount > 0:
-                        service_slug = slugify_service_name(service_name)
-                        percentage = (amount / total_cost * 100) if total_cost > 0 else 0
-                        service_costs[service_slug] = {
-                            "amount": round(amount, 2),
-                            "name": service_name,
-                            "rank": rank,
-                            "percentage": round(percentage, 1),
-                        }
-                        rank += 1
-
-            # Sort by amount and take top 10
-            sorted_services = sorted(
-                service_costs.items(),
-                key=lambda x: x[1]["amount"],
-                reverse=True
-            )[:10]
-            service_costs = dict(sorted_services)
-
+                    percentage = (amount / total_cost * 100) if total_cost > 0 else 0
+                    
+                    # Create a slug for the service
+                    service_slug = service_name.lower().replace(" ", "").replace("-", "")
+                    
+                    service_costs[service_slug] = {
+                        "name": service_name,
+                        "amount": amount,
+                        "rank": idx,
+                        "percentage": round(percentage, 2),
+                    }
+            
             return {
-                "cost_yesterday": response_yesterday,
-                "cost_mtd": response_mtd,
+                "cost_yesterday": cost_yesterday,
+                "cost_mtd": cost_mtd,
                 "service_costs": service_costs,
-                "last_update": datetime.now().isoformat(),
             }
-
         except Exception as err:
-            _LOGGER.error("Error fetching cost data: %s", err)
-            return {}
+            _LOGGER.error(f"Error fetching cost data: {err}")
+            return {"cost_yesterday": {}, "cost_mtd": {}, "service_costs": {}}
 
 
 class AwsEc2Coordinator(AwsBaseCoordinator):
     """Coordinator for EC2 data."""
 
     def __init__(
-        self,
-        hass: HomeAssistant,
-        aws_client: AwsClient,
-        account_name: str,
-        update_interval_minutes: int,
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
     ) -> None:
-        """Initialize coordinator."""
-        super().__init__(hass, aws_client, account_name, "EC2", update_interval_minutes)
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"EC2 ({aws_client.region})",
+            refresh_interval,
+        )
 
-    async def _fetch_data(self) -> dict[str, Any]:
-        """Fetch EC2 instances."""
-        return await self.hass.async_add_executor_job(self._fetch_ec2_data_sync)
-
-    def _fetch_ec2_data_sync(self) -> dict[str, Any]:
-        """Sync method to fetch EC2 data."""
+    def _fetch_data(self) -> dict:
+        """Fetch EC2 data."""
         try:
             ec2_client = self.aws_client.get_ec2_client()
             response = ec2_client.describe_instances()
-
-            instances = {}
+            
+            instances = []
             for reservation in response.get("Reservations", []):
                 for instance in reservation.get("Instances", []):
-                    instance_id = instance["InstanceId"]
-                    instances[instance_id] = {
-                        "state": instance["State"]["Name"],
-                        "instance_type": instance["InstanceType"],
-                        "launch_time": instance.get("LaunchTime", "").isoformat()
-                        if instance.get("LaunchTime")
-                        else None,
-                        "private_ip": instance.get("PrivateIpAddress"),
-                        "public_ip": instance.get("PublicIpAddress"),
-                        "tags": {
-                            tag["Key"]: tag["Value"]
-                            for tag in instance.get("Tags", [])
-                        },
-                        "volumes": [
-                            {"device": bdm["DeviceName"], "volume_id": bdm["Ebs"]["VolumeId"]}
-                            for bdm in instance.get("BlockDeviceMappings", [])
-                            if "Ebs" in bdm
-                        ],
-                    }
-
-            return {"instances": instances, "last_update": datetime.now().isoformat()}
-
+                    # Get Name tag
+                    tags = {tag["Key"]: tag["Value"] for tag in instance.get("Tags", [])}
+                    
+                    instances.append({
+                        "instance_id": instance.get("InstanceId"),
+                        "instance_type": instance.get("InstanceType"),
+                        "state": instance.get("State", {}).get("Name"),
+                        "launch_time": str(instance.get("LaunchTime", "")),
+                        "tags": tags,
+                    })
+            
+            return {"instances": instances}
         except Exception as err:
-            _LOGGER.error("Error fetching EC2 data: %s", err)
-            return {"instances": {}}
+            _LOGGER.error(f"Error fetching EC2 data: {err}")
+            return {"instances": []}
 
 
 class AwsRdsCoordinator(AwsBaseCoordinator):
     """Coordinator for RDS data."""
 
     def __init__(
-        self,
-        hass: HomeAssistant,
-        aws_client: AwsClient,
-        account_name: str,
-        update_interval_minutes: int,
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
     ) -> None:
-        """Initialize coordinator."""
-        super().__init__(hass, aws_client, account_name, "RDS", update_interval_minutes)
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"RDS ({aws_client.region})",
+            refresh_interval,
+        )
 
-    async def _fetch_data(self) -> dict[str, Any]:
-        """Fetch RDS instances."""
-        return await self.hass.async_add_executor_job(self._fetch_rds_data_sync)
-
-    def _fetch_rds_data_sync(self) -> dict[str, Any]:
-        """Sync method to fetch RDS data."""
+    def _fetch_data(self) -> dict:
+        """Fetch RDS data."""
         try:
             rds_client = self.aws_client.get_rds_client()
             response = rds_client.describe_db_instances()
-
-            instances = {}
-            for db_instance in response.get("DBInstances", []):
-                db_id = db_instance["DBInstanceIdentifier"]
-                instances[db_id] = {
-                    "status": db_instance["DBInstanceStatus"],
-                    "engine": db_instance["Engine"],
-                    "engine_version": db_instance["EngineVersion"],
-                    "instance_class": db_instance["DBInstanceClass"],
-                    "allocated_storage": db_instance["AllocatedStorage"],
-                    "multi_az": db_instance.get("MultiAZ", False),
-                    "endpoint": db_instance.get("Endpoint", {}).get("Address"),
-                    "port": db_instance.get("Endpoint", {}).get("Port"),
-                }
-
-            return {"instances": instances, "last_update": datetime.now().isoformat()}
-
+            
+            instances = []
+            for db in response.get("DBInstances", []):
+                instances.append({
+                    "db_instance_identifier": db.get("DBInstanceIdentifier"),
+                    "db_instance_class": db.get("DBInstanceClass"),
+                    "engine": db.get("Engine"),
+                    "engine_version": db.get("EngineVersion"),
+                    "status": db.get("DBInstanceStatus"),
+                    "allocated_storage": db.get("AllocatedStorage"),
+                })
+            
+            return {"instances": instances}
         except Exception as err:
-            _LOGGER.error("Error fetching RDS data: %s", err)
-            return {"instances": {}}
+            _LOGGER.error(f"Error fetching RDS data: {err}")
+            return {"instances": []}
 
 
 class AwsLambdaCoordinator(AwsBaseCoordinator):
     """Coordinator for Lambda data."""
 
     def __init__(
-        self,
-        hass: HomeAssistant,
-        aws_client: AwsClient,
-        account_name: str,
-        update_interval_minutes: int,
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
     ) -> None:
-        """Initialize coordinator."""
-        super().__init__(hass, aws_client, account_name, "Lambda", update_interval_minutes)
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"Lambda ({aws_client.region})",
+            refresh_interval,
+        )
 
-    async def _fetch_data(self) -> dict[str, Any]:
-        """Fetch Lambda functions."""
-        return await self.hass.async_add_executor_job(self._fetch_lambda_data_sync)
-
-    def _fetch_lambda_data_sync(self) -> dict[str, Any]:
-        """Sync method to fetch Lambda data."""
+    def _fetch_data(self) -> dict:
+        """Fetch Lambda data."""
         try:
             lambda_client = self.aws_client.get_lambda_client()
-            response = lambda_client.list_functions()
-
-            functions = {}
-            for function in response.get("Functions", []):
-                function_name = function["FunctionName"]
-                functions[function_name] = {
-                    "state": function.get("State", "Active"),
-                    "runtime": function.get("Runtime"),
-                    "handler": function.get("Handler"),
-                    "memory_size": function.get("MemorySize"),
-                    "timeout": function.get("Timeout"),
-                    "code_size": function.get("CodeSize"),
-                    "last_modified": function.get("LastModified"),
-                }
-
-            return {"functions": functions, "last_update": datetime.now().isoformat()}
-
+            
+            functions = []
+            paginator = lambda_client.get_paginator('list_functions')
+            for page in paginator.paginate():
+                for func in page.get("Functions", []):
+                    functions.append({
+                        "function_name": func.get("FunctionName"),
+                        "runtime": func.get("Runtime"),
+                        "memory_size": func.get("MemorySize"),
+                        "timeout": func.get("Timeout"),
+                        "code_size": func.get("CodeSize"),
+                        "last_modified": func.get("LastModified"),
+                    })
+            
+            return {"functions": functions}
         except Exception as err:
-            _LOGGER.error("Error fetching Lambda data: %s", err)
-            return {"functions": {}}
+            _LOGGER.error(f"Error fetching Lambda data: {err}")
+            return {"functions": []}
 
 
 class AwsLoadBalancerCoordinator(AwsBaseCoordinator):
     """Coordinator for Load Balancer data."""
 
     def __init__(
-        self,
-        hass: HomeAssistant,
-        aws_client: AwsClient,
-        account_name: str,
-        update_interval_minutes: int,
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
     ) -> None:
-        """Initialize coordinator."""
+        """Initialize the coordinator."""
         super().__init__(
-            hass, aws_client, account_name, "LoadBalancer", update_interval_minutes
+            hass,
+            aws_client,
+            account_name,
+            f"Load Balancers ({aws_client.region})",
+            refresh_interval,
         )
 
-    async def _fetch_data(self) -> dict[str, Any]:
-        """Fetch load balancers."""
-        return await self.hass.async_add_executor_job(self._fetch_lb_data_sync)
-
-    def _fetch_lb_data_sync(self) -> dict[str, Any]:
-        """Sync method to fetch load balancer data."""
+    def _fetch_data(self) -> dict:
+        """Fetch Load Balancer data."""
         try:
-            elb_client = self.aws_client.get_elb_client()
-            response = elb_client.describe_load_balancers()
-
-            load_balancers = {}
-            for lb in response.get("LoadBalancers", []):
-                lb_name = lb["LoadBalancerName"]
-                load_balancers[lb_name] = {
-                    "state": lb.get("State", {}).get("Code", "unknown"),
-                    "type": lb.get("Type"),
-                    "scheme": lb.get("Scheme"),
-                    "dns_name": lb.get("DNSName"),
-                    "vpc_id": lb.get("VpcId"),
-                    "availability_zones": [
-                        az.get("ZoneName") for az in lb.get("AvailabilityZones", [])
-                    ],
-                    "created_time": lb.get("CreatedTime", "").isoformat()
-                    if lb.get("CreatedTime")
-                    else None,
-                }
-
-            return {
-                "load_balancers": load_balancers,
-                "last_update": datetime.now().isoformat(),
-            }
-
+            elbv2_client = self.aws_client.get_elbv2_client()
+            
+            load_balancers = []
+            paginator = elbv2_client.get_paginator('describe_load_balancers')
+            for page in paginator.paginate():
+                for lb in page.get("LoadBalancers", []):
+                    load_balancers.append({
+                        "name": lb.get("LoadBalancerName"),
+                        "dns_name": lb.get("DNSName"),
+                        "type": lb.get("Type"),
+                        "scheme": lb.get("Scheme"),
+                        "state": lb.get("State", {}).get("Code"),
+                        "vpc_id": lb.get("VpcId"),
+                    })
+            
+            return {"load_balancers": load_balancers}
         except Exception as err:
-            _LOGGER.error("Error fetching load balancer data: %s", err)
-            return {"load_balancers": {}}
+            _LOGGER.error(f"Error fetching Load Balancer data: {err}")
+            return {"load_balancers": []}
 
 
 class AwsAutoScalingCoordinator(AwsBaseCoordinator):
-    """Coordinator for Auto Scaling Group data."""
+    """Coordinator for Auto Scaling data."""
 
     def __init__(
-        self,
-        hass: HomeAssistant,
-        aws_client: AwsClient,
-        account_name: str,
-        update_interval_minutes: int,
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
     ) -> None:
-        """Initialize coordinator."""
+        """Initialize the coordinator."""
         super().__init__(
-            hass, aws_client, account_name, "AutoScaling", update_interval_minutes
+            hass,
+            aws_client,
+            account_name,
+            f"Auto Scaling ({aws_client.region})",
+            refresh_interval,
         )
 
-    async def _fetch_data(self) -> dict[str, Any]:
-        """Fetch auto scaling groups."""
-        return await self.hass.async_add_executor_job(self._fetch_asg_data_sync)
-
-    def _fetch_asg_data_sync(self) -> dict[str, Any]:
-        """Sync method to fetch ASG data."""
+    def _fetch_data(self) -> dict:
+        """Fetch Auto Scaling data."""
         try:
             asg_client = self.aws_client.get_autoscaling_client()
-            response = asg_client.describe_auto_scaling_groups()
-
-            auto_scaling_groups = {}
-            for asg in response.get("AutoScalingGroups", []):
-                asg_name = asg["AutoScalingGroupName"]
-                instances = asg.get("Instances", [])
-                auto_scaling_groups[asg_name] = {
-                    "instances": len(instances),
-                    "desired_capacity": asg.get("DesiredCapacity", 0),
-                    "min_size": asg.get("MinSize", 0),
-                    "max_size": asg.get("MaxSize", 0),
-                    "healthy_instances": sum(
-                        1 for i in instances if i.get("HealthStatus") == "Healthy"
-                    ),
-                    "availability_zones": asg.get("AvailabilityZones", []),
-                }
-
-            return {
-                "auto_scaling_groups": auto_scaling_groups,
-                "last_update": datetime.now().isoformat(),
-            }
-
+            
+            auto_scaling_groups = []
+            paginator = asg_client.get_paginator('describe_auto_scaling_groups')
+            for page in paginator.paginate():
+                for asg in page.get("AutoScalingGroups", []):
+                    auto_scaling_groups.append({
+                        "name": asg.get("AutoScalingGroupName"),
+                        "desired_capacity": asg.get("DesiredCapacity"),
+                        "min_size": asg.get("MinSize"),
+                        "max_size": asg.get("MaxSize"),
+                        "instances": len(asg.get("Instances", [])),
+                        "health_check_type": asg.get("HealthCheckType"),
+                    })
+            
+            return {"auto_scaling_groups": auto_scaling_groups}
         except Exception as err:
-            _LOGGER.error("Error fetching ASG data: %s", err)
-            return {"auto_scaling_groups": {}}
+            _LOGGER.error(f"Error fetching ASG data: {err}")
+            return {"auto_scaling_groups": []}
+
+
+class AwsDynamoDBCoordinator(AwsBaseCoordinator):
+    """Coordinator for DynamoDB data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"DynamoDB ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch DynamoDB data."""
+        try:
+            dynamodb_client = self.aws_client.get_dynamodb_client()
+            
+            # List all tables
+            tables = []
+            paginator = dynamodb_client.get_paginator('list_tables')
+            for page in paginator.paginate():
+                tables.extend(page.get('TableNames', []))
+            
+            # Get details for each table
+            table_details = []
+            for table_name in tables:
+                try:
+                    response = dynamodb_client.describe_table(TableName=table_name)
+                    table = response['Table']
+                    table_details.append({
+                        'name': table_name,
+                        'status': table.get('TableStatus'),
+                        'item_count': table.get('ItemCount', 0),
+                        'size_bytes': table.get('TableSizeBytes', 0),
+                        'creation_date': str(table.get('CreationDateTime', '')),
+                    })
+                except Exception as err:
+                    _LOGGER.warning(f"Error describing DynamoDB table {table_name}: {err}")
+            
+            return {"tables": table_details}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching DynamoDB data: {err}")
+            return {"tables": []}
+
+
+class AwsElastiCacheCoordinator(AwsBaseCoordinator):
+    """Coordinator for ElastiCache data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"ElastiCache ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch ElastiCache data."""
+        try:
+            elasticache_client = self.aws_client.get_elasticache_client()
+            
+            # Get cache clusters
+            clusters = []
+            paginator = elasticache_client.get_paginator('describe_cache_clusters')
+            for page in paginator.paginate():
+                for cluster in page.get('CacheClusters', []):
+                    clusters.append({
+                        'id': cluster.get('CacheClusterId'),
+                        'status': cluster.get('CacheClusterStatus'),
+                        'engine': cluster.get('Engine'),
+                        'engine_version': cluster.get('EngineVersion'),
+                        'node_type': cluster.get('CacheNodeType'),
+                        'num_nodes': cluster.get('NumCacheNodes', 0),
+                    })
+            
+            return {"clusters": clusters}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching ElastiCache data: {err}")
+            return {"clusters": []}
+
+
+class AwsECSCoordinator(AwsBaseCoordinator):
+    """Coordinator for ECS data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"ECS ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch ECS data."""
+        try:
+            ecs_client = self.aws_client.get_ecs_client()
+            
+            # List clusters
+            cluster_arns = []
+            paginator = ecs_client.get_paginator('list_clusters')
+            for page in paginator.paginate():
+                cluster_arns.extend(page.get('clusterArns', []))
+            
+            # Get cluster details
+            clusters = []
+            if cluster_arns:
+                response = ecs_client.describe_clusters(clusters=cluster_arns, include=['STATISTICS'])
+                for cluster in response.get('clusters', []):
+                    clusters.append({
+                        'name': cluster.get('clusterName'),
+                        'arn': cluster.get('clusterArn'),
+                        'status': cluster.get('status'),
+                        'running_tasks': cluster.get('runningTasksCount', 0),
+                        'pending_tasks': cluster.get('pendingTasksCount', 0),
+                        'active_services': cluster.get('activeServicesCount', 0),
+                        'registered_instances': cluster.get('registeredContainerInstancesCount', 0),
+                    })
+            
+            return {"clusters": clusters}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching ECS data: {err}")
+            return {"clusters": []}
+
+
+class AwsEKSCoordinator(AwsBaseCoordinator):
+    """Coordinator for EKS data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"EKS ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch EKS data."""
+        try:
+            eks_client = self.aws_client.get_eks_client()
+            
+            # List clusters
+            cluster_names = []
+            paginator = eks_client.get_paginator('list_clusters')
+            for page in paginator.paginate():
+                cluster_names.extend(page.get('clusters', []))
+            
+            # Get cluster details
+            clusters = []
+            for cluster_name in cluster_names:
+                try:
+                    response = eks_client.describe_cluster(name=cluster_name)
+                    cluster = response['cluster']
+                    clusters.append({
+                        'name': cluster.get('name'),
+                        'arn': cluster.get('arn'),
+                        'status': cluster.get('status'),
+                        'version': cluster.get('version'),
+                        'endpoint': cluster.get('endpoint'),
+                        'created_at': str(cluster.get('createdAt', '')),
+                    })
+                except Exception as err:
+                    _LOGGER.warning(f"Error describing EKS cluster {cluster_name}: {err}")
+            
+            return {"clusters": clusters}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching EKS data: {err}")
+            return {"clusters": []}
+
+
+class AwsEBSCoordinator(AwsBaseCoordinator):
+    """Coordinator for EBS volumes data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"EBS ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch EBS volumes data."""
+        try:
+            ec2_client = self.aws_client.get_ec2_client()
+            
+            # Get all volumes
+            volumes = []
+            paginator = ec2_client.get_paginator('describe_volumes')
+            for page in paginator.paginate():
+                for volume in page.get('Volumes', []):
+                    # Check if attached
+                    attachments = volume.get('Attachments', [])
+                    attached_to = attachments[0].get('InstanceId') if attachments else None
+                    
+                    volumes.append({
+                        'id': volume.get('VolumeId'),
+                        'size': volume.get('Size', 0),
+                        'type': volume.get('VolumeType'),
+                        'iops': volume.get('Iops'),
+                        'throughput': volume.get('Throughput'),
+                        'state': volume.get('State'),
+                        'az': volume.get('AvailabilityZone'),
+                        'attached_to': attached_to,
+                        'encrypted': volume.get('Encrypted', False),
+                        'created': str(volume.get('CreateTime', '')),
+                    })
+            
+            return {"volumes": volumes}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching EBS data: {err}")
+            return {"volumes": []}
+
+
+class AwsSNSCoordinator(AwsBaseCoordinator):
+    """Coordinator for SNS topics data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"SNS ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch SNS topics data."""
+        try:
+            sns_client = self.aws_client.get_sns_client()
+            
+            # List topics
+            topics = []
+            paginator = sns_client.get_paginator('list_topics')
+            for page in paginator.paginate():
+                for topic in page.get('Topics', []):
+                    topic_arn = topic['TopicArn']
+                    topic_name = topic_arn.split(':')[-1]
+                    
+                    # Get topic attributes
+                    try:
+                        attrs = sns_client.get_topic_attributes(TopicArn=topic_arn)
+                        attributes = attrs.get('Attributes', {})
+                        topics.append({
+                            'name': topic_name,
+                            'arn': topic_arn,
+                            'subscriptions': int(attributes.get('SubscriptionsConfirmed', 0)),
+                            'display_name': attributes.get('DisplayName', topic_name),
+                        })
+                    except Exception as err:
+                        _LOGGER.warning(f"Error getting SNS topic attributes for {topic_name}: {err}")
+            
+            return {"topics": topics}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching SNS data: {err}")
+            return {"topics": []}
+
+
+class AwsSQSCoordinator(AwsBaseCoordinator):
+    """Coordinator for SQS queues data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"SQS ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch SQS queues data."""
+        try:
+            sqs_client = self.aws_client.get_sqs_client()
+            
+            # List queues
+            queues = []
+            paginator = sqs_client.get_paginator('list_queues')
+            for page in paginator.paginate():
+                for queue_url in page.get('QueueUrls', []):
+                    queue_name = queue_url.split('/')[-1]
+                    
+                    # Get queue attributes
+                    try:
+                        attrs = sqs_client.get_queue_attributes(
+                            QueueUrl=queue_url,
+                            AttributeNames=['All']
+                        )
+                        attributes = attrs.get('Attributes', {})
+                        queues.append({
+                            'name': queue_name,
+                            'url': queue_url,
+                            'messages_available': int(attributes.get('ApproximateNumberOfMessages', 0)),
+                            'messages_in_flight': int(attributes.get('ApproximateNumberOfMessagesNotVisible', 0)),
+                            'messages_delayed': int(attributes.get('ApproximateNumberOfMessagesDelayed', 0)),
+                            'created': attributes.get('CreatedTimestamp'),
+                        })
+                    except Exception as err:
+                        _LOGGER.warning(f"Error getting SQS queue attributes for {queue_name}: {err}")
+            
+            return {"queues": queues}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching SQS data: {err}")
+            return {"queues": []}
+
+
+class AwsS3Coordinator(AwsBaseCoordinator):
+    """Coordinator for S3 buckets data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"S3 ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch S3 buckets data."""
+        try:
+            s3_client = self.aws_client.get_s3_client()
+            
+            # List all buckets (this is account-wide)
+            response = s3_client.list_buckets()
+            buckets = []
+            
+            for bucket in response.get('Buckets', []):
+                bucket_name = bucket['Name']
+                
+                # Get bucket location
+                try:
+                    location_response = s3_client.get_bucket_location(Bucket=bucket_name)
+                    location = location_response.get('LocationConstraint')
+                    # None means us-east-1
+                    bucket_region = location if location else 'us-east-1'
+                    
+                    # Only include buckets in this region
+                    if bucket_region == self.aws_client.region:
+                        buckets.append({
+                            'name': bucket_name,
+                            'region': bucket_region,
+                            'created': str(bucket.get('CreationDate', '')),
+                        })
+                except Exception as err:
+                    _LOGGER.warning(f"Error getting S3 bucket location for {bucket_name}: {err}")
+            
+            return {"buckets": buckets}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching S3 data: {err}")
+            return {"buckets": []}
+
+
+class AwsCloudWatchAlarmsCoordinator(AwsBaseCoordinator):
+    """Coordinator for CloudWatch alarms data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"CloudWatch Alarms ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch CloudWatch alarms data."""
+        try:
+            cloudwatch_client = self.aws_client.get_cloudwatch_client()
+            
+            # Get all alarms
+            alarms = []
+            paginator = cloudwatch_client.get_paginator('describe_alarms')
+            for page in paginator.paginate():
+                for alarm in page.get('MetricAlarms', []):
+                    alarms.append({
+                        'name': alarm.get('AlarmName'),
+                        'state': alarm.get('StateValue'),
+                        'reason': alarm.get('StateReason'),
+                        'metric': alarm.get('MetricName'),
+                        'namespace': alarm.get('Namespace'),
+                        'enabled': alarm.get('ActionsEnabled', False),
+                    })
+            
+            return {"alarms": alarms}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching CloudWatch alarms data: {err}")
+            return {"alarms": []}
+
+
+class AwsElasticIPsCoordinator(AwsBaseCoordinator):
+    """Coordinator for Elastic IPs data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"Elastic IPs ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch Elastic IPs data."""
+        try:
+            ec2_client = self.aws_client.get_ec2_client()
+            
+            # Get all Elastic IPs
+            response = ec2_client.describe_addresses()
+            addresses = []
+            
+            for address in response.get('Addresses', []):
+                addresses.append({
+                    'ip': address.get('PublicIp'),
+                    'allocation_id': address.get('AllocationId'),
+                    'associated_with': address.get('InstanceId') or address.get('NetworkInterfaceId'),
+                    'domain': address.get('Domain'),
+                    'attached': 'InstanceId' in address or 'NetworkInterfaceId' in address,
+                })
+            
+            return {"addresses": addresses}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching Elastic IPs data: {err}")
+            return {"addresses": []}

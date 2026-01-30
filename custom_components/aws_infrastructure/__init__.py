@@ -18,12 +18,22 @@ from .const import (
     CONF_REFRESH_INTERVAL,
     CONF_REGION_MODE,
     CONF_REGIONS,
-    COORDINATOR_AUTO_SCALING,
+    COORDINATOR_ASG,
     COORDINATOR_COST,
     COORDINATOR_EC2,
     COORDINATOR_LAMBDA,
-    COORDINATOR_LOAD_BALANCER,
+    COORDINATOR_LOADBALANCER,
     COORDINATOR_RDS,
+    COORDINATOR_CLOUDWATCH_ALARMS,
+    COORDINATOR_DYNAMODB,
+    COORDINATOR_EBS,
+    COORDINATOR_ECS,
+    COORDINATOR_EKS,
+    COORDINATOR_ELASTICACHE,
+    COORDINATOR_ELASTIC_IPS,
+    COORDINATOR_S3,
+    COORDINATOR_SNS,
+    COORDINATOR_SQS,
     DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
     REGION_MODE_ALL,
@@ -32,11 +42,21 @@ from .const import (
 )
 from .coordinator import (
     AwsAutoScalingCoordinator,
+    AwsCloudWatchAlarmsCoordinator,
     AwsCostCoordinator,
+    AwsDynamoDBCoordinator,
+    AwsEBSCoordinator,
+    AwsECSCoordinator,
     AwsEc2Coordinator,
+    AwsEKSCoordinator,
+    AwsElastiCacheCoordinator,
+    AwsElasticIPsCoordinator,
     AwsLambdaCoordinator,
     AwsLoadBalancerCoordinator,
     AwsRdsCoordinator,
+    AwsS3Coordinator,
+    AwsSNSCoordinator,
+    AwsSQSCoordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -95,10 +115,59 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinators[COORDINATOR_LAMBDA] = AwsLambdaCoordinator(
             hass, aws_client, account_name, refresh_interval
         )
-        coordinators[COORDINATOR_LOAD_BALANCER] = AwsLoadBalancerCoordinator(
+        coordinators[COORDINATOR_LOADBALANCER] = AwsLoadBalancerCoordinator(
             hass, aws_client, account_name, refresh_interval
         )
-        coordinators[COORDINATOR_AUTO_SCALING] = AwsAutoScalingCoordinator(
+        coordinators[COORDINATOR_ASG] = AwsAutoScalingCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+        # DynamoDB
+        coordinators[COORDINATOR_DYNAMODB] = AwsDynamoDBCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+        
+        # ElastiCache
+        coordinators[COORDINATOR_ELASTICACHE] = AwsElastiCacheCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+        
+        # ECS
+        coordinators[COORDINATOR_ECS] = AwsECSCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+        
+        # EKS
+        coordinators[COORDINATOR_EKS] = AwsEKSCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+        
+        # EBS Volumes
+        coordinators[COORDINATOR_EBS] = AwsEBSCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+        
+        # SNS
+        coordinators[COORDINATOR_SNS] = AwsSNSCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+        
+        # SQS
+        coordinators[COORDINATOR_SQS] = AwsSQSCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+        
+        # S3
+        coordinators[COORDINATOR_S3] = AwsS3Coordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+        
+        # CloudWatch Alarms
+        coordinators[COORDINATOR_CLOUDWATCH_ALARMS] = AwsCloudWatchAlarmsCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+        
+        # Elastic IPs
+        coordinators[COORDINATOR_ELASTIC_IPS] = AwsElasticIPsCoordinator(
             hass, aws_client, account_name, refresh_interval
         )
 
@@ -120,6 +189,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "coordinators": all_coordinators,
         "account_name": account_name,
         "regions": regions,
+        "global": {
+          "coordinators": all_coordinators,
+        },
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
