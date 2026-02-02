@@ -65,7 +65,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 2. Click on "Integrations"
 3. Click the three dots in the top right corner
 4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/yourusername/ha-aws-infrastructure`
+5. Add this repository URL: `https://github.com/ianpleasance/home-assistant-aws-infrastructure`
 6. Category: Integration
 7. Click "Add"
 8. Search for "AWS Infrastructure Monitor"
@@ -357,8 +357,8 @@ Contributions are welcome! Please:
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/ha-aws-infrastructure/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/ha-aws-infrastructure/discussions)
+- **Issues**: [GitHub Issues](https://github.com/ianpleasance/home-assistant-aws-infrastructure/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/ianpleasance/home-assistant-aws-infrastructure/discussions)
 - **Home Assistant Community**: [Community Forum Thread](https://community.home-assistant.io/)
 
 ## License
