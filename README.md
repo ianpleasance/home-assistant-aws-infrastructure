@@ -141,6 +141,8 @@ Create a dedicated IAM user with the following policy:
    - **Refresh Interval**: How often to check AWS (5-60 minutes, default: 5)
    - **Create Individual Count Sensors**: Enable for history graphs
 
+Note that cost usage data is only available in us-east-1, and so if you want cost sensors populated then you will need to ensure that us-east-1 is one of your monitored regions even if you have no other resources within it.
+
 ### 3. Configure Options (Optional)
 
 After adding the integration, click **Configure** to adjust:
