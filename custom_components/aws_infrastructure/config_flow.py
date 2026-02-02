@@ -17,11 +17,13 @@ from .const import (
     CONF_AWS_SECRET_ACCESS_KEY,
     CONF_CREATE_INDIVIDUAL_COUNT_SENSORS,
     CONF_REFRESH_INTERVAL,
+    CONF_COST_REFRESH_INTERVAL,
     CONF_REGION_MODE,
     CONF_REGIONS,
     CONF_SKIP_INITIAL_REFRESH,
     DEFAULT_CREATE_INDIVIDUAL_COUNT_SENSORS,
     DEFAULT_REFRESH_INTERVAL,
+    DEFAULT_COST_REFRESH_INTERVAL,
     DEFAULT_SKIP_INITIAL_REFRESH,
     DOMAIN,
     MAX_REFRESH_INTERVAL,
@@ -180,6 +182,13 @@ class AwsInfrastructureOptionsFlow(config_entries.OptionsFlow):
                         vol.Coerce(int),
                         vol.Range(min=MIN_REFRESH_INTERVAL, max=MAX_REFRESH_INTERVAL),
                     ),
+                    vol.Optional(
+                        CONF_COST_REFRESH_INTERVAL,
+                        default=self._config_entry.options.get(
+                            CONF_COST_REFRESH_INTERVAL,
+                            DEFAULT_COST_REFRESH_INTERVAL
+                        ),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=60, max=1440)),
                     vol.Required(
                         CONF_REGION_MODE,
                         default=current_region_mode,

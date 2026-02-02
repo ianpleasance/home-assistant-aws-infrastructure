@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Monitor de Infraestrutura AWS",
+        "description": "Configure sua conta AWS para monitoramento",
+        "data": {
+          "account_name": "Nome da conta",
+          "aws_access_key_id": "ID da chave de acesso AWS",
+          "aws_secret_access_key": "Chave de acesso secreta AWS",
+          "region_mode": "Modo de região",
+          "refresh_interval_minutes": "Intervalo de atualização (minutos)",
+          "create_individual_count_sensors": "Criar sensores de contagem individuais"
+        },
+        "data_description": {
+          "account_name": "Um nome amigável para esta conta AWS",
+          "refresh_interval_minutes": "Com que frequência consultar APIs AWS (5-60 minutos)",
+          "create_individual_count_sensors": "Ativa gráficos de histórico para contagens de recursos (usa mais sensores)"
+        }
+      },
+      "regions": {
+        "title": "Selecionar regiões AWS",
+        "description": "Escolha quais regiões monitorar",
+        "data": {
+          "regions": "Regiões a monitorar"
+        }
+      }
+    },
+    "error": {
+      "auth": "Falha na autenticação. Verifique suas credenciais AWS.",
+      "connection": "Não é possível conectar ao AWS. Verifique sua conexão com a Internet.",
+      "invalid_regions": "Regiões inválidas selecionadas.",
+      "unknown": "Erro inesperado"
+    },
+    "abort": {
+      "already_configured": "Esta conta AWS já está configurada",
+      "reauth_successful": "Reautenticação bem-sucedida"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "refresh_interval": "Intervalo de atualização (minutos)",
+          "cost_refresh_interval": "Intervalo de atualização de dados de custo (minutos)",
+          "create_individual_count_sensors": "Criar sensores de contagem individuais",
+          "skip_initial_refresh": "Pular atualização inicial (inicialização mais rápida)"
+        },
+        "data_description": {
+          "refresh_interval": "Com que frequência verificar AWS para atualizações de recursos (1-60 minutos)",
+          "cost_refresh_interval": "Com que frequência verificar o AWS Cost Explorer (60-1440 minutos). Os dados de custo são atualizados uma vez por dia, verificar com mais frequência desperdiça dinheiro ($0,01 por chamada de API).",
+          "create_individual_count_sensors": "Criar sensores de contagem separados para cada tipo de recurso (EC2, RDS, Lambda, etc.)",
+          "skip_initial_refresh": "Não esperar dados na inicialização - buscar na primeira atualização agendada"
+        }
+      }
+    }
+  },
+  "services": {
+    "refresh_account": {
+      "name": "Atualizar conta",
+      "description": "Atualizar manualmente todos os dados AWS para uma conta",
+      "fields": {
+        "account_name": {
+          "name": "Nome da conta",
+          "description": "O nome da conta AWS para atualizar"
+        }
+      }
+    }
+  }
+}
+

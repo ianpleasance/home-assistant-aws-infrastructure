@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AWS Infrastrukturovervåking",
+        "description": "Konfigurer AWS-kontoen din for overvåking",
+        "data": {
+          "account_name": "Kontonavn",
+          "aws_access_key_id": "AWS Tilgangsnøkkel-ID",
+          "aws_secret_access_key": "AWS Hemmelig tilgangsnøkkel",
+          "region_mode": "Regionmodus",
+          "refresh_interval_minutes": "Oppdateringsintervall (minutter)",
+          "create_individual_count_sensors": "Opprett individuelle tellersensorer"
+        },
+        "data_description": {
+          "account_name": "Et vennlig navn for denne AWS-kontoen",
+          "refresh_interval_minutes": "Hvor ofte AWS API-er skal spørres (5-60 minutter)",
+          "create_individual_count_sensors": "Aktiverer historikkdiagrammer for ressurstelling (bruker flere sensorer)"
+        }
+      },
+      "regions": {
+        "title": "Velg AWS-regioner",
+        "description": "Velg hvilke regioner som skal overvåkes",
+        "data": {
+          "regions": "Regioner å overvåke"
+        }
+      }
+    },
+    "error": {
+      "auth": "Autentisering mislyktes. Sjekk AWS-legitimasjonen din.",
+      "connection": "Kan ikke koble til AWS. Sjekk internettforbindelsen din.",
+      "invalid_regions": "Ugyldige regioner valgt.",
+      "unknown": "Uventet feil"
+    },
+    "abort": {
+      "already_configured": "Denne AWS-kontoen er allerede konfigurert",
+      "reauth_successful": "Omautentisering vellykket"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "refresh_interval": "Oppdateringsintervall (minutter)",
+          "cost_refresh_interval": "Kostnadsdata oppdateringsintervall (minutter)",
+          "create_individual_count_sensors": "Opprett individuelle tellersensorer",
+          "skip_initial_refresh": "Hopp over innledende oppdatering (raskere oppstart)"
+        },
+        "data_description": {
+          "refresh_interval": "Hvor ofte AWS skal sjekkes for ressursoppdateringer (1-60 minutter)",
+          "cost_refresh_interval": "Hvor ofte AWS Cost Explorer skal sjekkes (60-1440 minutter). Kostnadsdata oppdateres en gang daglig, å sjekke oftere kaster bort penger ($0,01 per API-kall).",
+          "create_individual_count_sensors": "Opprett separate tellersensorer for hver ressurstype (EC2, RDS, Lambda, osv.)",
+          "skip_initial_refresh": "Ikke vent på data ved oppstart - hent ved første planlagte oppdatering"
+        }
+      }
+    }
+  },
+  "services": {
+    "refresh_account": {
+      "name": "Oppdater konto",
+      "description": "Oppdater manuelt alle AWS-data for en konto",
+      "fields": {
+        "account_name": {
+          "name": "Kontonavn",
+          "description": "Navnet på AWS-kontoen som skal oppdateres"
+        }
+      }
+    }
+  }
+}
+

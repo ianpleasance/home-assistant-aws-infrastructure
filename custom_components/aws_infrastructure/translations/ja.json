@@ -1,0 +1,70 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AWSインフラストラクチャモニター",
+        "description": "監視用のAWSアカウントを設定",
+        "data": {
+          "account_name": "アカウント名",
+          "aws_access_key_id": "AWSアクセスキーID",
+          "aws_secret_access_key": "AWSシークレットアクセスキー",
+          "region_mode": "リージョンモード",
+          "refresh_interval_minutes": "更新間隔（分）",
+          "create_individual_count_sensors": "個別カウントセンサーを作成"
+        },
+        "data_description": {
+          "account_name": "このAWSアカウントのわかりやすい名前",
+          "refresh_interval_minutes": "AWS APIをポーリングする頻度（5〜60分）",
+          "create_individual_count_sensors": "リソースカウントの履歴グラフを有効にする（より多くのセンサーを使用）"
+        }
+      },
+      "regions": {
+        "title": "AWSリージョンを選択",
+        "description": "監視するリージョンを選択",
+        "data": {
+          "regions": "監視するリージョン"
+        }
+      }
+    },
+    "error": {
+      "auth": "認証に失敗しました。AWS認証情報を確認してください。",
+      "connection": "AWSに接続できません。インターネット接続を確認してください。",
+      "invalid_regions": "無効なリージョンが選択されました。",
+      "unknown": "予期しないエラー"
+    },
+    "abort": {
+      "already_configured": "このAWSアカウントはすでに設定されています",
+      "reauth_successful": "再認証に成功しました"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "refresh_interval": "更新間隔（分）",
+          "cost_refresh_interval": "コストデータ更新間隔（分）",
+          "create_individual_count_sensors": "個別カウントセンサーを作成",
+          "skip_initial_refresh": "初期更新をスキップ（起動が速くなります）"
+        },
+        "data_description": {
+          "refresh_interval": "リソース更新のためにAWSをチェックする頻度（1〜60分）",
+          "cost_refresh_interval": "AWS Cost Explorerをチェックする頻度（60〜1440分）。コストデータは1日1回更新されるため、頻繁にチェックするとお金が無駄になります（API呼び出しごとに$0.01）。",
+          "create_individual_count_sensors": "各リソースタイプ（EC2、RDS、Lambdaなど）ごとに個別のカウントセンサーを作成",
+          "skip_initial_refresh": "起動時にデータを待たない - 最初のスケジュールされた更新時に取得"
+        }
+      }
+    }
+  },
+  "services": {
+    "refresh_account": {
+      "name": "アカウントを更新",
+      "description": "アカウントのすべてのAWSデータを手動で更新",
+      "fields": {
+        "account_name": {
+          "name": "アカウント名",
+          "description": "更新するAWSアカウントの名前"
+        }
+      }
+    }
+  }
+}

@@ -40,12 +40,14 @@
         "description": "Configure integration settings",
         "data": {
           "refresh_interval_minutes": "Refresh Interval (minutes)",
+          "cost_refresh_interval": "Cost data refresh interval (minutes)",
           "region_mode": "Region Mode",
           "create_individual_count_sensors": "Create individual count sensors",
           "skip_initial_refresh": "Skip initial refresh on startup"
         },
         "data_description": {
           "refresh_interval_minutes": "How often to poll AWS APIs (5-60 minutes)",
+           "cost_refresh_interval": "How often to check AWS Cost Explorer (60-1440 minutes). Cost data updates once daily, checking more often wastes money ($0.01 per API call).",
           "region_mode": "Choose whether to monitor all regions or select specific ones",
           "create_individual_count_sensors": "Enables history graphs for resource counts (uses more sensors)",
           "skip_initial_refresh": "Speeds up Home Assistant startup (data appears after first refresh cycle)"

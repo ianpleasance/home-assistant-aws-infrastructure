@@ -16,6 +16,7 @@ from .const import (
     CONF_AWS_ACCESS_KEY_ID,
     CONF_AWS_SECRET_ACCESS_KEY,
     CONF_REFRESH_INTERVAL,
+    CONF_COST_REFRESH_INTERVAL,
     CONF_REGION_MODE,
     CONF_REGIONS,
     COORDINATOR_ASG,
@@ -35,6 +36,7 @@ from .const import (
     COORDINATOR_SNS,
     COORDINATOR_SQS,
     DEFAULT_REFRESH_INTERVAL,
+    DEFAULT_COST_REFRESH_INTERVAL,
     DOMAIN,
     REGION_MODE_ALL,
     SERVICE_REFRESH_ACCOUNT,
@@ -102,8 +104,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinators = {}
 
         if region == "us-east-1":
+            cost_refresh_interval = entry.options.get(
+                CONF_COST_REFRESH_INTERVAL,
+                entry.data.get(CONF_COST_REFRESH_INTERVAL, DEFAULT_COST_REFRESH_INTERVAL),
+            )
             coordinators[COORDINATOR_COST] = AwsCostCoordinator(
-                hass, aws_client, account_name, refresh_interval
+                hass, aws_client, account_name, cost_refresh_interval
             )
 
         coordinators[COORDINATOR_EC2] = AwsEc2Coordinator(

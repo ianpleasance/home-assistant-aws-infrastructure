@@ -14,6 +14,7 @@ CONF_AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
 CONF_REGION_MODE = "region_mode"
 CONF_REGIONS = "regions"
 CONF_REFRESH_INTERVAL = "refresh_interval_minutes"
+CONF_COST_REFRESH_INTERVAL = "cost_refresh_interval"
 CONF_CREATE_INDIVIDUAL_COUNT_SENSORS = "create_individual_count_sensors"
 CONF_SKIP_INITIAL_REFRESH = "skip_initial_refresh"
 
@@ -24,6 +25,7 @@ REGION_MODE_SELECT = "select"
 
 # Default values
 DEFAULT_REFRESH_INTERVAL = 5
+DEFAULT_COST_REFRESH_INTERVAL = 1440  # 24 hours in minutes
 DEFAULT_CREATE_INDIVIDUAL_COUNT_SENSORS = False
 DEFAULT_SKIP_INITIAL_REFRESH = False
 

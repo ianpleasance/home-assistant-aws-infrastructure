@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AWS Infrastructuurmonitor",
+        "description": "Configureer uw AWS-account voor monitoring",
+        "data": {
+          "account_name": "Accountnaam",
+          "aws_access_key_id": "AWS Toegangssleutel-ID",
+          "aws_secret_access_key": "AWS Geheime toegangssleutel",
+          "region_mode": "Regiomodus",
+          "refresh_interval_minutes": "Verversingsinterval (minuten)",
+          "create_individual_count_sensors": "Individuele telsensoren maken"
+        },
+        "data_description": {
+          "account_name": "Een vriendelijke naam voor dit AWS-account",
+          "refresh_interval_minutes": "Hoe vaak AWS API's worden bevraagd (5-60 minuten)",
+          "create_individual_count_sensors": "Schakelt geschiedenisgrafieken in voor brontellingen (gebruikt meer sensoren)"
+        }
+      },
+      "regions": {
+        "title": "AWS-regio's selecteren",
+        "description": "Kies welke regio's te monitoren",
+        "data": {
+          "regions": "Te monitoren regio's"
+        }
+      }
+    },
+    "error": {
+      "auth": "Authenticatie mislukt. Controleer uw AWS-referenties.",
+      "connection": "Kan geen verbinding maken met AWS. Controleer uw internetverbinding.",
+      "invalid_regions": "Ongeldige regio's geselecteerd.",
+      "unknown": "Onverwachte fout"
+    },
+    "abort": {
+      "already_configured": "Dit AWS-account is al geconfigureerd",
+      "reauth_successful": "Herauthenticatie geslaagd"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "refresh_interval": "Verversingsinterval (minuten)",
+          "cost_refresh_interval": "Kostengegevens verversingsinterval (minuten)",
+          "create_individual_count_sensors": "Individuele telsensoren maken",
+          "skip_initial_refresh": "Initiële verversing overslaan (snellere opstart)"
+        },
+        "data_description": {
+          "refresh_interval": "Hoe vaak AWS wordt gecontroleerd op resource-updates (1-60 minuten)",
+          "cost_refresh_interval": "Hoe vaak AWS Cost Explorer wordt gecontroleerd (60-1440 minuten). Kostengegevens worden eenmaal per dag bijgewerkt, vaker controleren verspilt geld ($0,01 per API-oproep).",
+          "create_individual_count_sensors": "Maak afzonderlijke telsensoren voor elk resourcetype (EC2, RDS, Lambda, enz.)",
+          "skip_initial_refresh": "Niet wachten op gegevens bij opstarten - ophalen bij eerste geplande verversing"
+        }
+      }
+    }
+  },
+  "services": {
+    "refresh_account": {
+      "name": "Account vernieuwen",
+      "description": "Alle AWS-gegevens voor een account handmatig vernieuwen",
+      "fields": {
+        "account_name": {
+          "name": "Accountnaam",
+          "description": "De naam van het AWS-account om te vernieuwen"
+        }
+      }
+    }
+  }
+}
+

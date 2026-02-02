@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AWS Infrastruktuurivalvonta",
+        "description": "Määritä AWS-tilisi seurantaa varten",
+        "data": {
+          "account_name": "Tilin nimi",
+          "aws_access_key_id": "AWS pääsyavaimen tunnus",
+          "aws_secret_access_key": "AWS salainen pääsyavain",
+          "region_mode": "Aluetila",
+          "refresh_interval_minutes": "Päivitysväli (minuutit)",
+          "create_individual_count_sensors": "Luo yksittäisiä laskuri-antureita"
+        },
+        "data_description": {
+          "account_name": "Ystävällinen nimi tälle AWS-tilille",
+          "refresh_interval_minutes": "Kuinka usein AWS API:ja kyselläään (5-60 minuuttia)",
+          "create_individual_count_sensors": "Ottaa käyttöön historiakaaviot resurssien laskureille (käyttää enemmän antureita)"
+        }
+      },
+      "regions": {
+        "title": "Valitse AWS-alueet",
+        "description": "Valitse valvottavat alueet",
+        "data": {
+          "regions": "Valvottavat alueet"
+        }
+      }
+    },
+    "error": {
+      "auth": "Todennus epäonnistui. Tarkista AWS-tunnistetietosi.",
+      "connection": "Yhteyttä AWS:ään ei voi muodostaa. Tarkista internet-yhteytesi.",
+      "invalid_regions": "Valittiin virheellisiä alueita.",
+      "unknown": "Odottamaton virhe"
+    },
+    "abort": {
+      "already_configured": "Tämä AWS-tili on jo määritetty",
+      "reauth_successful": "Uudelleentodennus onnistui"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "refresh_interval": "Päivitysväli (minuutit)",
+          "cost_refresh_interval": "Kustannustietojen päivitysväli (minuutit)",
+          "create_individual_count_sensors": "Luo yksittäisiä laskuri-antureita",
+          "skip_initial_refresh": "Ohita alkuperäinen päivitys (nopeampi käynnistys)"
+        },
+        "data_description": {
+          "refresh_interval": "Kuinka usein AWS:ää tarkistetaan resurssipäivityksien varalta (1-60 minuuttia)",
+          "cost_refresh_interval": "Kuinka usein AWS Cost Exploreria tarkistetaan (60-1440 minuuttia). Kustannustiedot päivittyvät kerran päivässä, useammin tarkistaminen tuhlaa rahaa ($0,01 per API-kutsu).",
+          "create_individual_count_sensors": "Luo erilliset laskuri-anturit jokaiselle resurssin tyypille (EC2, RDS, Lambda jne.)",
+          "skip_initial_refresh": "Älä odota dataa käynnistyksen aikana - hae ensimmäisessä ajoitetussa päivityksessä"
+        }
+      }
+    }
+  },
+  "services": {
+    "refresh_account": {
+      "name": "Päivitä tili",
+      "description": "Päivitä manuaalisesti kaikki AWS-tiedot tilille",
+      "fields": {
+        "account_name": {
+          "name": "Tilin nimi",
+          "description": "Päivitettävän AWS-tilin nimi"
+        }
+      }
+    }
+  }
+}
+
