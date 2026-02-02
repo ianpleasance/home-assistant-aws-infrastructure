@@ -378,7 +378,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 # ============================================================================
-# NEW SENSORS - Region & Global Summaries
+# SENSORS - Region & Global Summaries
 # ============================================================================
 
 
@@ -840,7 +840,7 @@ class AwsGlobalSummarySensor(SensorEntity):
         }
 
 # ============================================================================
-# NEW SENSORS - Graphable Cost Sensors
+# SENSORS - Graphable Cost Sensors
 # ============================================================================
 
 
@@ -1643,11 +1643,6 @@ class AwsAsgSensor(CoordinatorEntity, SensorEntity):
                         "health_check_type": asg.get("health_check_type"),
                     }
         return {}
-
-# ============================================================================
-# NEW SENSORS FOR v0.4.0 - ADD THESE TO THE END OF sensor.py
-# ============================================================================
-
 
 # ============================================================================
 # DYNAMODB SENSORS
