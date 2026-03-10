@@ -50,7 +50,7 @@ Default configuration: **24-hour refresh = $0.60/month**
 
 ## 🌍 Supported Languages
 
-English • French • German • Italian • Spanish • Dutch • Swedish • Norwegian • Danish • Polish • Portuguese • Finnish • Japanese • Korean
+English • French • German • Italian • Spanish • Dutch • Swedish • Norwegian • Danish • Polish • Portuguese • Finnish • Japanese
 
 ## 📊 Sample Dashboard
 
@@ -109,13 +109,13 @@ Pre-built dashboards included:
 - [Report Issues](https://github.com/ianpleasance/home-assistant-aws-infrastructure/issues)
 - [Sample Dashboards](https://github.com/ianpleasance/home-assistant-aws-infrastructure/tree/main/examples)
 
-## 📝 Recent Updates (v0.4.0)
+## 📝 Recent Updates (v1.2.0)
 
-- ✨ Added 10 new AWS services
-- ✨ Configurable Cost Explorer refresh interval
-- 🐛 Fixed async blocking calls
-- 🌍 13 language translations
-- 💰 Cost optimization features
+- 🐛 Fixed EC2 count sensor bug (instance data structure)
+- 🔧 Migrated all device_info to HA DeviceInfo class
+- ✅ Added last_updated native datetime to all sensors
+- 🌍 13 language translations (da, de, en, es, fi, fr, it, ja, nl, no, pl, pt, sv)
+- 🔧 Standardised logging to %s style
 
 ---
 

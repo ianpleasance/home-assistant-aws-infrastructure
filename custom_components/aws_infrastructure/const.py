@@ -1,8 +1,6 @@
 """Constants for the AWS Infrastructure integration."""
 
 DOMAIN = "aws_infrastructure"
-PLATFORMS = ["sensor", "binary_sensor"]
-
 # Service names
 SERVICE_REFRESH_ACCOUNT = "refresh_account"
 SERVICE_REFRESH_ALL = "refresh_all_accounts"

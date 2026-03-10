@@ -89,10 +89,12 @@ class AwsCostCoordinator(AwsBaseCoordinator):
             
             # Month-to-date cost
             month_start = now.replace(day=1).strftime("%Y-%m-%d")
-            today = now.strftime("%Y-%m-%d")
-            
+            # End must be tomorrow — AWS rejects Start==End, and using tomorrow
+            # captures today's partial costs (End is exclusive).
+            tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+
             cost_mtd = ce_client.get_cost_and_usage(
-                TimePeriod={"Start": month_start, "End": today},
+                TimePeriod={"Start": month_start, "End": tomorrow},
                 Granularity="MONTHLY",
                 Metrics=["UnblendedCost"],
                 GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],

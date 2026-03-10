@@ -295,7 +295,7 @@ See the [examples](examples/) folder for:
 
 This integration includes translations for:
 
-🇬🇧 English • 🇫🇷 French • 🇩🇪 German • 🇮🇹 Italian • 🇪🇸 Spanish • 🇳🇱 Dutch • 🇸🇪 Swedish • 🇳🇴 Norwegian • 🇩🇰 Danish • 🇵🇱 Polish • 🇵🇹 Portuguese • 🇫🇮 Finnish • 🇯🇵 Japanese • 🇰🇷 Korean
+🇬🇧 English • 🇫🇷 French • 🇩🇪 German • 🇮🇹 Italian • 🇪🇸 Spanish • 🇳🇱 Dutch • 🇸🇪 Swedish • 🇳🇴 Norwegian • 🇩🇰 Danish • 🇵🇱 Polish • 🇵🇹 Portuguese • 🇫🇮 Finnish • 🇯🇵 Japanese • 
 
 ## Troubleshooting
 

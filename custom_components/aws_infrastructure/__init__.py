@@ -180,13 +180,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Skip initial refresh if requested (faster startup)
         # Data will be fetched on first scheduled update
         skip_initial_refresh = entry.options.get("skip_initial_refresh", False)
-        
+
         for coordinator in coordinators.values():
             if skip_initial_refresh:
-                # Schedule first refresh without blocking startup
-                await coordinator.async_refresh()
+                # Skip blocking refresh — data will arrive on first scheduled update
+                pass
             else:
-                # Traditional blocking refresh (ensures data on startup)
+                # Traditional blocking refresh (ensures data is available on startup)
                 await coordinator.async_config_entry_first_refresh()
 
         all_coordinators[region] = coordinators
@@ -204,7 +204,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_on_unload(entry.add_update_listener(async_update_options))
 
-    if not hasattr(hass.data[DOMAIN], "_services_registered"):
+    if "_services_registered" not in hass.data[DOMAIN]:
         await async_setup_services(hass)
         hass.data[DOMAIN]["_services_registered"] = True
 
@@ -218,8 +218,8 @@ async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     old_regions = entry.options.get("_old_regions", [])
     
     # Get new regions from updated entry data
-    new_regions = entry.data.get(CONF_REGIONS, [])
-    new_region_mode = entry.data.get(CONF_REGION_MODE, REGION_MODE_ALL)
+    new_regions = entry.options.get(CONF_REGIONS, entry.data.get(CONF_REGIONS, []))
+    new_region_mode = entry.options.get(CONF_REGION_MODE, entry.data.get(CONF_REGION_MODE, REGION_MODE_ALL))
     
     # Determine which regions to keep
     if old_region_mode == REGION_MODE_ALL:
@@ -241,7 +241,7 @@ async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
         entity_reg = er.async_get(hass)
         account_name = entry.data[CONF_ACCOUNT_NAME].lower()
         
-        _LOGGER.info(f"Removing entities for deselected regions: {removed_regions}")
+        _LOGGER.info("Removing entities for deselected regions: %s", removed_regions)
         
         # Find entities that belong to removed regions
         entities_to_remove = []
@@ -258,9 +258,9 @@ async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # Remove entities
         for entity_id in entities_to_remove:
             entity_reg.async_remove(entity_id)
-            _LOGGER.info(f"Removed entity {entity_id}")
+            _LOGGER.info("Removed entity %s", entity_id)
         
-        _LOGGER.info(f"Cleanup complete: removed {len(entities_to_remove)} entities")
+        _LOGGER.info("Cleanup complete: removed %d entities", len(entities_to_remove))
     
     # Reload the integration to apply changes
     await hass.config_entries.async_reload(entry.entry_id)

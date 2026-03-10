@@ -47,10 +47,6 @@ class AwsClient:
         """Get ELBv2 client (for ALB/NLB)."""
         return self._session.client("elbv2")
 
-    def get_elb_client(self):
-        """Get ELB client (for CLB)."""
-        return self._session.client("elb")
-
     def get_autoscaling_client(self):
         """Get Auto Scaling client."""
         return self._session.client("autoscaling")
