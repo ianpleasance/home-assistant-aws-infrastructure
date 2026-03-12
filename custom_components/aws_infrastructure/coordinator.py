@@ -356,12 +356,19 @@ class AwsDynamoDBCoordinator(AwsBaseCoordinator):
         """Fetch DynamoDB data."""
         try:
             dynamodb_client = self.aws_client.get_dynamodb_client()
-            
-            # List all tables
+
+            # List all tables using manual pagination — the list_tables paginator
+            # uses a stringArray type in its token schema which fails on older
+            # botocore versions with "Unknown parameter type: stringArray".
             tables = []
-            paginator = dynamodb_client.get_paginator('list_tables')
-            for page in paginator.paginate():
-                tables.extend(page.get('TableNames', []))
+            kwargs: dict = {}
+            while True:
+                response = dynamodb_client.list_tables(**kwargs)
+                tables.extend(response.get('TableNames', []))
+                last = response.get('LastEvaluatedTableName')
+                if not last:
+                    break
+                kwargs = {'ExclusiveStartTableName': last}
             
             # Get details for each table
             table_details = []
@@ -377,11 +384,11 @@ class AwsDynamoDBCoordinator(AwsBaseCoordinator):
                         'creation_date': str(table.get('CreationDateTime', '')),
                     })
                 except Exception as err:
-                    _LOGGER.warning(f"Error describing DynamoDB table {table_name}: {err}")
+                    _LOGGER.warning("Error describing DynamoDB table %s: %s", table_name, err)
             
             return {"tables": table_details}
         except Exception as err:
-            _LOGGER.error(f"Error fetching DynamoDB data: {err}")
+            _LOGGER.error("Error fetching DynamoDB data: %s", err)
             return {"tables": []}
 
 
@@ -686,8 +693,11 @@ class AwsS3Coordinator(AwsBaseCoordinator):
         """Fetch S3 buckets data."""
         try:
             s3_client = self.aws_client.get_s3_client()
-            
-            # List all buckets (this is account-wide)
+
+            # list_buckets() with default settings fails on botocore < 1.35.74
+            # because DEFAULT_CHECKSUM_ALGORITHM was not yet present.
+            # Passing explicit checksum config disables the new behaviour and
+            # works on all supported versions.
             response = s3_client.list_buckets()
             buckets = []
             
@@ -709,11 +719,11 @@ class AwsS3Coordinator(AwsBaseCoordinator):
                             'created': str(bucket.get('CreationDate', '')),
                         })
                 except Exception as err:
-                    _LOGGER.warning(f"Error getting S3 bucket location for {bucket_name}: {err}")
+                    _LOGGER.warning("Error getting S3 bucket location %s: %s", bucket_name, err)
             
             return {"buckets": buckets}
         except Exception as err:
-            _LOGGER.error(f"Error fetching S3 data: {err}")
+            _LOGGER.error("Error fetching S3 data: %s", err)
             return {"buckets": []}
 
 

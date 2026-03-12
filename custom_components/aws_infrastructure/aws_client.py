@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 import boto3
+from botocore.config import Config
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,8 +81,20 @@ class AwsClient:
         return self._session.client("sqs")
 
     def get_s3_client(self):
-        """Get S3 client."""
-        return self._session.client("s3")
+        """Get S3 client.
+
+        boto3 >= 1.35.74 defaults to sending checksums on all S3 requests,
+        which requires DEFAULT_CHECKSUM_ALGORITHM from botocore.httpchecksum.
+        Passing explicit config opts out of that behaviour and keeps
+        compatibility across the supported botocore range.
+        """
+        return self._session.client(
+            "s3",
+            config=Config(
+                request_checksum_calculation="when_required",
+                response_checksum_validation="when_supported",
+            ),
+        )
 
     @property
     def region(self) -> str:

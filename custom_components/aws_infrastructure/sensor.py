@@ -10,7 +10,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -74,310 +74,243 @@ async def async_setup_entry(
     account_name = entry.data[CONF_ACCOUNT_NAME].lower()
     create_individual = entry.data.get(CONF_CREATE_INDIVIDUAL_COUNT_SENSORS, False)
 
-    entities = []
+    # ── Static sensors ────────────────────────────────────────────────────────
+    # These don't depend on coordinator data content — register immediately.
+    static_entities: list = []
 
-    # Global summary sensor (aggregates all regions)
     if "global" in hass.data[DOMAIN][entry.entry_id]:
-        global_coordinator_data = hass.data[DOMAIN][entry.entry_id]["global"]
-        entities.append(
+        static_entities.append(
             AwsGlobalSummarySensor(
                 hass,
                 account_name,
-                global_coordinator_data["coordinators"],
+                hass.data[DOMAIN][entry.entry_id]["global"]["coordinators"],
             )
         )
 
-    # Create sensors for each region
     for region, coordinators in all_coordinators.items():
-        # Regional summary sensor
-        entities.append(AwsRegionSummarySensor(coordinators, account_name, region))
+        static_entities.append(AwsRegionSummarySensor(coordinators, account_name, region))
 
-        # Cost sensors (only in us-east-1)
         if COORDINATOR_COST in coordinators:
-            cost_coordinator = coordinators[COORDINATOR_COST]
-
-            entities.extend([
-                AwsCostYesterdaySensor(cost_coordinator, account_name),
-                AwsCostMonthToDateSensor(cost_coordinator, account_name),
+            static_entities.extend([
+                AwsCostYesterdaySensor(coordinators[COORDINATOR_COST], account_name),
+                AwsCostMonthToDateSensor(coordinators[COORDINATOR_COST], account_name),
             ])
 
-            # Per-service cost sensors (top 10 services by cost)
-            if cost_coordinator.data and "service_costs" in cost_coordinator.data:
-                for service_slug, service_data in cost_coordinator.data["service_costs"].items():
-                    entities.append(
-                        AwsServiceCostSensor(
-                            cost_coordinator,
-                            account_name,
-                            service_slug,
-                            service_data,
-                        )
-                    )
+        if create_individual:
+            for coord_key, sensor_cls in [
+                (COORDINATOR_EC2, AwsEc2CountSensor),
+                (COORDINATOR_RDS, AwsRdsCountSensor),
+                (COORDINATOR_LAMBDA, AwsLambdaCountSensor),
+                (COORDINATOR_DYNAMODB, AwsDynamoDBCountSensor),
+                (COORDINATOR_ELASTICACHE, AwsElastiCacheCountSensor),
+                (COORDINATOR_ECS, AwsECSCountSensor),
+                (COORDINATOR_EKS, AwsEKSCountSensor),
+                (COORDINATOR_EBS, AwsEBSCountSensor),
+                (COORDINATOR_SNS, AwsSNSCountSensor),
+                (COORDINATOR_SQS, AwsSQSCountSensor),
+                (COORDINATOR_S3, AwsS3CountSensor),
+                (COORDINATOR_CLOUDWATCH_ALARMS, AwsCloudWatchAlarmsCountSensor),
+                (COORDINATOR_ELASTIC_IPS, AwsElasticIPsCountSensor),
+            ]:
+                if coord_key in coordinators:
+                    static_entities.append(sensor_cls(coordinators[coord_key], account_name, region))
 
-        # EC2 sensors
-        if COORDINATOR_EC2 in coordinators:
-            ec2_coordinator = coordinators[COORDINATOR_EC2]
+    async_add_entities(static_entities)
 
-            if create_individual:
-                entities.append(AwsEc2CountSensor(ec2_coordinator, account_name, region))
+    # ── Dynamic sensors ───────────────────────────────────────────────────────
+    # Individual resource sensors (EC2 instances, EBS volumes, S3 buckets, etc.)
+    # are created via coordinator update listeners so they register correctly
+    # regardless of whether coordinators have data at setup time.
+    # A seen-set per coordinator prevents duplicate registrations across refreshes.
 
-            if ec2_coordinator.data and "instances" in ec2_coordinator.data:
-                for instance in ec2_coordinator.data["instances"]:
-                    entities.append(
-                        AwsEc2InstanceSensor(
-                            ec2_coordinator,
-                            account_name,
-                            region,
-                            instance["instance_id"],
-                        )
-                    )
+    for region, coordinators in all_coordinators.items():
 
-        # RDS sensors
-        if COORDINATOR_RDS in coordinators:
-            rds_coordinator = coordinators[COORDINATOR_RDS]
+        def _make_listener(region, coordinators):
+            seen: dict[str, set] = {k: set() for k in coordinators}
 
-            if create_individual:
-                entities.append(AwsRdsCountSensor(rds_coordinator, account_name, region))
+            @callback
+            def _on_update() -> None:
+                new_entities: list = []
 
-            if rds_coordinator.data and "instances" in rds_coordinator.data:
-                for instance in rds_coordinator.data["instances"]:
-                    entities.append(
-                        AwsRdsInstanceSensor(
-                            rds_coordinator,
-                            account_name,
-                            region,
-                            instance["db_instance_identifier"],
-                        )
-                    )
+                # Cost service sensors
+                if COORDINATOR_COST in coordinators:
+                    cost_data = coordinators[COORDINATOR_COST].data or {}
+                    for service_slug, service_data in cost_data.get("service_costs", {}).items():
+                        uid = f"cost_service_{service_slug}"
+                        if uid not in seen[COORDINATOR_COST]:
+                            seen[COORDINATOR_COST].add(uid)
+                            new_entities.append(
+                                AwsServiceCostSensor(
+                                    coordinators[COORDINATOR_COST],
+                                    account_name,
+                                    service_slug,
+                                    service_data,
+                                )
+                            )
 
-        # Lambda sensors
-        if COORDINATOR_LAMBDA in coordinators:
-            lambda_coordinator = coordinators[COORDINATOR_LAMBDA]
+                # EC2 instances
+                if COORDINATOR_EC2 in coordinators:
+                    for instance in (coordinators[COORDINATOR_EC2].data or {}).get("instances", []):
+                        iid = instance.get("instance_id", "")
+                        if iid and iid not in seen[COORDINATOR_EC2]:
+                            seen[COORDINATOR_EC2].add(iid)
+                            new_entities.append(
+                                AwsEc2InstanceSensor(coordinators[COORDINATOR_EC2], account_name, region, iid)
+                            )
 
-            if create_individual:
-                entities.append(AwsLambdaCountSensor(lambda_coordinator, account_name, region))
+                # RDS instances
+                if COORDINATOR_RDS in coordinators:
+                    for inst in (coordinators[COORDINATOR_RDS].data or {}).get("instances", []):
+                        iid = inst.get("db_instance_identifier", "")
+                        if iid and iid not in seen[COORDINATOR_RDS]:
+                            seen[COORDINATOR_RDS].add(iid)
+                            new_entities.append(
+                                AwsRdsInstanceSensor(coordinators[COORDINATOR_RDS], account_name, region, iid)
+                            )
 
-            if lambda_coordinator.data and "functions" in lambda_coordinator.data:
-                for function in lambda_coordinator.data["functions"]:
-                    entities.append(
-                        AwsLambdaFunctionSensor(
-                            lambda_coordinator,
-                            account_name,
-                            region,
-                            function["function_name"],
-                        )
-                    )
+                # Lambda functions
+                if COORDINATOR_LAMBDA in coordinators:
+                    for fn in (coordinators[COORDINATOR_LAMBDA].data or {}).get("functions", []):
+                        fid = fn.get("function_name", "")
+                        if fid and fid not in seen[COORDINATOR_LAMBDA]:
+                            seen[COORDINATOR_LAMBDA].add(fid)
+                            new_entities.append(
+                                AwsLambdaFunctionSensor(coordinators[COORDINATOR_LAMBDA], account_name, region, fid)
+                            )
 
-        # Load Balancer sensors
-        if COORDINATOR_LOADBALANCER in coordinators:
-            lb_coordinator = coordinators[COORDINATOR_LOADBALANCER]
+                # Load Balancers
+                if COORDINATOR_LOADBALANCER in coordinators:
+                    for lb in (coordinators[COORDINATOR_LOADBALANCER].data or {}).get("load_balancers", []):
+                        lid = lb.get("name", "")
+                        if lid and lid not in seen[COORDINATOR_LOADBALANCER]:
+                            seen[COORDINATOR_LOADBALANCER].add(lid)
+                            new_entities.append(
+                                AwsLoadBalancerSensor(coordinators[COORDINATOR_LOADBALANCER], account_name, region, lid)
+                            )
 
-            if lb_coordinator.data and "load_balancers" in lb_coordinator.data:
-                for lb in lb_coordinator.data["load_balancers"]:
-                    entities.append(
-                        AwsLoadBalancerSensor(
-                            lb_coordinator,
-                            account_name,
-                            region,
-                            lb["name"],
-                        )
-                    )
+                # Auto Scaling Groups
+                if COORDINATOR_ASG in coordinators:
+                    for asg in (coordinators[COORDINATOR_ASG].data or {}).get("auto_scaling_groups", []):
+                        aid = asg.get("name", "")
+                        if aid and aid not in seen[COORDINATOR_ASG]:
+                            seen[COORDINATOR_ASG].add(aid)
+                            new_entities.append(
+                                AwsAsgSensor(coordinators[COORDINATOR_ASG], account_name, region, aid)
+                            )
 
-        # Auto Scaling Group sensors
-        if COORDINATOR_ASG in coordinators:
-            asg_coordinator = coordinators[COORDINATOR_ASG]
+                # DynamoDB tables
+                if COORDINATOR_DYNAMODB in coordinators:
+                    for table in (coordinators[COORDINATOR_DYNAMODB].data or {}).get("tables", []):
+                        tid = table.get("name", "")
+                        if tid and tid not in seen[COORDINATOR_DYNAMODB]:
+                            seen[COORDINATOR_DYNAMODB].add(tid)
+                            new_entities.append(
+                                AwsDynamoDBTableSensor(coordinators[COORDINATOR_DYNAMODB], account_name, region, tid)
+                            )
 
-            if asg_coordinator.data and "auto_scaling_groups" in asg_coordinator.data:
-                for asg in asg_coordinator.data["auto_scaling_groups"]:
-                    entities.append(
-                        AwsAsgSensor(
-                            asg_coordinator,
-                            account_name,
-                            region,
-                            asg["name"],
-                        )
-                    )
+                # ElastiCache clusters
+                if COORDINATOR_ELASTICACHE in coordinators:
+                    for cl in (coordinators[COORDINATOR_ELASTICACHE].data or {}).get("clusters", []):
+                        cid = cl.get("id", "")
+                        if cid and cid not in seen[COORDINATOR_ELASTICACHE]:
+                            seen[COORDINATOR_ELASTICACHE].add(cid)
+                            new_entities.append(
+                                AwsElastiCacheClusterSensor(coordinators[COORDINATOR_ELASTICACHE], account_name, region, cid)
+                            )
 
-        # DynamoDB sensors
-        if COORDINATOR_DYNAMODB in coordinators:
-            dynamodb_coordinator = coordinators[COORDINATOR_DYNAMODB]
+                # ECS clusters
+                if COORDINATOR_ECS in coordinators:
+                    for cl in (coordinators[COORDINATOR_ECS].data or {}).get("clusters", []):
+                        cid = cl.get("name", "")
+                        if cid and cid not in seen[COORDINATOR_ECS]:
+                            seen[COORDINATOR_ECS].add(cid)
+                            new_entities.append(
+                                AwsECSClusterSensor(coordinators[COORDINATOR_ECS], account_name, region, cid)
+                            )
 
-            if create_individual:
-                entities.append(AwsDynamoDBCountSensor(dynamodb_coordinator, account_name, region))
+                # EKS clusters
+                if COORDINATOR_EKS in coordinators:
+                    for cl in (coordinators[COORDINATOR_EKS].data or {}).get("clusters", []):
+                        cid = cl.get("name", "")
+                        if cid and cid not in seen[COORDINATOR_EKS]:
+                            seen[COORDINATOR_EKS].add(cid)
+                            new_entities.append(
+                                AwsEKSClusterSensor(coordinators[COORDINATOR_EKS], account_name, region, cid)
+                            )
 
-            if dynamodb_coordinator.data and "tables" in dynamodb_coordinator.data:
-                for table in dynamodb_coordinator.data["tables"]:
-                    entities.append(
-                        AwsDynamoDBTableSensor(
-                            dynamodb_coordinator,
-                            account_name,
-                            region,
-                            table["name"],
-                        )
-                    )
+                # EBS volumes
+                if COORDINATOR_EBS in coordinators:
+                    for vol in (coordinators[COORDINATOR_EBS].data or {}).get("volumes", []):
+                        vid = vol.get("id", "")
+                        if vid and vid not in seen[COORDINATOR_EBS]:
+                            seen[COORDINATOR_EBS].add(vid)
+                            new_entities.append(
+                                AwsEBSVolumeSensor(coordinators[COORDINATOR_EBS], account_name, region, vid)
+                            )
 
-        # ElastiCache sensors
-        if COORDINATOR_ELASTICACHE in coordinators:
-            elasticache_coordinator = coordinators[COORDINATOR_ELASTICACHE]
+                # SNS topics
+                if COORDINATOR_SNS in coordinators:
+                    for topic in (coordinators[COORDINATOR_SNS].data or {}).get("topics", []):
+                        tid = topic.get("name", "")
+                        if tid and tid not in seen[COORDINATOR_SNS]:
+                            seen[COORDINATOR_SNS].add(tid)
+                            new_entities.append(
+                                AwsSNSTopicSensor(coordinators[COORDINATOR_SNS], account_name, region, tid)
+                            )
 
-            if create_individual:
-                entities.append(AwsElastiCacheCountSensor(elasticache_coordinator, account_name, region))
+                # SQS queues
+                if COORDINATOR_SQS in coordinators:
+                    for queue in (coordinators[COORDINATOR_SQS].data or {}).get("queues", []):
+                        qid = queue.get("name", "")
+                        if qid and qid not in seen[COORDINATOR_SQS]:
+                            seen[COORDINATOR_SQS].add(qid)
+                            new_entities.append(
+                                AwsSQSQueueSensor(coordinators[COORDINATOR_SQS], account_name, region, qid)
+                            )
 
-            if elasticache_coordinator.data and "clusters" in elasticache_coordinator.data:
-                for cluster in elasticache_coordinator.data["clusters"]:
-                    entities.append(
-                        AwsElastiCacheClusterSensor(
-                            elasticache_coordinator,
-                            account_name,
-                            region,
-                            cluster["id"],
-                        )
-                    )
+                # S3 buckets
+                if COORDINATOR_S3 in coordinators:
+                    for bucket in (coordinators[COORDINATOR_S3].data or {}).get("buckets", []):
+                        bid = bucket.get("name", "")
+                        if bid and bid not in seen[COORDINATOR_S3]:
+                            seen[COORDINATOR_S3].add(bid)
+                            new_entities.append(
+                                AwsS3BucketSensor(coordinators[COORDINATOR_S3], account_name, region, bid)
+                            )
 
-        # ECS sensors
-        if COORDINATOR_ECS in coordinators:
-            ecs_coordinator = coordinators[COORDINATOR_ECS]
+                # CloudWatch alarms
+                if COORDINATOR_CLOUDWATCH_ALARMS in coordinators:
+                    for alarm in (coordinators[COORDINATOR_CLOUDWATCH_ALARMS].data or {}).get("alarms", []):
+                        aid = alarm.get("name", "")
+                        if aid and aid not in seen[COORDINATOR_CLOUDWATCH_ALARMS]:
+                            seen[COORDINATOR_CLOUDWATCH_ALARMS].add(aid)
+                            new_entities.append(
+                                AwsCloudWatchAlarmSensor(coordinators[COORDINATOR_CLOUDWATCH_ALARMS], account_name, region, aid)
+                            )
 
-            if create_individual:
-                entities.append(AwsECSCountSensor(ecs_coordinator, account_name, region))
+                # Elastic IPs
+                if COORDINATOR_ELASTIC_IPS in coordinators:
+                    for addr in (coordinators[COORDINATOR_ELASTIC_IPS].data or {}).get("addresses", []):
+                        ip = addr.get("ip", "")
+                        if ip and ip not in seen[COORDINATOR_ELASTIC_IPS]:
+                            seen[COORDINATOR_ELASTIC_IPS].add(ip)
+                            new_entities.append(
+                                AwsElasticIPSensor(coordinators[COORDINATOR_ELASTIC_IPS], account_name, region, ip)
+                            )
 
-            if ecs_coordinator.data and "clusters" in ecs_coordinator.data:
-                for cluster in ecs_coordinator.data["clusters"]:
-                    entities.append(
-                        AwsECSClusterSensor(
-                            ecs_coordinator,
-                            account_name,
-                            region,
-                            cluster["name"],
-                        )
-                    )
+                if new_entities:
+                    async_add_entities(new_entities)
 
-        # EKS sensors
-        if COORDINATOR_EKS in coordinators:
-            eks_coordinator = coordinators[COORDINATOR_EKS]
+            return _on_update
 
-            if create_individual:
-                entities.append(AwsEKSCountSensor(eks_coordinator, account_name, region))
+        listener = _make_listener(region, coordinators)
 
-            if eks_coordinator.data and "clusters" in eks_coordinator.data:
-                for cluster in eks_coordinator.data["clusters"]:
-                    entities.append(
-                        AwsEKSClusterSensor(
-                            eks_coordinator,
-                            account_name,
-                            region,
-                            cluster["name"],
-                        )
-                    )
+        # Register listener on each coordinator in this region and fire once
+        # immediately in case data is already available (blocking first_refresh path).
+        for coordinator in coordinators.values():
+            entry.async_on_unload(coordinator.async_add_listener(listener))
+        listener()
 
-        # EBS Volume sensors
-        if COORDINATOR_EBS in coordinators:
-            ebs_coordinator = coordinators[COORDINATOR_EBS]
-
-            if create_individual:
-                entities.append(AwsEBSCountSensor(ebs_coordinator, account_name, region))
-
-            if ebs_coordinator.data and "volumes" in ebs_coordinator.data:
-                for volume in ebs_coordinator.data["volumes"]:
-                    entities.append(
-                        AwsEBSVolumeSensor(
-                            ebs_coordinator,
-                            account_name,
-                            region,
-                            volume["id"],
-                        )
-                    )
-
-        # SNS sensors
-        if COORDINATOR_SNS in coordinators:
-            sns_coordinator = coordinators[COORDINATOR_SNS]
-
-            if create_individual:
-                entities.append(AwsSNSCountSensor(sns_coordinator, account_name, region))
-
-            if sns_coordinator.data and "topics" in sns_coordinator.data:
-                for topic in sns_coordinator.data["topics"]:
-                    entities.append(
-                        AwsSNSTopicSensor(
-                            sns_coordinator,
-                            account_name,
-                            region,
-                            topic["name"],
-                        )
-                    )
-
-        # SQS sensors
-        if COORDINATOR_SQS in coordinators:
-            sqs_coordinator = coordinators[COORDINATOR_SQS]
-
-            if create_individual:
-                entities.append(AwsSQSCountSensor(sqs_coordinator, account_name, region))
-
-            if sqs_coordinator.data and "queues" in sqs_coordinator.data:
-                for queue in sqs_coordinator.data["queues"]:
-                    entities.append(
-                        AwsSQSQueueSensor(
-                            sqs_coordinator,
-                            account_name,
-                            region,
-                            queue["name"],
-                        )
-                    )
-
-        # S3 sensors
-        if COORDINATOR_S3 in coordinators:
-            s3_coordinator = coordinators[COORDINATOR_S3]
-
-            if create_individual:
-                entities.append(AwsS3CountSensor(s3_coordinator, account_name, region))
-
-            if s3_coordinator.data and "buckets" in s3_coordinator.data:
-                for bucket in s3_coordinator.data["buckets"]:
-                    entities.append(
-                        AwsS3BucketSensor(
-                            s3_coordinator,
-                            account_name,
-                            region,
-                            bucket["name"],
-                        )
-                    )
-
-        # CloudWatch Alarms sensors
-        if COORDINATOR_CLOUDWATCH_ALARMS in coordinators:
-            cloudwatch_coordinator = coordinators[COORDINATOR_CLOUDWATCH_ALARMS]
-
-            if create_individual:
-                entities.append(AwsCloudWatchAlarmsCountSensor(cloudwatch_coordinator, account_name, region))
-
-            if cloudwatch_coordinator.data and "alarms" in cloudwatch_coordinator.data:
-                for alarm in cloudwatch_coordinator.data["alarms"]:
-                    entities.append(
-                        AwsCloudWatchAlarmSensor(
-                            cloudwatch_coordinator,
-                            account_name,
-                            region,
-                            alarm["name"],
-                        )
-                    )
-
-        # Elastic IP sensors
-        if COORDINATOR_ELASTIC_IPS in coordinators:
-            eip_coordinator = coordinators[COORDINATOR_ELASTIC_IPS]
-
-            if create_individual:
-                entities.append(AwsElasticIPsCountSensor(eip_coordinator, account_name, region))
-
-            if eip_coordinator.data and "addresses" in eip_coordinator.data:
-                for address in eip_coordinator.data["addresses"]:
-                    entities.append(
-                        AwsElasticIPSensor(
-                            eip_coordinator,
-                            account_name,
-                            region,
-                            address["ip"],
-                        )
-                    )
-
-    async_add_entities(entities)
 
 
 # ============================================================================
