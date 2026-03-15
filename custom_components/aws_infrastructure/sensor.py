@@ -1172,13 +1172,13 @@ class AwsDynamoDBTableSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_info = _make_device_info(account_name, region)
 
     @property
-    def native_value(self) -> str:
-        """Return the table status."""
+    def native_value(self) -> str | None:
+        """Return the table status, or None if data not yet available."""
         if self.coordinator.data:
             for table in self.coordinator.data.get("tables", []):
                 if table["name"] == self._table_name:
-                    return table.get("status", "unknown")
-        return "unknown"
+                    return table.get("status")
+        return None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -1191,7 +1191,7 @@ class AwsDynamoDBTableSensor(CoordinatorEntity, SensorEntity):
                         "status": table.get("status"),
                         "item_count": table.get("item_count"),
                         "size_bytes": table.get("size_bytes"),
-                        "created": table.get("creation_date"),
+                        "created": table.get("created"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}
@@ -1524,6 +1524,7 @@ class AwsEBSVolumeSensor(CoordinatorEntity, SensorEntity):
                 if volume.get("id") == self._volume_id:
                     return {
                         "volume_id": volume.get("id"),
+                        "volume_name": volume.get("name"),
                         "size_gb": volume.get("size"),
                         "type": volume.get("type"),
                         "iops": volume.get("iops"),

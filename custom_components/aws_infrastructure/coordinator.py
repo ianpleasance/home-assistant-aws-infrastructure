@@ -381,7 +381,7 @@ class AwsDynamoDBCoordinator(AwsBaseCoordinator):
                         'status': table.get('TableStatus'),
                         'item_count': table.get('ItemCount', 0),
                         'size_bytes': table.get('TableSizeBytes', 0),
-                        'creation_date': str(table.get('CreationDateTime', '')),
+                        'created': str(table.get('CreationDateTime', '')),
                     })
                 except Exception as err:
                     _LOGGER.warning("Error describing DynamoDB table %s: %s", table_name, err)
@@ -453,10 +453,17 @@ class AwsECSCoordinator(AwsBaseCoordinator):
             ecs_client = self.aws_client.get_ecs_client()
             
             # List clusters
+            # Use manual pagination — list_clusters paginator uses stringArray
+            # token type which fails on older botocore versions.
             cluster_arns = []
-            paginator = ecs_client.get_paginator('list_clusters')
-            for page in paginator.paginate():
-                cluster_arns.extend(page.get('clusterArns', []))
+            kwargs: dict = {}
+            while True:
+                response = ecs_client.list_clusters(**kwargs)
+                cluster_arns.extend(response.get('clusterArns', []))
+                next_token = response.get('nextToken')
+                if not next_token:
+                    break
+                kwargs = {'nextToken': next_token}
             
             # Get cluster details
             clusters = []
@@ -475,7 +482,7 @@ class AwsECSCoordinator(AwsBaseCoordinator):
             
             return {"clusters": clusters}
         except Exception as err:
-            _LOGGER.error(f"Error fetching ECS data: {err}")
+            _LOGGER.error("Error fetching ECS data: %s", err)
             return {"clusters": []}
 
 
@@ -500,10 +507,17 @@ class AwsEKSCoordinator(AwsBaseCoordinator):
             eks_client = self.aws_client.get_eks_client()
             
             # List clusters
+            # Use manual pagination — list_clusters paginator uses stringArray
+            # token type which fails on older botocore versions.
             cluster_names = []
-            paginator = eks_client.get_paginator('list_clusters')
-            for page in paginator.paginate():
-                cluster_names.extend(page.get('clusters', []))
+            kwargs: dict = {}
+            while True:
+                response = eks_client.list_clusters(**kwargs)
+                cluster_names.extend(response.get('clusters', []))
+                next_token = response.get('nextToken')
+                if not next_token:
+                    break
+                kwargs = {'nextToken': next_token}
             
             # Get cluster details
             clusters = []
@@ -520,11 +534,11 @@ class AwsEKSCoordinator(AwsBaseCoordinator):
                         'created_at': str(cluster.get('createdAt', '')),
                     })
                 except Exception as err:
-                    _LOGGER.warning(f"Error describing EKS cluster {cluster_name}: {err}")
+                    _LOGGER.warning("Error describing EKS cluster %s: %s", cluster_name, err)
             
             return {"clusters": clusters}
         except Exception as err:
-            _LOGGER.error(f"Error fetching EKS data: {err}")
+            _LOGGER.error("Error fetching EKS data: %s", err)
             return {"clusters": []}
 
 
@@ -557,8 +571,16 @@ class AwsEBSCoordinator(AwsBaseCoordinator):
                     attachments = volume.get('Attachments', [])
                     attached_to = attachments[0].get('InstanceId') if attachments else None
                     
+                    # Extract Name tag if present
+                    tags = volume.get('Tags', [])
+                    volume_name = next(
+                        (t['Value'] for t in tags if t.get('Key') == 'Name'),
+                        None,
+                    )
+
                     volumes.append({
                         'id': volume.get('VolumeId'),
+                        'name': volume_name,
                         'size': volume.get('Size', 0),
                         'type': volume.get('VolumeType'),
                         'iops': volume.get('Iops'),
@@ -572,7 +594,7 @@ class AwsEBSCoordinator(AwsBaseCoordinator):
             
             return {"volumes": volumes}
         except Exception as err:
-            _LOGGER.error(f"Error fetching EBS data: {err}")
+            _LOGGER.error("Error fetching EBS data: %s", err)
             return {"volumes": []}
 
 
