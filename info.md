@@ -4,9 +4,9 @@ Monitor your entire AWS infrastructure from Home Assistant. Track 15 AWS service
 
 ## 🚀 Features
 
-### 16 AWS Services Monitored
+### 17 AWS Services Monitored
 - **Compute**: EC2, Lambda, ECS, EKS, Auto Scaling Groups
-- **Data & Storage**: RDS, DynamoDB, ElastiCache, S3, EBS Volumes
+- **Data & Storage**: RDS, DynamoDB, ElastiCache, S3, EBS Volumes, EFS
 - **Networking**: ALB/NLB Load Balancers, Classic Load Balancers, Elastic IPs, SNS, SQS
 - **Monitoring**: CloudWatch Alarms
 
@@ -102,6 +102,10 @@ English • French • German • Italian • Spanish • Dutch • Swedish • 
 ## 📝 What's New in v1.5.4
 
 - ✨ Classic Load Balancer (ELB v1) monitoring
+
+## 📝 What's New in v1.5.5
+
+- ✨ EFS (Elastic File System) monitoring
 
 ## 🔗 Links
 

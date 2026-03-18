@@ -37,6 +37,7 @@ from .const import (
     COORDINATOR_SNS,
     COORDINATOR_SQS,
     COORDINATOR_CLASSIC_LB,
+    COORDINATOR_EFS,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_COST_REFRESH_INTERVAL,
     DOMAIN,
@@ -62,6 +63,7 @@ from .coordinator import (
     AwsSNSCoordinator,
     AwsSQSCoordinator,
     AwsClassicLBCoordinator,
+    AwsEFSCoordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -182,6 +184,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Classic Load Balancers
         coordinators[COORDINATOR_CLASSIC_LB] = AwsClassicLBCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # EFS
+        coordinators[COORDINATOR_EFS] = AwsEFSCoordinator(
             hass, aws_client, account_name, refresh_interval
         )
 

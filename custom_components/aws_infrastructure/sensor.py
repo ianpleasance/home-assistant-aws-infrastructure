@@ -38,6 +38,7 @@ from .const import (
     COORDINATOR_SNS,
     COORDINATOR_SQS,
     COORDINATOR_CLASSIC_LB,
+    COORDINATOR_EFS,
     DOMAIN,
 )
 
@@ -352,6 +353,22 @@ async def async_setup_entry(
                         registered_ids.add(uid)
                         new_entities.append(AwsClassicLBSensor(coordinator, account_name, region, lb["name"]))
 
+        # EFS
+        elif coordinator_key == COORDINATOR_EFS:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_efs_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsEFSCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for fs in coordinator.data.get("file_systems", []):
+                    fs_n = fs["id"].replace("-", "_")
+                    uid = f"aws_{account_name}_{region_n}_efs_{fs_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsEFSSensor(coordinator, account_name, region, fs["id"]))
+
         return new_entities
 
     # --- Initial entity registration ---
@@ -481,6 +498,10 @@ async def async_setup_entry(
                             for lb in data.get("load_balancers", []):
                                 lb_n = lb["name"].replace("-", "_").replace(".", "_")
                                 current_ids.add(f"aws_{account_name}_{region_n}_classic_load_balancer_{lb_n}")
+                        elif key == COORDINATOR_EFS:
+                            for fs in data.get("file_systems", []):
+                                fs_n = fs["id"].replace("-", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_efs_{fs_n}")
                         elif key == COORDINATOR_COST:
                             for slug in data.get("service_costs", {}).keys():
                                 current_ids.add(f"aws_{account_name}_cost_service_{slug}")
@@ -528,6 +549,7 @@ async def async_setup_entry(
                     COORDINATOR_CLOUDWATCH_ALARMS: f"aws_{account_name}_{region_n}_alarm_",
                     COORDINATOR_ELASTIC_IPS: f"aws_{account_name}_{region_n}_eip_",
                     COORDINATOR_CLASSIC_LB: f"aws_{account_name}_{region_n}_classic_load_balancer_",
+                    COORDINATOR_EFS: f"aws_{account_name}_{region_n}_efs_",
                     COORDINATOR_COST: f"aws_{account_name}_cost_service_",
                 }
                 prefix = coord_prefix_map.get(coordinator_key)
@@ -590,6 +612,7 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_CLOUDWATCH_ALARMS, "alarms"),
             (COORDINATOR_ELASTIC_IPS, "addresses"),
             (COORDINATOR_CLASSIC_LB, "load_balancers"),
+            (COORDINATOR_EFS, "file_systems"),
         ]:
             if key in self._coordinators and self._coordinators[key].data:
                 total += len(self._coordinators[key].data.get(data_key, []))
@@ -662,6 +685,9 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
         if COORDINATOR_CLASSIC_LB in self._coordinators and self._coordinators[COORDINATOR_CLASSIC_LB].data:
             attrs["classic_load_balancers"] = len(self._coordinators[COORDINATOR_CLASSIC_LB].data.get("load_balancers", []))
 
+        if COORDINATOR_EFS in self._coordinators and self._coordinators[COORDINATOR_EFS].data:
+            attrs["efs_file_systems"] = len(self._coordinators[COORDINATOR_EFS].data.get("file_systems", []))
+
         return attrs
 
 
@@ -721,6 +747,8 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_CLOUDWATCH_ALARMS, "alarms"),
                 (COORDINATOR_ELASTIC_IPS, "addresses"),
                 (COORDINATOR_CLASSIC_LB, "load_balancers"),
+                (COORDINATOR_EFS, "file_systems"),
+            (COORDINATOR_EFS, "file_systems"),
             ]:
                 if key in region_coordinators and region_coordinators[key].data:
                     total += len(region_coordinators[key].data.get(data_key, []))
@@ -738,6 +766,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "s3_buckets": 0, "cloudwatch_alarms": 0, "cloudwatch_alarms_alarm": 0,
             "elastic_ips": 0, "elastic_ips_unattached": 0,
             "classic_load_balancers": 0,
+            "efs_file_systems": 0,
         }
         active_regions = 0
 
@@ -844,6 +873,12 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 if clbs:
                     region_has_resources = True
                 totals["classic_load_balancers"] += len(clbs)
+
+            if COORDINATOR_EFS in region_coordinators and region_coordinators[COORDINATOR_EFS].data:
+                fss = region_coordinators[COORDINATOR_EFS].data.get("file_systems", [])
+                if fss:
+                    region_has_resources = True
+                totals["efs_file_systems"] += len(fss)
 
             if region_has_resources:
                 active_regions += 1
@@ -2250,7 +2285,7 @@ class AwsClassicLBSensor(CoordinatorEntity, SensorEntity):
         self._lb_name = lb_name
         region_normalized = region.replace("-", "_")
         lb_normalized = lb_name.replace("-", "_").replace(".", "_")
-        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_classic_load_balancer_{lb_normalized}"
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_classic_lb_{lb_normalized}"
         self._attr_name = f"Classic LB {lb_name}"
         self._attr_device_info = _make_device_info(account_name, region)
 
@@ -2283,6 +2318,94 @@ class AwsClassicLBSensor(CoordinatorEntity, SensorEntity):
                         "health_check_target": lb.get("health_check_target"),
                         "health_check_interval": lb.get("health_check_interval"),
                         "created_time": lb.get("created_time"),
+                        "last_updated": dt_util.now(),
+                    }
+        return {"last_updated": dt_util.now()}
+
+
+# ============================================================================
+# SENSORS - EFS
+# ============================================================================
+
+
+class AwsEFSCountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for EFS file system count."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:folder-network"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str, region: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        region_normalized = region.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_efs_count"
+        self._attr_name = "EFS File Systems"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of EFS file systems."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("file_systems", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        return {"last_updated": dt_util.now()}
+
+
+class AwsEFSSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual EFS file system."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:folder-network"
+
+    def __init__(self, coordinator, account_name: str, region: str, fs_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        self._fs_id = fs_id
+        region_normalized = region.replace("-", "_")
+        fs_normalized = fs_id.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_efs_{fs_normalized}"
+        self._attr_name = f"EFS {fs_id}"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the lifecycle state of the file system."""
+        if self.coordinator.data:
+            for fs in self.coordinator.data.get("file_systems", []):
+                if fs.get("id") == self._fs_id:
+                    return fs.get("state")
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        if self.coordinator.data:
+            for fs in self.coordinator.data.get("file_systems", []):
+                if fs.get("id") == self._fs_id:
+                    return {
+                        "file_system_id": fs.get("id"),
+                        "name": fs.get("name"),
+                        "state": fs.get("state"),
+                        "size_bytes": fs.get("size_bytes"),
+                        "size_gb": fs.get("size_gb"),
+                        "number_of_mount_targets": fs.get("number_of_mount_targets"),
+                        "performance_mode": fs.get("performance_mode"),
+                        "throughput_mode": fs.get("throughput_mode"),
+                        "encrypted": fs.get("encrypted"),
+                        "availability_zone": fs.get("availability_zone"),
+                        "created_time": fs.get("created_time"),
+                        "tags": fs.get("tags"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}

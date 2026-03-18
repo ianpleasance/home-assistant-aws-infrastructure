@@ -63,6 +63,9 @@ views:
           {% set s3_count = state_attr('sensor.aws_live_global_summary',
           's3_buckets') | int(0) %}
 
+          {% set efs_count = state_attr('sensor.aws_live_global_summary',
+          'efs_file_systems') | int(0) %}
+
           {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
           'cloudwatch_alarms') | int(0) %}
 
@@ -103,6 +106,8 @@ views:
           - **ElastiCache Clusters:** {{ elasticache_count }}
 
           - **S3 Buckets:** {{ s3_count }}
+
+          - **EFS File Systems:** {{ efs_count }}
 
           - **EBS Volumes:** {{ ebs_count }} ({{ ebs_unattached }} unattached)
 
@@ -332,6 +337,8 @@ views:
 
           | 🪣 S3 Buckets | {{ state.attributes.s3_buckets | default(0) }} |
 
+          | 🗂️ EFS File Systems | {{ state.attributes.efs_file_systems | default(0) }} |
+
           | 💿 EBS Volumes | {{ state.attributes.ebs_volumes | default(0) }} ({{
           state.attributes.ebs_unattached | default(0) }} unattached) |
 
@@ -393,9 +400,9 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 16 AWS Services:**  
+          **Monitoring 17 AWS Services:**  
 
-          EC2, RDS, Lambda, ECS, EKS, DynamoDB, ElastiCache, S3, EBS,
+          EC2, RDS, Lambda, ECS, EKS, DynamoDB, ElastiCache, S3, EBS, EFS,
           ALB/NLB Load Balancers, Classic Load Balancers, Auto Scaling,
           SNS, SQS, CloudWatch Alarms, Elastic IPs
 

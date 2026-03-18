@@ -65,6 +65,10 @@ class AwsClient:
         """Get ELB client (for Classic Load Balancers)."""
         return self._client("elb")
 
+    def get_efs_client(self):
+        """Get EFS client."""
+        return self._client("efs")
+
     def get_autoscaling_client(self):
         """Get Auto Scaling client."""
         return self._client("autoscaling")

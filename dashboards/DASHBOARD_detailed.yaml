@@ -64,6 +64,9 @@ views:
           | 💿 EBS Volumes | {{ state_attr('sensor.aws_live_global_summary',
           'ebs_volumes') }} ({{ state_attr('sensor.aws_live_global_summary',
           'ebs_unattached') }} unattached) |
+
+          | 📁 EFS File Systems | {{
+          state_attr('sensor.aws_live_global_summary', 'efs_file_systems') }} |
       - type: markdown
         content: >
           ## 🌐 Networking & Messaging
@@ -73,9 +76,12 @@ views:
 
           |----------|-------|
 
-          | 🌐 ALB/NLB Load Balancers | {{ state_attr('sensor.aws_live_global_summary', 'load_balancers') }} |
+          | 🌐 ALB/NLB Load Balancers | {{
+          state_attr('sensor.aws_live_global_summary', 'load_balancers') }} |
 
-          | 🔁 Classic Load Balancers | {{ state_attr('sensor.aws_live_global_summary', 'classic_load_balancers') | default(0) }} |
+          | 🔁 Classic Load Balancers | {{
+          state_attr('sensor.aws_live_global_summary', 'classic_load_balancers')
+          | default(0) }} |
 
           | 🔢 Elastic IPs | {{ state_attr('sensor.aws_live_global_summary',
           'elastic_ips') }} ({{ state_attr('sensor.aws_live_global_summary',
@@ -192,8 +198,9 @@ views:
           # ⚡ Lambda Functions
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'lambda_functions') | int(0) %}
-          **{{ n }} {{ 'function' if n == 1 else 'functions' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'lambda_functions') | int(0) %} **{{ n }} {{ 'function' if n == 1 else
+          'functions' }}**
 
 
           ---
@@ -250,8 +257,9 @@ views:
           # 🗄️ RDS Databases
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'rds_instances') | int(0) %}
-          **{{ n }} {{ 'database' if n == 1 else 'databases' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'rds_instances') | int(0) %} **{{ n }} {{ 'database' if n == 1 else
+          'databases' }}**
 
 
           ---
@@ -370,8 +378,9 @@ views:
           # 💾 ElastiCache Clusters
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'elasticache_clusters') | int(0) %}
-          **{{ n }} {{ 'cluster' if n == 1 else 'clusters' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'elasticache_clusters') | int(0) %} **{{ n }} {{ 'cluster' if n == 1
+          else 'clusters' }}**
 
 
           ---
@@ -431,8 +440,9 @@ views:
           # 🐳 ECS Clusters
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'ecs_clusters') | int(0) %}
-          **{{ n }} {{ 'cluster' if n == 1 else 'clusters' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'ecs_clusters') | int(0) %} **{{ n }} {{ 'cluster' if n == 1 else
+          'clusters' }}**
 
 
           ---
@@ -486,8 +496,9 @@ views:
           # ☸️ EKS Clusters
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'eks_clusters') | int(0) %}
-          **{{ n }} {{ 'cluster' if n == 1 else 'clusters' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'eks_clusters') | int(0) %} **{{ n }} {{ 'cluster' if n == 1 else
+          'clusters' }}**
 
 
           ---
@@ -545,8 +556,8 @@ views:
           # 📦 S3 Buckets
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 's3_buckets') | int(0) %}
-          **{{ n }} {{ 'bucket' if n == 1 else 'buckets' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary', 's3_buckets')
+          | int(0) %} **{{ n }} {{ 'bucket' if n == 1 else 'buckets' }}**
 
 
           ---
@@ -638,7 +649,64 @@ views:
 
           _No EBS volumes found_
 
-          {% endif %}  
+          {% endif %}
+      - type: markdown
+        content: >
+          # 🗂️ EFS File Systems
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'efs_file_systems') | default(0) | int(0) %} **{{ n }} {{ 'file
+          system' if n == 1 else 'file systems' }}**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_efs_fs_'
+          in state.entity_id -%}
+
+          {%- set fs_id = state.attributes.file_system_id | default('Unknown')
+          -%} {%- set fs_name = state.attributes.name | default(fs_id) -%} {%-
+          set fs_state = state.state -%} {%- set icon = '🟢' if fs_state ==
+          'available' else '⚫' %}
+
+
+          ### {{ icon }} {{ fs_name }}
+
+          - **ID**: {{ fs_id }}
+
+          - **State**: {{ fs_state }}
+
+          - **Size**: {{ state.attributes.size_gb | default(0) }} GB
+
+          - **Mount Targets**: {{ state.attributes.number_of_mount_targets |
+          default(0) }}
+
+          - **Performance Mode**: {{ state.attributes.performance_mode |
+          default('N/A') }}
+
+          - **Throughput Mode**: {{ state.attributes.throughput_mode |
+          default('N/A') }}
+
+          - **Encrypted**: {{ state.attributes.encrypted | default('N/A') }}
+
+          - **Created**: {{ state.attributes.created_time | default('N/A') }}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_efs_fs_') |
+          list | length == 0 -%}
+
+          _No EFS file systems found_
+
+          {% endif %}
   - title: Messaging
     path: aws-messaging
     icon: mdi:email
@@ -648,8 +716,8 @@ views:
           # 🔔 SNS Topics
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'sns_topics') | int(0) %}
-          **{{ n }} {{ 'topic' if n == 1 else 'topics' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary', 'sns_topics')
+          | int(0) %} **{{ n }} {{ 'topic' if n == 1 else 'topics' }}**
 
 
           ---
@@ -750,8 +818,9 @@ views:
           # 🌐 ALB / NLB Load Balancers
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'load_balancers') | int(0) %}
-          **{{ n }} {{ 'load balancer' if n == 1 else 'load balancers' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'load_balancers') | int(0) %} **{{ n }} {{ 'load balancer' if n == 1
+          else 'load balancers' }}**
 
 
           ---
@@ -759,8 +828,8 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_load_balancer_' in
-          state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and
+          '_load_balancer_' in state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -794,8 +863,8 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_load_balancer_') | list
-          | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search',
+          '_load_balancer_') | list | length == 0 -%}
 
           _No ALB/NLB load balancers found_
 
@@ -805,8 +874,9 @@ views:
           # 🔁 Classic Load Balancers
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'classic_load_balancers') | default(0) | int(0) %}
-          **{{ n }} {{ 'classic load balancer' if n == 1 else 'classic load balancers' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'classic_load_balancers') | default(0) | int(0) %} **{{ n }} {{
+          'classic load balancer' if n == 1 else 'classic load balancers' }}**
 
 
           ---
@@ -814,8 +884,8 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_classic_load_balancer_' in
-          state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and
+          '_classic_lb_' in state.entity_id -%}
 
           {%- set lb_name = state.attributes.name | default('Unknown') -%}
 
@@ -824,7 +894,8 @@ views:
 
           ### 🔁 {{ lb_name }}
 
-          - **Instances**: {{ instance_count }} {{ 'instance' if instance_count == 1 else 'instances' }}
+          - **Instances**: {{ instance_count }} {{ 'instance' if instance_count
+          == 1 else 'instances' }}
 
           - **Scheme**: {{ state.attributes.scheme | default('N/A') }}
 
@@ -832,13 +903,16 @@ views:
 
           - **VPC**: {{ state.attributes.vpc_id | default('EC2-Classic') }}
 
-          - **Health Check**: {{ state.attributes.health_check_target | default('N/A') }}
+          - **Health Check**: {{ state.attributes.health_check_target |
+          default('N/A') }}
 
           {%- set listeners = state.attributes.listeners | default([]) %}
 
           {%- if listeners | length > 0 %}
 
-          - **Listeners**: {% for l in listeners %}{{ l.lb_protocol }}:{{ l.lb_port }}→{{ l.instance_protocol }}:{{ l.instance_port }}{% if not loop.last %}, {% endif %}{% endfor %}
+          - **Listeners**: {% for l in listeners %}{{ l.lb_protocol }}:{{
+          l.lb_port }}→{{ l.instance_protocol }}:{{ l.instance_port }}{% if not
+          loop.last %}, {% endif %}{% endfor %}
 
           {%- endif %}
 
@@ -850,8 +924,8 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_classic_load_balancer_') | list
-          | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search',
+          '_classic_lb_') | list | length == 0 -%}
 
           _No Classic Load Balancers found_
 
@@ -919,8 +993,9 @@ views:
           # 📈 Auto Scaling Groups
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'auto_scaling_groups') | int(0) %}
-          **{{ n }} {{ 'group' if n == 1 else 'groups' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'auto_scaling_groups') | int(0) %} **{{ n }} {{ 'group' if n == 1 else
+          'groups' }}**
 
 
           ---
@@ -928,8 +1003,8 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and 'auto_scaling_group' in
-          state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and
+          'auto_scaling_group' in state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -945,7 +1020,8 @@ views:
 
           - **Region**: {{ region | upper }}
 
-          - **Current**: {{ instance_count }} {{ 'instance' if instance_count == 1 else 'instances' }}
+          - **Current**: {{ instance_count }} {{ 'instance' if instance_count ==
+          1 else 'instances' }}
 
           - **Desired**: {{ state.attributes.desired_capacity }}
 
@@ -960,8 +1036,8 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', 'auto_scaling_group') |
-          list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search',
+          'auto_scaling_group') | list | length == 0 -%}
 
           _No Auto Scaling Groups found_
 
@@ -975,9 +1051,11 @@ views:
           # ⏰ CloudWatch Alarms
 
 
-          {% set alarms = state_attr('sensor.aws_live_global_summary', 'cloudwatch_alarms') | int(0) %}
-          {% set firing = state_attr('sensor.aws_live_global_summary', 'cloudwatch_alarms_alarm') | int(0) %}
-          **{{ alarms }} {{ 'alarm' if alarms == 1 else 'alarms' }}** ({{ firing }} in ALARM state)
+          {% set alarms = state_attr('sensor.aws_live_global_summary',
+          'cloudwatch_alarms') | int(0) %} {% set firing =
+          state_attr('sensor.aws_live_global_summary',
+          'cloudwatch_alarms_alarm') | int(0) %} **{{ alarms }} {{ 'alarm' if
+          alarms == 1 else 'alarms' }}** ({{ firing }} in ALARM state)
 
 
           ---

@@ -7,7 +7,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 
 ## Features
 
-### 📊 **16 AWS Services Monitored**
+### 📊 **17 AWS Services Monitored**
 
 #### 💻 Compute
 - **EC2 Instances** — Track running/stopped instances with state, type, launch time, and tags
@@ -26,6 +26,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 #### 🌐 Networking & Messaging
 - **ALB / NLB Load Balancers** — Application and Network load balancers with DNS, scheme, state, and VPC
 - **Classic Load Balancers** — Legacy ELB with registered instances, listeners, health check config, and VPC
+- **EFS File Systems** — Elastic File System monitoring with state, size, mount targets, performance mode, and encryption
 - **Elastic IPs** — Track allocated IPs and identify unattached (costly) IPs
 - **SNS Topics** — Monitor notification topics and subscription counts
 - **SQS Queues** — Track message queues with available/in-flight/delayed message counts
@@ -109,6 +110,7 @@ Create a dedicated IAM user with read-only permissions. The minimum required pol
                 "eks:DescribeCluster",
                 "eks:ListClusters",
                 "elasticache:DescribeCacheClusters",
+                "elasticfilesystem:DescribeFileSystems",
                 "elasticloadbalancing:DescribeLoadBalancers",
                 "elasticloadbalancing:DescribeLoadBalancerAttributes",
                 "lambda:ListFunctions",
@@ -226,6 +228,9 @@ Contributions are welcome! Fork the repository, create a feature branch, make yo
 Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## Changelog
+
+### v1.5.5 (2026-03-18)
+- ✨ Added EFS (Elastic File System) monitoring with state, size, mount targets, performance mode, throughput mode, and encryption status
 
 ### v1.5.4 (2026-03-18)
 - ✨ Added Classic Load Balancer (ELB v1) monitoring with instance count, listeners, health check, and VPC

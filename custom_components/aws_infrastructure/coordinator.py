@@ -965,3 +965,54 @@ class AwsClassicLBCoordinator(AwsBaseCoordinator):
         except Exception as err:
             _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Classic Load Balancers", self.account_name, self.region, err)
             return {"load_balancers": []}
+
+
+class AwsEFSCoordinator(AwsBaseCoordinator):
+    """Coordinator for EFS file system data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"EFS ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch EFS file system data."""
+        try:
+            efs_client = self.aws_client.get_efs_client()
+
+            file_systems = []
+            paginator = efs_client.get_paginator('describe_file_systems')
+            for page in paginator.paginate():
+                for fs in page.get('FileSystems', []):
+                    name = None
+                    for tag in fs.get('Tags', []):
+                        if tag.get('Key') == 'Name':
+                            name = tag.get('Value')
+                            break
+                    size_bytes = fs.get('SizeInBytes', {}).get('Value', 0)
+                    file_systems.append({
+                        'id': fs.get('FileSystemId'),
+                        'name': name or fs.get('FileSystemId'),
+                        'state': fs.get('LifeCycleState'),
+                        'size_bytes': size_bytes,
+                        'size_gb': round(size_bytes / (1024 ** 3), 2) if size_bytes else 0,
+                        'number_of_mount_targets': fs.get('NumberOfMountTargets', 0),
+                        'performance_mode': fs.get('PerformanceMode'),
+                        'throughput_mode': fs.get('ThroughputMode'),
+                        'encrypted': fs.get('Encrypted', False),
+                        'availability_zone': fs.get('AvailabilityZoneName'),
+                        'created_time': str(fs.get('CreationTime', '')),
+                        'tags': {t['Key']: t['Value'] for t in fs.get('Tags', [])},
+                    })
+
+            return {"file_systems": file_systems}
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching EFS", self.account_name, self.region, err)
+            return {"file_systems": []}
