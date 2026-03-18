@@ -10,33 +10,33 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 ### 📊 **15 AWS Services Monitored**
 
 #### 💻 Compute
-- **EC2 Instances** - Track running/stopped instances with detailed metadata
-- **Lambda Functions** - Monitor function count, runtime, memory, and execution details
-- **ECS Clusters** - Container orchestration with task counts and service status
-- **EKS Clusters** - Kubernetes cluster monitoring with version and health status
-- **Auto Scaling Groups** - Monitor ASG capacity, desired/min/max instances
+- **EC2 Instances** — Track running/stopped instances with state, type, launch time, and tags
+- **Lambda Functions** — Monitor runtime, memory, timeout, code size, and last modified
+- **ECS Clusters** — Container orchestration with running/pending task counts and service status
+- **EKS Clusters** — Kubernetes cluster monitoring with version, endpoint, and health status
+- **Auto Scaling Groups** — Monitor ASG capacity, desired/min/max instances and health check type
 
 #### 🗄️ Data & Storage
-- **RDS Databases** - Track database instances, engine versions, and status
-- **DynamoDB Tables** - Monitor table status, item counts, and storage size
-- **ElastiCache** - Redis/Memcached cluster monitoring with node details
-- **S3 Buckets** - Track buckets across regions with creation dates
-- **EBS Volumes** - Monitor volumes, attachment status, size, type, and IOPS
+- **RDS Databases** — Track database instances, engine versions, class, and allocated storage
+- **DynamoDB Tables** — Monitor table status, item counts, and storage size
+- **ElastiCache** — Redis/Memcached/Valkey cluster monitoring with engine, node type, and node count
+- **S3 Buckets** — Track buckets per region with creation dates
+- **EBS Volumes** — Monitor volumes, attachment status, size, type, IOPS, AZ, and encryption
 
 #### 🌐 Networking & Messaging
-- **Load Balancers** - ALB/NLB/CLB monitoring with DNS and state
-- **Elastic IPs** - Track allocated IPs and identify unattached (costly) IPs
-- **SNS Topics** - Monitor notification topics and subscription counts
-- **SQS Queues** - Track message queues with available/in-flight/delayed counts
+- **ALB / NLB Load Balancers** — Application and Network load balancers with DNS, scheme, state, and VPC
+- **Elastic IPs** — Track allocated IPs and identify unattached (costly) IPs
+- **SNS Topics** — Monitor notification topics and subscription counts
+- **SQS Queues** — Track message queues with available/in-flight/delayed message counts
 
 #### 📊 Monitoring
-- **CloudWatch Alarms** - Monitor alarm states (OK/ALARM/INSUFFICIENT_DATA)
+- **CloudWatch Alarms** — Monitor alarm states (OK/ALARM/INSUFFICIENT_DATA) with metric, namespace, and reason
 
 ### 💰 **Cost Tracking**
-- **Daily Costs** - Yesterday's AWS spending with full history
-- **Month-to-Date Costs** - Running total for current month
-- **Cost by Service** - Top 10 services ranked by spend with percentages
-- **Cost Optimization** - Configurable refresh interval (default 24 hours) to minimize Cost Explorer API charges
+- **Daily Costs** — Yesterday's AWS spending with full history for graphing
+- **Month-to-Date Costs** — Running total for current month
+- **Cost by Service** — Top 10 services ranked by spend with percentages
+- **Cost Optimisation** — Configurable refresh interval (default 24 hours) to minimise Cost Explorer API charges
 
 ### 🌍 **Multi-Region Support**
 - Monitor all AWS regions or select specific regions
@@ -44,374 +44,200 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 - Regional summary sensors for each monitored region
 - Automatic region detection and filtering
 
-### 📈 **Individual Resource Tracking**
-- Create sensors for each EC2 instance, Lambda function, RDS database, etc.
-- Track detailed attributes (state, tags, configuration, performance)
+### 📈 **Dynamic Resource Tracking**
+- Sensors created dynamically as resources are discovered — no restart needed when new resources appear
+- Sensors automatically removed when resources are deleted
 - Historical data for trend analysis and alerting
-- Automatic entity creation and cleanup
+
+### 🔒 **Resilient & Observable**
+- Per-service boto3 timeouts (10s connect, 30s read) — no coordinator can hang indefinitely
+- IAM permission errors logged once as a warning then suppressed — no log spam
+- Credential errors raise a persistent HA notification
+- Throttling errors logged at WARNING (transient) vs ERROR (persistent)
+- Error recovery logged when a previously failing service succeeds again
 
 ### ⚙️ **Flexible Configuration**
-- Configurable refresh intervals (1-60 minutes for resources)
-- Separate Cost Explorer refresh interval (60-1440 minutes)
+- Configurable refresh intervals (1–1440 minutes)
+- Separate Cost Explorer refresh interval (60–1440 minutes)
 - Optional individual count sensors for history graphs
-- Skip initial refresh option for faster startup
-- Easy account management via UI
+- Skip initial refresh option for faster HA restarts (always does full refresh on first setup)
 
 ## Installation
 
 ### Via HACS (Recommended)
 
 1. Open HACS in Home Assistant
-2. Click on "Integrations"
-3. Click the three dots in the top right corner
-4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/ianpleasance/home-assistant-aws-infrastructure`
-6. Category: Integration
-7. Click "Add"
-8. Search for "AWS Infrastructure Monitor"
-9. Click "Download"
-10. Restart Home Assistant
+2. Click **Integrations**
+3. Click the three dots → **Custom repositories**
+4. Add: `https://github.com/ianpleasance/home-assistant-aws-infrastructure`
+5. Category: Integration
+6. Search for **AWS Infrastructure Monitor** and click **Download**
+7. Restart Home Assistant
 
 ### Manual Installation
 
 1. Download the latest release from GitHub
-2. Copy the `custom_components/aws_infrastructure` folder to your Home Assistant `config/custom_components/` directory
+2. Copy the `custom_components/aws_infrastructure` folder to `config/custom_components/`
 3. Restart Home Assistant
 
 ## Configuration
 
 ### 1. Create AWS IAM User
 
-Create a dedicated IAM user with the following policy:
+Create a dedicated IAM user with read-only permissions. The minimum required policy is:
 
 ```json
 {
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ec2:DescribeInstances",
-        "ec2:DescribeRegions",
-        "ec2:DescribeVolumes",
-        "ec2:DescribeAddresses",
-        "rds:DescribeDBInstances",
-        "rds:DescribeDBClusters",
-        "lambda:ListFunctions",
-        "elasticloadbalancing:DescribeLoadBalancers",
-        "autoscaling:DescribeAutoScalingGroups",
-        "dynamodb:ListTables",
-        "dynamodb:DescribeTable",
-        "elasticache:DescribeCacheClusters",
-        "elasticache:DescribeReplicationGroups",
-        "ecs:ListClusters",
-        "ecs:DescribeClusters",
-        "ecs:ListServices",
-        "ecs:DescribeServices",
-        "ecs:ListTasks",
-        "ecs:DescribeTasks",
-        "eks:ListClusters",
-        "eks:DescribeCluster",
-        "sns:ListTopics",
-        "sns:GetTopicAttributes",
-        "sqs:ListQueues",
-        "sqs:GetQueueAttributes",
-        "s3:ListAllMyBuckets",
-        "s3:GetBucketLocation",
-        "s3:GetBucketTagging",
-        "cloudwatch:DescribeAlarms",
-        "ce:GetCostAndUsage"
-      ],
-      "Resource": "*"
-    }
-  ]
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "HomeAssistantAWSMonitoring",
+            "Effect": "Allow",
+            "Action": [
+                "autoscaling:DescribeAutoScalingGroups",
+                "ce:GetCostAndUsage",
+                "cloudwatch:DescribeAlarms",
+                "dynamodb:DescribeTable",
+                "dynamodb:ListTables",
+                "ec2:DescribeAddresses",
+                "ec2:DescribeInstances",
+                "ec2:DescribeRegions",
+                "ec2:DescribeVolumes",
+                "ecs:DescribeClusters",
+                "ecs:ListClusters",
+                "eks:DescribeCluster",
+                "eks:ListClusters",
+                "elasticache:DescribeCacheClusters",
+                "elasticloadbalancing:DescribeLoadBalancers",
+                "lambda:ListFunctions",
+                "rds:DescribeDBInstances",
+                "s3:GetBucketLocation",
+                "s3:ListAllMyBuckets",
+                "sns:GetTopicAttributes",
+                "sns:ListTopics",
+                "sqs:GetQueueAttributes",
+                "sqs:ListQueues",
+                "sts:GetCallerIdentity"
+            ],
+            "Resource": "*"
+        }
+    ]
 }
 ```
+
+> **Note**: `sts:GetCallerIdentity` is used to validate credentials during setup. If your security policy prohibits this, the integration will still work — it will simply skip the validation step.
 
 ### 2. Add Integration
 
 1. Go to **Settings** → **Devices & Services**
 2. Click **+ Add Integration**
-3. Search for "AWS Infrastructure Monitor"
+3. Search for **AWS Infrastructure Monitor**
 4. Enter your configuration:
    - **Account Name**: A friendly name (e.g., "Production", "Live")
    - **AWS Access Key ID**: Your IAM user access key
    - **AWS Secret Access Key**: Your IAM user secret key
    - **Region Mode**: "All regions" or "Select specific regions"
-   - **Refresh Interval**: How often to check AWS (5-60 minutes, default: 5)
+   - **Refresh Interval**: How often to poll AWS (default: 5 minutes)
    - **Create Individual Count Sensors**: Enable for history graphs
 
-Note that cost usage data is only available in us-east-1, and so if you want cost sensors populated then you will need to ensure that us-east-1 is one of your monitored regions even if you have no other resources within it.
+> **Note**: Cost data is only available via `us-east-1`. Ensure `us-east-1` is included in your monitored regions if you want cost sensors.
 
 ### 3. Configure Options (Optional)
 
-After adding the integration, click **Configure** to adjust:
+After adding, click **Configure** to adjust:
 
-- **Refresh Interval**: Resource polling frequency (1-60 minutes)
-- **Cost Refresh Interval**: Cost Explorer polling frequency (60-1440 minutes, default: 1440)
-  - ⚠️ **Important**: Cost Explorer charges **$0.01 per API call**. Default is 24 hours (2 calls/day = $0.60/month)
+- **Refresh Interval**: Resource polling frequency (1–1440 minutes)
+- **Cost Refresh Interval**: Cost Explorer polling (60–1440 minutes, default: 1440)
+  - ⚠️ Cost Explorer charges **$0.01 per API call**. Default 24h = ~$0.60/month
 - **Individual Count Sensors**: Enable/disable count sensors per resource type
-- **Skip Initial Refresh**: Speed up startup by deferring first data fetch
+- **Skip Initial Refresh**: Defer first data fetch on HA **restarts** for faster startup. Has no effect when the integration is first added or reconfigured — a full refresh always runs in those cases.
 
 ## Cost Considerations
 
 ### AWS Cost Explorer API Charges
 
-AWS charges **$0.01 per API request** to Cost Explorer after the first request each day.
+| Refresh Interval | Calls/Day | Cost/Month | Recommendation |
+|------------------|-----------|------------|----------------|
+| **1440 min (24h)** | 2 | **$0.60** | ✅ Recommended |
+| 720 min (12h) | 4 | $1.20 | Twice-daily |
+| 60 min (1h) | 48 | $14.40 | Frequent |
+| 5 min | 576 | $172.80 | ❌ Not recommended |
 
-| Refresh Interval | Calls/Day | Cost/Month | Recommended For |
-|------------------|-----------|------------|-----------------|
-| **1440 min (24h)** | 2 | **$0.60** | ✅ **Recommended** - Cost data updates daily |
-| 720 min (12h) | 4 | $1.20 | Twice-daily updates |
-| 120 min (2h) | 24 | $7.20 | Frequent monitoring |
-| 60 min (1h) | 48 | $14.40 | Real-time tracking |
-| 5 min | 576 | $172.80 | ❌ **Not recommended** |
-
-**Default**: 1440 minutes (24 hours) = **$0.60/month**
-
-Cost data from AWS only updates once per day, so checking more frequently provides no benefit and wastes money.
+Cost data from AWS updates once per day — more frequent polling wastes money with no benefit.
 
 ### Other AWS API Costs
 
-Most other AWS API calls (EC2, RDS, Lambda, etc.) are **free** within normal usage limits.
-
-## Sensors Created
-
-### Global Sensors
-
-- `sensor.aws_{account}_global_summary` - Total resource count across all regions
-- `sensor.aws_{account}_global_cost_yesterday` - Yesterday's total cost
-- `sensor.aws_{account}_global_cost_month_to_date` - Month-to-date cost
-- `sensor.aws_{account}_global_cost_service_{service}` - Top 10 services by cost
-
-### Regional Sensors
-
-- `sensor.aws_{account}_{region}_summary` - Resource count per region
-- `sensor.aws_{account}_{region}_ec2_count` - EC2 instance count (optional)
-- `sensor.aws_{account}_{region}_rds_count` - RDS database count (optional)
-- `sensor.aws_{account}_{region}_lambda_count` - Lambda function count (optional)
-- *(And 10 more count sensors for other services)*
-
-### Individual Resource Sensors
-
-- `sensor.aws_{account}_{region}_ec2_i_{instance_id}` - Per EC2 instance
-- `sensor.aws_{account}_{region}_rds_{db_identifier}` - Per RDS database
-- `sensor.aws_{account}_{region}_lambda_{function_name}` - Per Lambda function
-- *(And individual sensors for all 15 service types)*
-
-## Services
-
-### `aws_infrastructure.refresh_account`
-
-Manually refresh all AWS data for an account.
-
-```yaml
-service: aws_infrastructure.refresh_account
-data:
-  account_name: "live"
-```
-
-## Example Automations
-
-### Daily Cost Alert
-
-```yaml
-automation:
-  - alias: "AWS Daily Cost Alert"
-    trigger:
-      - platform: state
-        entity_id: sensor.aws_live_global_cost_yesterday
-    condition:
-      - condition: numeric_state
-        entity_id: sensor.aws_live_global_cost_yesterday
-        above: 10
-    action:
-      - service: notify.mobile_app
-        data:
-          title: "AWS Cost Alert"
-          message: "Yesterday's AWS cost was ${{ states('sensor.aws_live_global_cost_yesterday') }}"
-```
-
-### Monthly Budget Warning
-
-```yaml
-automation:
-  - alias: "AWS Monthly Budget Warning"
-    trigger:
-      - platform: time
-        at: "09:00:00"
-    condition:
-      - condition: numeric_state
-        entity_id: sensor.aws_live_global_cost_month_to_date
-        above: 100
-    action:
-      - service: notify.mobile_app
-        data:
-          title: "AWS Budget Warning"
-          message: "Month-to-date AWS cost is ${{ states('sensor.aws_live_global_cost_month_to_date') }}"
-```
-
-### Unattached Elastic IP Alert
-
-```yaml
-automation:
-  - alias: "AWS Unattached Elastic IP Alert"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.aws_live_global_summary
-        value_template: "{{ state.attributes.elastic_ips_unattached }}"
-        above: 0
-    action:
-      - service: notify.mobile_app
-        data:
-          title: "AWS Cost Optimization"
-          message: "You have {{ state_attr('sensor.aws_live_global_summary', 'elastic_ips_unattached') }} unattached Elastic IPs costing money"
-```
-
-### EC2 Instance State Change
-
-```yaml
-automation:
-  - alias: "EC2 Instance State Change"
-    trigger:
-      - platform: state
-        entity_id: sensor.aws_live_us_east_1_ec2_i_12345abcde
-    action:
-      - service: notify.mobile_app
-        data:
-          title: "EC2 State Change"
-          message: "Instance {{ trigger.to_state.attributes.instance_id }} changed from {{ trigger.from_state.state }} to {{ trigger.to_state.state }}"
-```
-
-## Dashboard Examples
-
-See the [examples](examples/) folder for:
-- Simple overview dashboard
-- Detailed multi-tab dashboard
-- Cost tracking dashboard
-- Per-service dashboards
-
-## Supported Languages
-
-This integration includes translations for:
-
-🇬🇧 English • 🇫🇷 French • 🇩🇪 German • 🇮🇹 Italian • 🇪🇸 Spanish • 🇳🇱 Dutch • 🇸🇪 Swedish • 🇳🇴 Norwegian • 🇩🇰 Danish • 🇵🇱 Polish • 🇵🇹 Portuguese • 🇫🇮 Finnish • 🇯🇵 Japanese • 
+All other AWS API calls used by this integration (EC2, RDS, Lambda, etc.) are **free** within normal usage limits.
 
 ## Troubleshooting
 
-### Authentication Errors
+### Credential Errors
 
-**Error**: `Caught blocking call to putrequest inside the event loop`
-**Solution**: Update to the latest version - this was fixed in v0.4.0
+If your AWS credentials expire or are revoked, the integration will:
+1. Log an ERROR with details of which account is affected
+2. Raise a **persistent notification** in the HA UI
+3. Continue returning the last known data for all sensors
 
-**Error**: `Authentication failed`
-**Solution**: 
-- Verify your AWS Access Key ID and Secret Access Key
-- Ensure the IAM user has the required permissions
-- Check if the access key is active in AWS IAM console
+To fix: go to **Settings → Devices & Services → AWS Infrastructure → Configure** and re-enter valid credentials, or delete and re-add the integration with new credentials.
 
-### No Data Showing
+### IAM Permission Errors
 
-**Problem**: Sensors show "unknown" or "unavailable"
-**Solutions**:
-1. Check Home Assistant logs for errors
+If a service returns a permission denied error (e.g. you have EC2 but not ECS in your IAM policy):
+- A **WARNING** is logged once for that service
+- The service shows 0/empty data
+- No further log spam — the warning is suppressed on subsequent refreshes
+- When the permission is granted and the next refresh succeeds, a recovery INFO message is logged
+
+### Service Not Available in Region
+
+Some AWS services are not available in all regions. These are handled the same way as permission errors — warned once and suppressed.
+
+### No Data / Sensors Unavailable
+
+1. Check **Settings → System → Logs** for `aws_infrastructure` errors
 2. Verify IAM permissions include all required actions
-3. Ensure refresh interval hasn't been set too high
-4. Try manually refreshing: `aws_infrastructure.refresh_account`
+3. Confirm the AWS region you're monitoring actually has resources
+4. Try calling service `aws_infrastructure.refresh_account` manually
 
 ### Cost Data Not Updating
 
-**Problem**: Cost sensors show "unknown"
-**Solutions**:
 1. Cost data takes 24 hours to appear for new accounts
-2. Verify IAM policy includes `ce:GetCostAndUsage` permission
-3. Check that Cost Explorer is enabled in your AWS account
-4. Cost data only available in `us-east-1` region
+2. Ensure `ce:GetCostAndUsage` is in your IAM policy
+3. Confirm Cost Explorer is enabled in your AWS account
+4. Cost data only available via `us-east-1`
 
-### High AWS Costs
+## Supported Languages
 
-**Problem**: Unexpected AWS Cost Explorer charges
-**Solution**: Check your Cost Refresh Interval in integration options. Default is 24 hours ($0.60/month). If set to 5 minutes, you'll be charged $172.80/month!
-
-## Performance
-
-- **Startup Time**: 30-60 seconds (depends on number of resources)
-- **Memory Usage**: ~50-100MB (depends on number of regions/resources)
-- **Database Growth**: ~10-20MB per month (depends on refresh frequency)
-
-## Limitations
-
-- Cost data only available in `us-east-1` region (AWS limitation)
-- Cost data has 24-hour delay (AWS limitation)
-- Some AWS services not yet supported (CloudFront, Route53 hosted zones, etc.)
-- Maximum 20 regions can be monitored simultaneously
-- Individual resource sensors created for each resource (can be hundreds of entities)
+🇬🇧 English • 🇫🇷 French • 🇩🇪 German • 🇮🇹 Italian • 🇪🇸 Spanish • 🇳🇱 Dutch • 🇸🇪 Swedish • 🇳🇴 Norwegian • 🇩🇰 Danish • 🇵🇱 Polish • 🇵🇹 Portuguese • 🇫🇮 Finnish • 🇯🇵 Japanese
 
 ## Contributing
 
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+Contributions are welcome! Fork the repository, create a feature branch, make your changes, and submit a pull request.
 
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/ianpleasance/home-assistant-aws-infrastructure/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/ianpleasance/home-assistant-aws-infrastructure/discussions)
-- **Home Assistant Community**: [Community Forum Thread](https://community.home-assistant.io/)
+- **Home Assistant Community**: [Community Forum](https://community.home-assistant.io/)
 
 ## License
 
-Apache License 2.0 - see [LICENSE](LICENSE) file for details
-
-## Credits
-
-Created by [Your Name]
-
-Built with:
-- [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html) - AWS SDK for Python
-- [Home Assistant](https://www.home-assistant.io/) - Open source home automation
+Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## Changelog
 
-### v1.0.0 (2026-02-02)
-- ✨ Added 10 new AWS services (DynamoDB, ElastiCache, ECS, EKS, EBS, SNS, SQS, S3, CloudWatch Alarms, Elastic IPs)
-- ✨ Added configurable Cost Explorer refresh interval
-- 🐛 Fixed blocking boto3 calls in async context
-- 🐛 Fixed Cost Explorer GroupBy syntax
-- 🌍 Added 13 language translations
-- 📊 Enhanced dashboards with all new services
-- 💰 Cost optimization features (default 24h refresh = $0.60/month)
+### v1.5.1 (2026-03-18)
+- 🔒 Added botocore exception classification (credentials, permissions, throttling, timeouts, unavailable regions)
+- 🔒 Credential errors now raise a persistent HA notification
+- 🔒 IAM permission errors warned once then suppressed — no log spam
+- 🔒 Throttling logged at WARNING not ERROR
+- 🔒 Error recovery logged when a service starts succeeding again
+- 🔒 Config flow credential test now has a 10s/15s timeout and meaningful error messages
+- 📈 Dynamic entity registration — sensors appear as soon as coordinator data arrives, no restart needed
+- 🧹 Automatic cleanup of stale entities when AWS resources are deleted
+- ⚡ Concurrent first refresh via asyncio.gather — one slow service no longer blocks all others
+- ⚙️ skip_initial_refresh now only applies on HA restarts, not on first setup or reconfigure
+- 📋 IAM policy cleaned up — removed duplicates, only includes permissions actually used
 
-### v0.3.4 (2026-01-29)
-- 🐛 Fixed domain rename cleanup issues
-- 🐛 Fixed cost sensor calculations
-
-### v0.3.0 (2026-01-28)
-- ✨ Added Load Balancer monitoring
-- ✨ Added Auto Scaling Group monitoring
-- 🐛 Fixed multi-region support
-
-### v0.2.0 (2026-01-27)
-- ✨ Added cost tracking with Cost Explorer
-- ✨ Added service cost breakdown
-
-### v0.1.0 (2026-01-26)
-- 🎉 Initial release
-- ✨ EC2, RDS, Lambda monitoring
-- ✨ Multi-region support
-
-## Roadmap
-
-- [ ] Cost forecasting and alerts
-- [ ] Resource tagging insights
-- [ ] Multi-account support
-- [ ] CloudWatch metrics integration
-
----
-
-**⭐ If you find this integration useful, please star the repository!**
-
+### v1.3.0 (2026-03-10)
+- ✨ Added EBS, SNS, SQS, S3, CloudWatch Alarms, Elastic IPs monitoring
+- 🐛 Various bug fixes and pagination improvements

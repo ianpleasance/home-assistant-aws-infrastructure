@@ -123,16 +123,34 @@ class AwsInfrastructureConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _test_credentials(self, user_input: dict[str, Any]) -> None:
         """Test if the credentials are valid."""
         import boto3
-        
+        from botocore.config import Config
+        from botocore.exceptions import ClientError, NoCredentialsError, ConnectTimeoutError
+
         def _verify():
             session = boto3.Session(
                 aws_access_key_id=user_input[CONF_AWS_ACCESS_KEY_ID],
                 aws_secret_access_key=user_input[CONF_AWS_SECRET_ACCESS_KEY],
                 region_name="us-east-1",
             )
-            sts = session.client("sts")
-            return sts.get_caller_identity()
-        
+            sts = session.client(
+                "sts",
+                config=Config(connect_timeout=10, read_timeout=15, retries={"max_attempts": 1}),
+            )
+            try:
+                return sts.get_caller_identity()
+            except NoCredentialsError as err:
+                raise ValueError("Invalid AWS credentials — check your Access Key ID and Secret Access Key") from err
+            except ClientError as err:
+                code = err.response.get("Error", {}).get("Code", "")
+                if code in ("InvalidClientTokenId", "AuthFailure"):
+                    raise ValueError("Invalid AWS credentials — check your Access Key ID and Secret Access Key") from err
+                if code == "AccessDenied":
+                    # Credentials are valid but lack sts:GetCallerIdentity — still usable
+                    return {}
+                raise ValueError(f"AWS error during credential check: {err}") from err
+            except ConnectTimeoutError as err:
+                raise ValueError("Timed out connecting to AWS — check your network connection") from err
+
         await self.hass.async_add_executor_job(_verify)
 
     @staticmethod

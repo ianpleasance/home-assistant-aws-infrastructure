@@ -5,12 +5,48 @@ from datetime import timedelta
 import logging
 from typing import Any
 
+from botocore.exceptions import (
+    ClientError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    NoCredentialsError,
+    NoRegionError,
+    ReadTimeoutError,
+)
+from homeassistant.components.persistent_notification import async_create as async_create_notification
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .aws_client import AwsClient
 
 _LOGGER = logging.getLogger(__name__)
+
+# Error codes that mean the IAM permission is missing for this service.
+# We warn once and then suppress to avoid log spam on every refresh.
+_PERMISSION_DENIED_CODES = {"AccessDenied", "AccessDeniedException", "UnauthorizedOperation"}
+
+# Error codes that mean the service is simply not available in this region.
+_NOT_AVAILABLE_CODES = {"OptInRequired", "InvalidClientTokenId", "SubscriptionRequiredException"}
+
+
+def _classify_error(err: Exception) -> str:
+    """Return a short classification string for a boto3/botocore exception."""
+    if isinstance(err, NoCredentialsError):
+        return "credentials"
+    if isinstance(err, (ConnectTimeoutError, ReadTimeoutError)):
+        return "timeout"
+    if isinstance(err, EndpointConnectionError):
+        return "endpoint"
+    if isinstance(err, ClientError):
+        code = err.response.get("Error", {}).get("Code", "")
+        if code in _PERMISSION_DENIED_CODES:
+            return "permission"
+        if code in _NOT_AVAILABLE_CODES:
+            return "not_available"
+        if "Throttling" in code or "RequestLimitExceeded" in code:
+            return "throttle"
+        return f"client_error:{code}"
+    return "unknown"
 
 
 class AwsBaseCoordinator(DataUpdateCoordinator):
@@ -29,6 +65,8 @@ class AwsBaseCoordinator(DataUpdateCoordinator):
         self.account_name = account_name
         self.service_name = service_name
         self.region = aws_client.region
+        # Track permission/availability errors so we only warn once per coordinator
+        self._suppressed_error: str | None = None
         super().__init__(
             hass,
             _LOGGER,
@@ -39,16 +77,92 @@ class AwsBaseCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from API."""
         try:
-            # Run the synchronous _fetch_data in executor
-            return await self.hass.async_add_executor_job(self._fetch_data)
+            result = await self.hass.async_add_executor_job(self._fetch_data)
+            # If we had a suppressed error and the call succeeded, clear it and log recovery
+            if self._suppressed_error:
+                _LOGGER.info(
+                    "%s [account=%s region=%s]: recovered successfully",
+                    self.service_name, self.account_name, self.region,
+                )
+                self._suppressed_error = None
+            return result
         except Exception as err:
-            raise UpdateFailed(
-                f"Error fetching {self.service_name} data: {err}"
-            ) from err
+            error_class = _classify_error(err)
+            self._handle_error(error_class, err)
+            # Return previous data if available, otherwise empty dict.
+            # Never raise UpdateFailed — a single service error must not
+            # mark the entire config entry as unavailable.
+            return self.data if self.data is not None else {}
+
+    def _handle_error(self, error_class: str, err: Exception) -> None:
+        """Log errors appropriately — suppress repeated permission/availability errors."""
+        if error_class == "credentials":
+            # Credential errors affect all services — notify the user prominently
+            _LOGGER.error(
+                "%s [account=%s region=%s]: AWS credentials are invalid or expired. "
+                "Please reconfigure the integration with valid credentials. Error: %s",
+                self.service_name, self.account_name, self.region, err,
+            )
+            # Raise a HA persistent notification so it's visible in the UI
+            try:
+                async_create_notification(
+                    self.hass,
+                    f"AWS Infrastructure: credentials for account **{self.account_name}** "
+                    f"are invalid or expired. Please reconfigure the integration.",
+                    title="AWS Infrastructure — Credential Error",
+                    notification_id=f"aws_infrastructure_credentials_{self.account_name}",
+                )
+            except Exception:
+                pass  # Non-critical
+
+        elif error_class == "permission":
+            # Only warn once per coordinator — these won't self-resolve without IAM changes
+            if self._suppressed_error != error_class:
+                _LOGGER.warning(
+                    "%s [account=%s region=%s]: IAM permission denied — "
+                    "this service will show no data until the IAM policy is updated. "
+                    "Error: %s",
+                    self.service_name, self.account_name, self.region, err,
+                )
+                self._suppressed_error = error_class
+            # else: silently skip — already warned
+
+        elif error_class == "not_available":
+            # Service not available in this region — warn once and suppress
+            if self._suppressed_error != error_class:
+                _LOGGER.warning(
+                    "%s [account=%s region=%s]: service not available or not enabled "
+                    "in this region — skipping. Error: %s",
+                    self.service_name, self.account_name, self.region, err,
+                )
+                self._suppressed_error = error_class
+
+        elif error_class == "throttle":
+            # Throttling is transient — log at WARNING not ERROR
+            _LOGGER.warning(
+                "%s [account=%s region=%s]: request throttled by AWS, "
+                "will retry on next interval. Error: %s",
+                self.service_name, self.account_name, self.region, err,
+            )
+
+        elif error_class in ("timeout", "endpoint"):
+            _LOGGER.error(
+                "%s [account=%s region=%s]: connection %s — check network connectivity. "
+                "Error: %s",
+                self.service_name, self.account_name, self.region, error_class, err,
+            )
+
+        else:
+            # Unexpected error — log at ERROR with full detail
+            _LOGGER.error(
+                "%s [account=%s region=%s]: %s",
+                self.service_name, self.account_name, self.region, err,
+            )
 
     def _fetch_data(self) -> dict[str, Any]:
         """Override this in subclasses - runs in executor."""
         raise NotImplementedError
+
 
 
 class AwsCostCoordinator(AwsBaseCoordinator):
@@ -137,7 +251,7 @@ class AwsCostCoordinator(AwsBaseCoordinator):
                 "service_costs": service_costs,
             }
         except Exception as err:
-            _LOGGER.error(f"Error fetching cost data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Cost Explorer", self.account_name, self.region, err)
             return {"cost_yesterday": {}, "cost_mtd": {}, "service_costs": {}}
 
 
@@ -178,7 +292,7 @@ class AwsEc2Coordinator(AwsBaseCoordinator):
             
             return {"instances": instances}
         except Exception as err:
-            _LOGGER.error(f"Error fetching EC2 data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching EC2", self.account_name, self.region, err)
             return {"instances": []}
 
 
@@ -216,7 +330,7 @@ class AwsRdsCoordinator(AwsBaseCoordinator):
             
             return {"instances": instances}
         except Exception as err:
-            _LOGGER.error(f"Error fetching RDS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching RDS", self.account_name, self.region, err)
             return {"instances": []}
 
 
@@ -255,7 +369,7 @@ class AwsLambdaCoordinator(AwsBaseCoordinator):
             
             return {"functions": functions}
         except Exception as err:
-            _LOGGER.error(f"Error fetching Lambda data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Lambda", self.account_name, self.region, err)
             return {"functions": []}
 
 
@@ -294,7 +408,7 @@ class AwsLoadBalancerCoordinator(AwsBaseCoordinator):
             
             return {"load_balancers": load_balancers}
         except Exception as err:
-            _LOGGER.error(f"Error fetching Load Balancer data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Load Balancers", self.account_name, self.region, err)
             return {"load_balancers": []}
 
 
@@ -333,7 +447,7 @@ class AwsAutoScalingCoordinator(AwsBaseCoordinator):
             
             return {"auto_scaling_groups": auto_scaling_groups}
         except Exception as err:
-            _LOGGER.error(f"Error fetching ASG data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Auto Scaling Groups", self.account_name, self.region, err)
             return {"auto_scaling_groups": []}
 
 
@@ -381,7 +495,7 @@ class AwsDynamoDBCoordinator(AwsBaseCoordinator):
             
             return {"tables": table_details}
         except Exception as err:
-            _LOGGER.error(f"Error fetching DynamoDB data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching DynamoDB", self.account_name, self.region, err)
             return {"tables": []}
 
 
@@ -421,7 +535,7 @@ class AwsElastiCacheCoordinator(AwsBaseCoordinator):
             
             return {"clusters": clusters}
         except Exception as err:
-            _LOGGER.error(f"Error fetching ElastiCache data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching ElastiCache", self.account_name, self.region, err)
             return {"clusters": []}
 
 
@@ -468,7 +582,7 @@ class AwsECSCoordinator(AwsBaseCoordinator):
             
             return {"clusters": clusters}
         except Exception as err:
-            _LOGGER.error(f"Error fetching ECS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching ECS", self.account_name, self.region, err)
             return {"clusters": []}
 
 
@@ -517,7 +631,7 @@ class AwsEKSCoordinator(AwsBaseCoordinator):
             
             return {"clusters": clusters}
         except Exception as err:
-            _LOGGER.error(f"Error fetching EKS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching EKS", self.account_name, self.region, err)
             return {"clusters": []}
 
 
@@ -565,7 +679,7 @@ class AwsEBSCoordinator(AwsBaseCoordinator):
             
             return {"volumes": volumes}
         except Exception as err:
-            _LOGGER.error(f"Error fetching EBS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching EBS", self.account_name, self.region, err)
             return {"volumes": []}
 
 
@@ -612,7 +726,7 @@ class AwsSNSCoordinator(AwsBaseCoordinator):
             
             return {"topics": topics}
         except Exception as err:
-            _LOGGER.error(f"Error fetching SNS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching SNS", self.account_name, self.region, err)
             return {"topics": []}
 
 
@@ -663,7 +777,7 @@ class AwsSQSCoordinator(AwsBaseCoordinator):
             
             return {"queues": queues}
         except Exception as err:
-            _LOGGER.error(f"Error fetching SQS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching SQS", self.account_name, self.region, err)
             return {"queues": []}
 
 
@@ -713,7 +827,7 @@ class AwsS3Coordinator(AwsBaseCoordinator):
             
             return {"buckets": buckets}
         except Exception as err:
-            _LOGGER.error(f"Error fetching S3 data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching S3", self.account_name, self.region, err)
             return {"buckets": []}
 
 
@@ -753,7 +867,7 @@ class AwsCloudWatchAlarmsCoordinator(AwsBaseCoordinator):
             
             return {"alarms": alarms}
         except Exception as err:
-            _LOGGER.error(f"Error fetching CloudWatch alarms data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching CloudWatch Alarms", self.account_name, self.region, err)
             return {"alarms": []}
 
 
@@ -792,5 +906,5 @@ class AwsElasticIPsCoordinator(AwsBaseCoordinator):
             
             return {"addresses": addresses}
         except Exception as err:
-            _LOGGER.error(f"Error fetching Elastic IPs data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Elastic IPs", self.account_name, self.region, err)
             return {"addresses": []}
