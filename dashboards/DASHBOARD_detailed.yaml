@@ -64,9 +64,6 @@ views:
           | 💿 EBS Volumes | {{ state_attr('sensor.aws_live_global_summary',
           'ebs_volumes') }} ({{ state_attr('sensor.aws_live_global_summary',
           'ebs_unattached') }} unattached) |
-
-          | 📁 EFS File Systems | {{
-          state_attr('sensor.aws_live_global_summary', 'efs_file_systems') }} |
       - type: markdown
         content: >
           ## 🌐 Networking & Messaging
@@ -86,6 +83,8 @@ views:
           | 🔢 Elastic IPs | {{ state_attr('sensor.aws_live_global_summary',
           'elastic_ips') }} ({{ state_attr('sensor.aws_live_global_summary',
           'elastic_ips_unattached') }} unattached) |
+
+          | 🌊 Kinesis Streams | {{ state_attr('sensor.aws_live_global_summary', 'kinesis_streams') | default(0) }} |
 
           | 🔔 SNS Topics | {{ state_attr('sensor.aws_live_global_summary',
           'sns_topics') }} |
@@ -318,8 +317,8 @@ views:
           # 📊 DynamoDB Tables
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'dynamodb_tables')
-          }} tables**
+          {% set n = state_attr('sensor.aws_live_global_summary', 'dynamodb_tables') | int(0) %}
+          **{{ n }} {{ 'table' if n == 1 else 'tables' }}**
 
 
           ---
@@ -598,9 +597,9 @@ views:
           # 💿 EBS Volumes
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'ebs_volumes') }}
-          volumes** ({{ state_attr('sensor.aws_live_global_summary',
-          'ebs_unattached') }} unattached)
+          {% set vol = state_attr('sensor.aws_live_global_summary', 'ebs_volumes') | int(0) %}
+          {% set unat = state_attr('sensor.aws_live_global_summary', 'ebs_unattached') | int(0) %}
+          **{{ vol }} {{ 'volume' if vol == 1 else 'volumes' }}** ({{ unat }} unattached)
 
 
           ---
@@ -655,9 +654,8 @@ views:
           # 🗂️ EFS File Systems
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary',
-          'efs_file_systems') | default(0) | int(0) %} **{{ n }} {{ 'file
-          system' if n == 1 else 'file systems' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary', 'efs_file_systems') | default(0) | int(0) %}
+          **{{ n }} {{ 'file system' if n == 1 else 'file systems' }}**
 
 
           ---
@@ -665,13 +663,13 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_efs_fs_'
-          in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_efs_fs_' in
+          state.entity_id -%}
 
-          {%- set fs_id = state.attributes.file_system_id | default('Unknown')
-          -%} {%- set fs_name = state.attributes.name | default(fs_id) -%} {%-
-          set fs_state = state.state -%} {%- set icon = '🟢' if fs_state ==
-          'available' else '⚫' %}
+          {%- set fs_id = state.attributes.file_system_id | default('Unknown') -%}
+          {%- set fs_name = state.attributes.name | default(fs_id) -%}
+          {%- set fs_state = state.state -%}
+          {%- set icon = '🟢' if fs_state == 'available' else '⚫' %}
 
 
           ### {{ icon }} {{ fs_name }}
@@ -682,14 +680,11 @@ views:
 
           - **Size**: {{ state.attributes.size_gb | default(0) }} GB
 
-          - **Mount Targets**: {{ state.attributes.number_of_mount_targets |
-          default(0) }}
+          - **Mount Targets**: {{ state.attributes.number_of_mount_targets | default(0) }}
 
-          - **Performance Mode**: {{ state.attributes.performance_mode |
-          default('N/A') }}
+          - **Performance Mode**: {{ state.attributes.performance_mode | default('N/A') }}
 
-          - **Throughput Mode**: {{ state.attributes.throughput_mode |
-          default('N/A') }}
+          - **Throughput Mode**: {{ state.attributes.throughput_mode | default('N/A') }}
 
           - **Encrypted**: {{ state.attributes.encrypted | default('N/A') }}
 
@@ -701,8 +696,8 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_efs_fs_') |
-          list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search', '_efs_fs_') | list
+          | length == 0 -%}
 
           _No EFS file systems found_
 
@@ -711,6 +706,52 @@ views:
     path: aws-messaging
     icon: mdi:email
     cards:
+      - type: markdown
+        content: >
+          # 🌊 Kinesis Streams
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'kinesis_streams') | default(0) | int(0) %}
+          **{{ n }} {{ 'stream' if n == 1 else 'streams' }}**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_kinesis_' in
+          state.entity_id and '_kinesis_count' not in state.entity_id -%}
+
+          {%- set stream_name = state.attributes.name | default('Unknown') -%}
+          {%- set stream_status = state.state -%}
+          {%- set icon = '🟢' if stream_status == 'ACTIVE' else '🟡' if stream_status == 'CREATING' else '⚫' %}
+
+
+          ### {{ icon }} {{ stream_name }}
+
+          - **Status**: {{ stream_status }}
+
+          - **Mode**: {{ state.attributes.stream_mode | default('N/A') }}
+
+          - **Shards**: {{ state.attributes.shard_count | default('N/A') }}
+
+          - **Retention**: {{ state.attributes.retention_hours | default('N/A') }} hours
+
+          - **Consumers**: {{ state.attributes.consumer_count | default(0) }}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_kinesis_') |
+          rejectattr('entity_id', 'search', '_kinesis_count') | list | length == 0 -%}
+
+          _No Kinesis streams found_
+
+          {% endif %}
       - type: markdown
         content: >-
           # 🔔 SNS Topics
@@ -761,8 +802,8 @@ views:
           # 📬 SQS Queues
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'sqs_queues') }}
-          queues**
+          {% set n = state_attr('sensor.aws_live_global_summary', 'sqs_queues') | int(0) %}
+          **{{ n }} {{ 'queue' if n == 1 else 'queues' }}**
 
 
           ---
@@ -935,9 +976,9 @@ views:
           # 🔢 Elastic IPs
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'elastic_ips') }}
-          IPs** ({{ state_attr('sensor.aws_live_global_summary',
-          'elastic_ips_unattached') }} unattached)
+          {% set eips = state_attr('sensor.aws_live_global_summary', 'elastic_ips') | int(0) %}
+          {% set unat = state_attr('sensor.aws_live_global_summary', 'elastic_ips_unattached') | int(0) %}
+          **{{ eips }} {{ 'IP' if eips == 1 else 'IPs' }}** ({{ unat }} unattached)
 
 
           ---

@@ -1016,3 +1016,61 @@ class AwsEFSCoordinator(AwsBaseCoordinator):
         except Exception as err:
             _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching EFS", self.account_name, self.region, err)
             return {"file_systems": []}
+
+
+class AwsKinesisCoordinator(AwsBaseCoordinator):
+    """Coordinator for Kinesis stream data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"Kinesis ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch Kinesis stream data."""
+        try:
+            kinesis_client = self.aws_client.get_kinesis_client()
+
+            streams = []
+            paginator = kinesis_client.get_paginator('list_streams')
+            for page in paginator.paginate():
+                for summary in page.get('StreamSummaries', []):
+                    name = summary.get('StreamName')
+                    arn = summary.get('StreamARN')
+                    status = summary.get('StreamStatus')
+                    stream_mode = summary.get('StreamModeDetails', {}).get('StreamMode', 'PROVISIONED')
+
+                    # Get full stream details
+                    shard_count = None
+                    retention_hours = None
+                    consumer_count = None
+                    try:
+                        detail = kinesis_client.describe_stream_summary(StreamName=name)
+                        sd = detail.get('StreamDescriptionSummary', {})
+                        shard_count = sd.get('OpenShardCount')
+                        retention_hours = sd.get('RetentionPeriodHours')
+                        consumer_count = sd.get('ConsumerCount', 0)
+                    except Exception:
+                        pass
+
+                    streams.append({
+                        'name': name,
+                        'arn': arn,
+                        'status': status,
+                        'stream_mode': stream_mode,
+                        'shard_count': shard_count,
+                        'retention_hours': retention_hours,
+                        'consumer_count': consumer_count,
+                    })
+
+            return {"streams": streams}
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Kinesis", self.account_name, self.region, err)
+            return {"streams": []}

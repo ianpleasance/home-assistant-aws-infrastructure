@@ -7,7 +7,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 
 ## Features
 
-### 📊 **17 AWS Services Monitored**
+### 📊 **18 AWS Services Monitored**
 
 #### 💻 Compute
 - **EC2 Instances** — Track running/stopped instances with state, type, launch time, and tags
@@ -30,6 +30,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 - **Elastic IPs** — Track allocated IPs and identify unattached (costly) IPs
 - **SNS Topics** — Monitor notification topics and subscription counts
 - **SQS Queues** — Track message queues with available/in-flight/delayed message counts
+- **Kinesis Streams** — Monitor data streams with status, mode, shard count, retention period, and consumer count
 
 #### 📊 Monitoring
 - **CloudWatch Alarms** — Monitor alarm states (OK/ALARM/INSUFFICIENT_DATA) with metric, namespace, and reason
@@ -113,6 +114,8 @@ Create a dedicated IAM user with read-only permissions. The minimum required pol
                 "elasticfilesystem:DescribeFileSystems",
                 "elasticloadbalancing:DescribeLoadBalancers",
                 "elasticloadbalancing:DescribeLoadBalancerAttributes",
+                "kinesis:DescribeStreamSummary",
+                "kinesis:ListStreams",
                 "lambda:ListFunctions",
                 "rds:DescribeDBInstances",
                 "s3:GetBucketLocation",
@@ -228,6 +231,9 @@ Contributions are welcome! Fork the repository, create a feature branch, make yo
 Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## Changelog
+
+### v1.5.6 (2026-03-18)
+- ✨ Added Kinesis stream monitoring with status, mode, shard count, retention, and consumer count
 
 ### v1.5.5 (2026-03-18)
 - ✨ Added EFS (Elastic File System) monitoring with state, size, mount targets, performance mode, throughput mode, and encryption status

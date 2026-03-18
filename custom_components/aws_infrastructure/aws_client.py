@@ -69,6 +69,10 @@ class AwsClient:
         """Get EFS client."""
         return self._client("efs")
 
+    def get_kinesis_client(self):
+        """Get Kinesis client."""
+        return self._client("kinesis")
+
     def get_autoscaling_client(self):
         """Get Auto Scaling client."""
         return self._client("autoscaling")

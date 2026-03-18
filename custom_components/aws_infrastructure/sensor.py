@@ -39,6 +39,7 @@ from .const import (
     COORDINATOR_SQS,
     COORDINATOR_CLASSIC_LB,
     COORDINATOR_EFS,
+    COORDINATOR_KINESIS,
     DOMAIN,
 )
 
@@ -348,10 +349,26 @@ async def async_setup_entry(
             if coordinator.data:
                 for lb in coordinator.data.get("load_balancers", []):
                     lb_n = lb["name"].replace("-", "_").replace(".", "_")
-                    uid = f"aws_{account_name}_{region_n}_classic_load_balancer_{lb_n}"
+                    uid = f"aws_{account_name}_{region_n}_classic_lb_{lb_n}"
                     if uid not in registered_ids:
                         registered_ids.add(uid)
                         new_entities.append(AwsClassicLBSensor(coordinator, account_name, region, lb["name"]))
+
+        # Kinesis
+        elif coordinator_key == COORDINATOR_KINESIS:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_kinesis_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsKinesisCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for stream in coordinator.data.get("streams", []):
+                    s_n = stream["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_kinesis_{s_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsKinesisStreamSensor(coordinator, account_name, region, stream["name"]))
 
         # EFS
         elif coordinator_key == COORDINATOR_EFS:
@@ -497,11 +514,15 @@ async def async_setup_entry(
                         elif key == COORDINATOR_CLASSIC_LB:
                             for lb in data.get("load_balancers", []):
                                 lb_n = lb["name"].replace("-", "_").replace(".", "_")
-                                current_ids.add(f"aws_{account_name}_{region_n}_classic_load_balancer_{lb_n}")
+                                current_ids.add(f"aws_{account_name}_{region_n}_classic_lb_{lb_n}")
                         elif key == COORDINATOR_EFS:
                             for fs in data.get("file_systems", []):
                                 fs_n = fs["id"].replace("-", "_")
                                 current_ids.add(f"aws_{account_name}_{region_n}_efs_{fs_n}")
+                        elif key == COORDINATOR_KINESIS:
+                            for s in data.get("streams", []):
+                                s_n = s["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_kinesis_{s_n}")
                         elif key == COORDINATOR_COST:
                             for slug in data.get("service_costs", {}).keys():
                                 current_ids.add(f"aws_{account_name}_cost_service_{slug}")
@@ -548,8 +569,9 @@ async def async_setup_entry(
                     COORDINATOR_S3: f"aws_{account_name}_{region_n}_s3_",
                     COORDINATOR_CLOUDWATCH_ALARMS: f"aws_{account_name}_{region_n}_alarm_",
                     COORDINATOR_ELASTIC_IPS: f"aws_{account_name}_{region_n}_eip_",
-                    COORDINATOR_CLASSIC_LB: f"aws_{account_name}_{region_n}_classic_load_balancer_",
+                    COORDINATOR_CLASSIC_LB: f"aws_{account_name}_{region_n}_classic_lb_",
                     COORDINATOR_EFS: f"aws_{account_name}_{region_n}_efs_",
+                    COORDINATOR_KINESIS: f"aws_{account_name}_{region_n}_kinesis_",
                     COORDINATOR_COST: f"aws_{account_name}_cost_service_",
                 }
                 prefix = coord_prefix_map.get(coordinator_key)
@@ -613,6 +635,7 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_ELASTIC_IPS, "addresses"),
             (COORDINATOR_CLASSIC_LB, "load_balancers"),
             (COORDINATOR_EFS, "file_systems"),
+            (COORDINATOR_KINESIS, "streams"),
         ]:
             if key in self._coordinators and self._coordinators[key].data:
                 total += len(self._coordinators[key].data.get(data_key, []))
@@ -688,6 +711,9 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
         if COORDINATOR_EFS in self._coordinators and self._coordinators[COORDINATOR_EFS].data:
             attrs["efs_file_systems"] = len(self._coordinators[COORDINATOR_EFS].data.get("file_systems", []))
 
+        if COORDINATOR_KINESIS in self._coordinators and self._coordinators[COORDINATOR_KINESIS].data:
+            attrs["kinesis_streams"] = len(self._coordinators[COORDINATOR_KINESIS].data.get("streams", []))
+
         return attrs
 
 
@@ -748,7 +774,10 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_ELASTIC_IPS, "addresses"),
                 (COORDINATOR_CLASSIC_LB, "load_balancers"),
                 (COORDINATOR_EFS, "file_systems"),
+                (COORDINATOR_KINESIS, "streams"),
+            (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_EFS, "file_systems"),
+            (COORDINATOR_KINESIS, "streams"),
             ]:
                 if key in region_coordinators and region_coordinators[key].data:
                     total += len(region_coordinators[key].data.get(data_key, []))
@@ -767,6 +796,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "elastic_ips": 0, "elastic_ips_unattached": 0,
             "classic_load_balancers": 0,
             "efs_file_systems": 0,
+            "kinesis_streams": 0,
         }
         active_regions = 0
 
@@ -879,6 +909,12 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 if fss:
                     region_has_resources = True
                 totals["efs_file_systems"] += len(fss)
+
+            if COORDINATOR_KINESIS in region_coordinators and region_coordinators[COORDINATOR_KINESIS].data:
+                streams = region_coordinators[COORDINATOR_KINESIS].data.get("streams", [])
+                if streams:
+                    region_has_resources = True
+                totals["kinesis_streams"] += len(streams)
 
             if region_has_resources:
                 active_regions += 1
@@ -2406,6 +2442,89 @@ class AwsEFSSensor(CoordinatorEntity, SensorEntity):
                         "availability_zone": fs.get("availability_zone"),
                         "created_time": fs.get("created_time"),
                         "tags": fs.get("tags"),
+                        "last_updated": dt_util.now(),
+                    }
+        return {"last_updated": dt_util.now()}
+
+
+# ============================================================================
+# SENSORS - Kinesis
+# ============================================================================
+
+
+class AwsKinesisCountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for Kinesis stream count."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:transit-connection-variant"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str, region: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        region_normalized = region.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_kinesis_count"
+        self._attr_name = "Kinesis Streams"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of Kinesis streams."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("streams", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        return {"last_updated": dt_util.now()}
+
+
+class AwsKinesisStreamSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual Kinesis stream."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:transit-connection-variant"
+
+    def __init__(self, coordinator, account_name: str, region: str, stream_name: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        self._stream_name = stream_name
+        region_normalized = region.replace("-", "_")
+        stream_normalized = stream_name.replace("-", "_").replace(".", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_kinesis_{stream_normalized}"
+        self._attr_name = f"Kinesis {stream_name}"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the stream status."""
+        if self.coordinator.data:
+            for stream in self.coordinator.data.get("streams", []):
+                if stream.get("name") == self._stream_name:
+                    return stream.get("status")
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        if self.coordinator.data:
+            for stream in self.coordinator.data.get("streams", []):
+                if stream.get("name") == self._stream_name:
+                    return {
+                        "name": stream.get("name"),
+                        "arn": stream.get("arn"),
+                        "status": stream.get("status"),
+                        "stream_mode": stream.get("stream_mode"),
+                        "shard_count": stream.get("shard_count"),
+                        "retention_hours": stream.get("retention_hours"),
+                        "consumer_count": stream.get("consumer_count"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}

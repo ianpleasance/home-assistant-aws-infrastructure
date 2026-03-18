@@ -73,6 +73,7 @@ COORDINATOR_CLOUDWATCH_ALARMS = "cloudwatch_alarms"
 COORDINATOR_ELASTIC_IPS = "elastic_ips"
 COORDINATOR_CLASSIC_LB = "classic_lb"
 COORDINATOR_EFS = "efs"
+COORDINATOR_KINESIS = "kinesis"
 
 # Attribution
 ATTRIBUTION = "Data provided by Amazon Web Services"

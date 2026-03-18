@@ -38,6 +38,7 @@ from .const import (
     COORDINATOR_SQS,
     COORDINATOR_CLASSIC_LB,
     COORDINATOR_EFS,
+    COORDINATOR_KINESIS,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_COST_REFRESH_INTERVAL,
     DOMAIN,
@@ -64,6 +65,7 @@ from .coordinator import (
     AwsSQSCoordinator,
     AwsClassicLBCoordinator,
     AwsEFSCoordinator,
+    AwsKinesisCoordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -189,6 +191,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # EFS
         coordinators[COORDINATOR_EFS] = AwsEFSCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # Kinesis
+        coordinators[COORDINATOR_KINESIS] = AwsKinesisCoordinator(
             hass, aws_client, account_name, refresh_interval
         )
 

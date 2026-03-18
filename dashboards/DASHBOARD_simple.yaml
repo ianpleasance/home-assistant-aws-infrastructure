@@ -66,6 +66,9 @@ views:
           {% set efs_count = state_attr('sensor.aws_live_global_summary',
           'efs_file_systems') | int(0) %}
 
+          {% set kinesis_count = state_attr('sensor.aws_live_global_summary',
+          'kinesis_streams') | int(0) %}
+
           {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
           'cloudwatch_alarms') | int(0) %}
 
@@ -119,6 +122,8 @@ views:
           - **Classic Load Balancers:** {{ clb_count }}
 
           - **Elastic IPs:** {{ eips_count }} ({{ eips_unattached }} unattached)
+
+          - **Kinesis Streams:** {{ kinesis_count }}
 
           - **SNS Topics:** {{ sns_count }}
 
@@ -356,6 +361,8 @@ views:
           | 🔢 Elastic IPs | {{ state.attributes.elastic_ips | default(0) }} ({{
           state.attributes.elastic_ips_unattached | default(0) }} unattached) |
 
+          | 🌊 Kinesis Streams | {{ state.attributes.kinesis_streams | default(0) }} |
+
           | 🔔 SNS Topics | {{ state.attributes.sns_topics | default(0) }} |
 
           | 📬 SQS Queues | {{ state.attributes.sqs_queues | default(0) }} |
@@ -400,11 +407,11 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 17 AWS Services:**  
+          **Monitoring 18 AWS Services:**  
 
           EC2, RDS, Lambda, ECS, EKS, DynamoDB, ElastiCache, S3, EBS, EFS,
           ALB/NLB Load Balancers, Classic Load Balancers, Auto Scaling,
-          SNS, SQS, CloudWatch Alarms, Elastic IPs
+          Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
 
 
           **Cost Data**: Updates daily (24hr delay for new accounts)  
