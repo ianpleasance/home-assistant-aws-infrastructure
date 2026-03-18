@@ -71,6 +71,13 @@ COORDINATOR_ASG = "asg"
 COORDINATOR_S3 = "s3"
 COORDINATOR_CLOUDWATCH_ALARMS = "cloudwatch_alarms"
 COORDINATOR_ELASTIC_IPS = "elastic_ips"
+COORDINATOR_CLASSIC_LB = "classic_lb"
+COORDINATOR_API_GATEWAY = "api_gateway"
+COORDINATOR_CLOUDFRONT = "cloudfront"
+COORDINATOR_EFS = "efs"
+COORDINATOR_ROUTE53 = "route53"
+COORDINATOR_KINESIS = "kinesis"
+COORDINATOR_BEANSTALK = "beanstalk"
 
 # Attribution
 ATTRIBUTION = "Data provided by Amazon Web Services"
@@ -119,4 +126,3 @@ def slugify_service_name(service_name: str) -> str:
     slug = slug.split(" - ")[0]  # Take first part before dash
     slug = "".join(c for c in slug if c.isalnum())
     return slug[:20]  # Limit length
-

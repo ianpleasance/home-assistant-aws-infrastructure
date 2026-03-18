@@ -356,19 +356,12 @@ class AwsDynamoDBCoordinator(AwsBaseCoordinator):
         """Fetch DynamoDB data."""
         try:
             dynamodb_client = self.aws_client.get_dynamodb_client()
-
-            # List all tables using manual pagination — the list_tables paginator
-            # uses a stringArray type in its token schema which fails on older
-            # botocore versions with "Unknown parameter type: stringArray".
+            
+            # List all tables
             tables = []
-            kwargs: dict = {}
-            while True:
-                response = dynamodb_client.list_tables(**kwargs)
-                tables.extend(response.get('TableNames', []))
-                last = response.get('LastEvaluatedTableName')
-                if not last:
-                    break
-                kwargs = {'ExclusiveStartTableName': last}
+            paginator = dynamodb_client.get_paginator('list_tables')
+            for page in paginator.paginate():
+                tables.extend(page.get('TableNames', []))
             
             # Get details for each table
             table_details = []
@@ -381,14 +374,14 @@ class AwsDynamoDBCoordinator(AwsBaseCoordinator):
                         'status': table.get('TableStatus'),
                         'item_count': table.get('ItemCount', 0),
                         'size_bytes': table.get('TableSizeBytes', 0),
-                        'created': str(table.get('CreationDateTime', '')),
+                        'creation_date': str(table.get('CreationDateTime', '')),
                     })
                 except Exception as err:
-                    _LOGGER.warning("Error describing DynamoDB table %s: %s", table_name, err)
+                    _LOGGER.warning(f"Error describing DynamoDB table {table_name}: {err}")
             
             return {"tables": table_details}
         except Exception as err:
-            _LOGGER.error("Error fetching DynamoDB data: %s", err)
+            _LOGGER.error(f"Error fetching DynamoDB data: {err}")
             return {"tables": []}
 
 
@@ -453,17 +446,10 @@ class AwsECSCoordinator(AwsBaseCoordinator):
             ecs_client = self.aws_client.get_ecs_client()
             
             # List clusters
-            # Use manual pagination — list_clusters paginator uses stringArray
-            # token type which fails on older botocore versions.
             cluster_arns = []
-            kwargs: dict = {}
-            while True:
-                response = ecs_client.list_clusters(**kwargs)
-                cluster_arns.extend(response.get('clusterArns', []))
-                next_token = response.get('nextToken')
-                if not next_token:
-                    break
-                kwargs = {'nextToken': next_token}
+            paginator = ecs_client.get_paginator('list_clusters')
+            for page in paginator.paginate():
+                cluster_arns.extend(page.get('clusterArns', []))
             
             # Get cluster details
             clusters = []
@@ -482,7 +468,7 @@ class AwsECSCoordinator(AwsBaseCoordinator):
             
             return {"clusters": clusters}
         except Exception as err:
-            _LOGGER.error("Error fetching ECS data: %s", err)
+            _LOGGER.error(f"Error fetching ECS data: {err}")
             return {"clusters": []}
 
 
@@ -507,17 +493,10 @@ class AwsEKSCoordinator(AwsBaseCoordinator):
             eks_client = self.aws_client.get_eks_client()
             
             # List clusters
-            # Use manual pagination — list_clusters paginator uses stringArray
-            # token type which fails on older botocore versions.
             cluster_names = []
-            kwargs: dict = {}
-            while True:
-                response = eks_client.list_clusters(**kwargs)
-                cluster_names.extend(response.get('clusters', []))
-                next_token = response.get('nextToken')
-                if not next_token:
-                    break
-                kwargs = {'nextToken': next_token}
+            paginator = eks_client.get_paginator('list_clusters')
+            for page in paginator.paginate():
+                cluster_names.extend(page.get('clusters', []))
             
             # Get cluster details
             clusters = []
@@ -534,11 +513,11 @@ class AwsEKSCoordinator(AwsBaseCoordinator):
                         'created_at': str(cluster.get('createdAt', '')),
                     })
                 except Exception as err:
-                    _LOGGER.warning("Error describing EKS cluster %s: %s", cluster_name, err)
+                    _LOGGER.warning(f"Error describing EKS cluster {cluster_name}: {err}")
             
             return {"clusters": clusters}
         except Exception as err:
-            _LOGGER.error("Error fetching EKS data: %s", err)
+            _LOGGER.error(f"Error fetching EKS data: {err}")
             return {"clusters": []}
 
 
@@ -571,16 +550,8 @@ class AwsEBSCoordinator(AwsBaseCoordinator):
                     attachments = volume.get('Attachments', [])
                     attached_to = attachments[0].get('InstanceId') if attachments else None
                     
-                    # Extract Name tag if present
-                    tags = volume.get('Tags', [])
-                    volume_name = next(
-                        (t['Value'] for t in tags if t.get('Key') == 'Name'),
-                        None,
-                    )
-
                     volumes.append({
                         'id': volume.get('VolumeId'),
-                        'name': volume_name,
                         'size': volume.get('Size', 0),
                         'type': volume.get('VolumeType'),
                         'iops': volume.get('Iops'),
@@ -594,7 +565,7 @@ class AwsEBSCoordinator(AwsBaseCoordinator):
             
             return {"volumes": volumes}
         except Exception as err:
-            _LOGGER.error("Error fetching EBS data: %s", err)
+            _LOGGER.error(f"Error fetching EBS data: {err}")
             return {"volumes": []}
 
 
@@ -715,11 +686,8 @@ class AwsS3Coordinator(AwsBaseCoordinator):
         """Fetch S3 buckets data."""
         try:
             s3_client = self.aws_client.get_s3_client()
-
-            # list_buckets() with default settings fails on botocore < 1.35.74
-            # because DEFAULT_CHECKSUM_ALGORITHM was not yet present.
-            # Passing explicit checksum config disables the new behaviour and
-            # works on all supported versions.
+            
+            # List all buckets (this is account-wide)
             response = s3_client.list_buckets()
             buckets = []
             
@@ -741,11 +709,11 @@ class AwsS3Coordinator(AwsBaseCoordinator):
                             'created': str(bucket.get('CreationDate', '')),
                         })
                 except Exception as err:
-                    _LOGGER.warning("Error getting S3 bucket location %s: %s", bucket_name, err)
+                    _LOGGER.warning(f"Error getting S3 bucket location for {bucket_name}: {err}")
             
             return {"buckets": buckets}
         except Exception as err:
-            _LOGGER.error("Error fetching S3 data: %s", err)
+            _LOGGER.error(f"Error fetching S3 data: {err}")
             return {"buckets": []}
 
 
@@ -826,3 +794,357 @@ class AwsElasticIPsCoordinator(AwsBaseCoordinator):
         except Exception as err:
             _LOGGER.error(f"Error fetching Elastic IPs data: {err}")
             return {"addresses": []}
+
+
+class AwsClassicLBCoordinator(AwsBaseCoordinator):
+    """Coordinator for Classic Load Balancer data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"Classic Load Balancers ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch Classic Load Balancer data."""
+        try:
+            elb_client = self.aws_client.get_elb_client()
+
+            load_balancers = []
+            paginator = elb_client.get_paginator('describe_load_balancers')
+            for page in paginator.paginate():
+                for lb in page.get('LoadBalancerDescriptions', []):
+                    hc = lb.get('HealthCheck', {})
+                    listeners = [
+                        {
+                            'lb_port': l.get('Listener', {}).get('LoadBalancerPort'),
+                            'lb_protocol': l.get('Listener', {}).get('Protocol'),
+                            'instance_port': l.get('Listener', {}).get('InstancePort'),
+                            'instance_protocol': l.get('Listener', {}).get('InstanceProtocol'),
+                        }
+                        for l in lb.get('ListenerDescriptions', [])
+                    ]
+                    instances = [i.get('InstanceId') for i in lb.get('Instances', [])]
+                    load_balancers.append({
+                        'name': lb.get('LoadBalancerName'),
+                        'dns_name': lb.get('DNSName'),
+                        'scheme': lb.get('Scheme'),
+                        'vpc_id': lb.get('VPCId'),
+                        'availability_zones': lb.get('AvailabilityZones', []),
+                        'subnets': lb.get('Subnets', []),
+                        'security_groups': lb.get('SecurityGroups', []),
+                        'instances': instances,
+                        'instance_count': len(instances),
+                        'listeners': listeners,
+                        'health_check_target': hc.get('Target'),
+                        'health_check_interval': hc.get('Interval'),
+                        'created_time': str(lb.get('CreatedTime', '')),
+                    })
+
+            return {"load_balancers": load_balancers}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching Classic Load Balancer data: {err}")
+            return {"load_balancers": []}
+
+
+class AwsApiGatewayCoordinator(AwsBaseCoordinator):
+    """Coordinator for API Gateway data (REST v1 + HTTP/WebSocket v2)."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"API Gateway ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch API Gateway data."""
+        try:
+            apigw_v1 = self.aws_client.get_apigateway_client()
+            apigw_v2 = self.aws_client.get_apigatewayv2_client()
+
+            apis = []
+
+            # REST APIs (v1)
+            try:
+                paginator = apigw_v1.get_paginator('get_rest_apis')
+                for page in paginator.paginate():
+                    for api in page.get('items', []):
+                        apis.append({
+                            'id': api.get('id'),
+                            'name': api.get('name'),
+                            'type': 'REST',
+                            'description': api.get('description'),
+                            'endpoint_type': api.get('endpointConfiguration', {}).get('types', [None])[0],
+                            'created_date': str(api.get('createdDate', '')),
+                            'api_key_required': api.get('apiKeySource'),
+                        })
+            except Exception as e:
+                _LOGGER.debug(f"Error fetching REST APIs: {e}")
+
+            # HTTP / WebSocket APIs (v2)
+            try:
+                paginator = apigw_v2.get_paginator('get_apis')
+                for page in paginator.paginate():
+                    for api in page.get('Items', []):
+                        apis.append({
+                            'id': api.get('ApiId'),
+                            'name': api.get('Name'),
+                            'type': api.get('ProtocolType', 'HTTP'),
+                            'description': api.get('Description'),
+                            'endpoint_type': 'REGIONAL',
+                            'created_date': str(api.get('CreatedDate', '')),
+                            'api_endpoint': api.get('ApiEndpoint'),
+                        })
+            except Exception as e:
+                _LOGGER.debug(f"Error fetching HTTP/WebSocket APIs: {e}")
+
+            return {"apis": apis}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching API Gateway data: {err}")
+            return {"apis": []}
+
+
+class AwsCloudFrontCoordinator(AwsBaseCoordinator):
+    """Coordinator for CloudFront distributions (global — fetched once via us-east-1)."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            "CloudFront (global)",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch CloudFront distribution data."""
+        try:
+            cf_client = self.aws_client.get_cloudfront_client()
+
+            distributions = []
+            paginator = cf_client.get_paginator('list_distributions')
+            for page in paginator.paginate():
+                dist_list = page.get('DistributionList', {})
+                for dist in dist_list.get('Items', []):
+                    origins = [o.get('DomainName') for o in dist.get('Origins', {}).get('Items', [])]
+                    aliases = dist.get('Aliases', {}).get('Items', [])
+                    distributions.append({
+                        'id': dist.get('Id'),
+                        'domain_name': dist.get('DomainName'),
+                        'status': dist.get('Status'),
+                        'enabled': dist.get('Enabled', False),
+                        'http_version': dist.get('HttpVersion'),
+                        'price_class': dist.get('PriceClass'),
+                        'origins': origins,
+                        'aliases': aliases,
+                        'comment': dist.get('Comment'),
+                        'last_modified': str(dist.get('LastModifiedTime', '')),
+                    })
+
+            return {"distributions": distributions}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching CloudFront data: {err}")
+            return {"distributions": []}
+
+
+class AwsEFSCoordinator(AwsBaseCoordinator):
+    """Coordinator for EFS file systems."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"EFS ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch EFS file system data."""
+        try:
+            efs_client = self.aws_client.get_efs_client()
+
+            file_systems = []
+            paginator = efs_client.get_paginator('describe_file_systems')
+            for page in paginator.paginate():
+                for fs in page.get('FileSystems', []):
+                    tags = {t['Key']: t['Value'] for t in fs.get('Tags', [])}
+                    file_systems.append({
+                        'id': fs.get('FileSystemId'),
+                        'name': tags.get('Name', fs.get('FileSystemId')),
+                        'state': fs.get('LifeCycleState'),
+                        'size_bytes': fs.get('SizeInBytes', {}).get('Value', 0),
+                        'number_of_mount_targets': fs.get('NumberOfMountTargets', 0),
+                        'performance_mode': fs.get('PerformanceMode'),
+                        'throughput_mode': fs.get('ThroughputMode'),
+                        'encrypted': fs.get('Encrypted', False),
+                        'availability_zone': fs.get('AvailabilityZoneName'),
+                        'created_time': str(fs.get('CreationTime', '')),
+                        'tags': tags,
+                    })
+
+            return {"file_systems": file_systems}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching EFS data: {err}")
+            return {"file_systems": []}
+
+
+class AwsRoute53Coordinator(AwsBaseCoordinator):
+    """Coordinator for Route 53 hosted zones (global — fetched once via us-east-1)."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            "Route 53 (global)",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch Route 53 hosted zone data."""
+        try:
+            r53_client = self.aws_client.get_route53_client()
+
+            zones = []
+            paginator = r53_client.get_paginator('list_hosted_zones')
+            for page in paginator.paginate():
+                for zone in page.get('HostedZones', []):
+                    config = zone.get('Config', {})
+                    zones.append({
+                        'id': zone.get('Id', '').split('/')[-1],
+                        'name': zone.get('Name', '').rstrip('.'),
+                        'private': config.get('PrivateZone', False),
+                        'record_count': zone.get('ResourceRecordSetCount', 0),
+                        'comment': config.get('Comment'),
+                    })
+
+            return {"zones": zones}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching Route 53 data: {err}")
+            return {"zones": []}
+
+
+class AwsKinesisCoordinator(AwsBaseCoordinator):
+    """Coordinator for Kinesis data streams."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"Kinesis ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch Kinesis stream data."""
+        try:
+            kinesis_client = self.aws_client.get_kinesis_client()
+
+            streams = []
+            paginator = kinesis_client.get_paginator('list_streams')
+            for page in paginator.paginate():
+                for stream_summary in page.get('StreamSummaries', []):
+                    stream_name = stream_summary.get('StreamName')
+                    stream_arn = stream_summary.get('StreamARN')
+                    stream_status = stream_summary.get('StreamStatus')
+                    stream_mode = stream_summary.get('StreamModeDetails', {}).get('StreamMode', 'PROVISIONED')
+
+                    # Get shard count via describe_stream_summary
+                    shard_count = None
+                    try:
+                        detail = kinesis_client.describe_stream_summary(StreamName=stream_name)
+                        summary = detail.get('StreamDescriptionSummary', {})
+                        shard_count = summary.get('OpenShardCount')
+                        retention_hours = summary.get('RetentionPeriodHours')
+                        consumer_count = summary.get('ConsumerCount', 0)
+                    except Exception:
+                        retention_hours = None
+                        consumer_count = 0
+
+                    streams.append({
+                        'name': stream_name,
+                        'arn': stream_arn,
+                        'status': stream_status,
+                        'stream_mode': stream_mode,
+                        'shard_count': shard_count,
+                        'retention_hours': retention_hours,
+                        'consumer_count': consumer_count,
+                    })
+
+            return {"streams": streams}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching Kinesis data: {err}")
+            return {"streams": []}
+
+
+class AwsBeanstalkCoordinator(AwsBaseCoordinator):
+    """Coordinator for Elastic Beanstalk environments."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"Elastic Beanstalk ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch Elastic Beanstalk environment data."""
+        try:
+            eb_client = self.aws_client.get_beanstalk_client()
+
+            environments = []
+            paginator = eb_client.get_paginator('describe_environments')
+            for page in paginator.paginate():
+                for env in page.get('Environments', []):
+                    environments.append({
+                        'name': env.get('EnvironmentName'),
+                        'id': env.get('EnvironmentId'),
+                        'application_name': env.get('ApplicationName'),
+                        'status': env.get('Status'),
+                        'health': env.get('Health'),
+                        'health_status': env.get('HealthStatus'),
+                        'platform_arn': env.get('PlatformArn', ''),
+                        'solution_stack': env.get('SolutionStackName'),
+                        'tier_name': env.get('Tier', {}).get('Name'),
+                        'tier_type': env.get('Tier', {}).get('Type'),
+                        'cname': env.get('CNAME'),
+                        'endpoint_url': env.get('EndpointURL'),
+                        'date_created': str(env.get('DateCreated', '')),
+                        'date_updated': str(env.get('DateUpdated', '')),
+                    })
+
+            return {"environments": environments}
+        except Exception as err:
+            _LOGGER.error(f"Error fetching Elastic Beanstalk data: {err}")
+            return {"environments": []}

@@ -35,6 +35,13 @@ from .const import (
     COORDINATOR_S3,
     COORDINATOR_SNS,
     COORDINATOR_SQS,
+    COORDINATOR_CLASSIC_LB,
+    COORDINATOR_API_GATEWAY,
+    COORDINATOR_CLOUDFRONT,
+    COORDINATOR_EFS,
+    COORDINATOR_ROUTE53,
+    COORDINATOR_KINESIS,
+    COORDINATOR_BEANSTALK,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_COST_REFRESH_INTERVAL,
     DOMAIN,
@@ -59,6 +66,13 @@ from .coordinator import (
     AwsS3Coordinator,
     AwsSNSCoordinator,
     AwsSQSCoordinator,
+    AwsClassicLBCoordinator,
+    AwsApiGatewayCoordinator,
+    AwsCloudFrontCoordinator,
+    AwsEFSCoordinator,
+    AwsRoute53Coordinator,
+    AwsKinesisCoordinator,
+    AwsBeanstalkCoordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -176,6 +190,40 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinators[COORDINATOR_ELASTIC_IPS] = AwsElasticIPsCoordinator(
             hass, aws_client, account_name, refresh_interval
         )
+
+        # Classic Load Balancers
+        coordinators[COORDINATOR_CLASSIC_LB] = AwsClassicLBCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # API Gateway (REST + HTTP/WebSocket)
+        coordinators[COORDINATOR_API_GATEWAY] = AwsApiGatewayCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # EFS
+        coordinators[COORDINATOR_EFS] = AwsEFSCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # Kinesis
+        coordinators[COORDINATOR_KINESIS] = AwsKinesisCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # Elastic Beanstalk
+        coordinators[COORDINATOR_BEANSTALK] = AwsBeanstalkCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # CloudFront and Route 53 are global — only fetch once via us-east-1
+        if region == "us-east-1":
+            coordinators[COORDINATOR_CLOUDFRONT] = AwsCloudFrontCoordinator(
+                hass, aws_client, account_name, refresh_interval
+            )
+            coordinators[COORDINATOR_ROUTE53] = AwsRoute53Coordinator(
+                hass, aws_client, account_name, refresh_interval
+            )
 
         # Skip initial refresh if requested (faster startup)
         # Data will be fetched on first scheduled update

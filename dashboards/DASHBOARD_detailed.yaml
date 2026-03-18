@@ -22,24 +22,19 @@ views:
 
           |----------|-------|
 
-          | 🟢 EC2 Running | {{ state_attr('sensor.aws_live_global_summary',
-          'ec2_running') }} |
+          | 🟢 EC2 Running | {{ state_attr('sensor.aws_live_global_summary', 'ec2_running') }} |
 
-          | 🔴 EC2 Stopped | {{ state_attr('sensor.aws_live_global_summary',
-          'ec2_stopped') }} |
+          | 🔴 EC2 Stopped | {{ state_attr('sensor.aws_live_global_summary', 'ec2_stopped') }} |
 
-          | ⚡ Lambda | {{ state_attr('sensor.aws_live_global_summary',
-          'lambda_functions') }} |
+          | ⚡ Lambda | {{ state_attr('sensor.aws_live_global_summary', 'lambda_functions') }} |
 
-          | 🐳 ECS Clusters | {{ state_attr('sensor.aws_live_global_summary',
-          'ecs_clusters') }} |
+          | 🐳 ECS Clusters | {{ state_attr('sensor.aws_live_global_summary', 'ecs_clusters') }} |
 
-          | ☸️ EKS Clusters | {{ state_attr('sensor.aws_live_global_summary',
-          'eks_clusters') }} |
+          | ☸️ EKS Clusters | {{ state_attr('sensor.aws_live_global_summary', 'eks_clusters') }} |
 
-          | 📈 Auto Scaling Groups | {{
-          state_attr('sensor.aws_live_global_summary', 'auto_scaling_groups') }}
-          |
+          | 📈 Auto Scaling Groups | {{ state_attr('sensor.aws_live_global_summary', 'auto_scaling_groups') }} |
+
+          | 🌱 Beanstalk Environments | {{ state_attr('sensor.aws_live_global_summary', 'beanstalk_environments') }} |
       - type: markdown
         content: >
           ## 🗄️ Data & Storage
@@ -49,21 +44,17 @@ views:
 
           |----------|-------|
 
-          | 🗄️ RDS Databases | {{ state_attr('sensor.aws_live_global_summary',
-          'rds_instances') }} |
+          | 🗄️ RDS Databases | {{ state_attr('sensor.aws_live_global_summary', 'rds_instances') }} |
 
-          | 📊 DynamoDB Tables | {{ state_attr('sensor.aws_live_global_summary',
-          'dynamodb_tables') }} |
+          | 📊 DynamoDB Tables | {{ state_attr('sensor.aws_live_global_summary', 'dynamodb_tables') }} |
 
-          | 💾 ElastiCache | {{ state_attr('sensor.aws_live_global_summary',
-          'elasticache_clusters') }} |
+          | 💾 ElastiCache | {{ state_attr('sensor.aws_live_global_summary', 'elasticache_clusters') }} |
 
-          | 🪣 S3 Buckets | {{ state_attr('sensor.aws_live_global_summary',
-          's3_buckets') }} |
+          | 🪣 S3 Buckets | {{ state_attr('sensor.aws_live_global_summary', 's3_buckets') }} |
 
-          | 💿 EBS Volumes | {{ state_attr('sensor.aws_live_global_summary',
-          'ebs_volumes') }} ({{ state_attr('sensor.aws_live_global_summary',
-          'ebs_unattached') }} unattached) |
+          | 💿 EBS Volumes | {{ state_attr('sensor.aws_live_global_summary', 'ebs_volumes') }} ({{ state_attr('sensor.aws_live_global_summary', 'ebs_unattached') }} unattached) |
+
+          | 📁 EFS File Systems | {{ state_attr('sensor.aws_live_global_summary', 'efs_file_systems') }} |
       - type: markdown
         content: >
           ## 🌐 Networking & Messaging
@@ -73,18 +64,31 @@ views:
 
           |----------|-------|
 
-          | 🌐 Load Balancers | {{ state_attr('sensor.aws_live_global_summary',
-          'load_balancers') }} |
+          | 🌐 Load Balancers (ALB/NLB) | {{ state_attr('sensor.aws_live_global_summary', 'load_balancers') }} |
 
-          | 🔢 Elastic IPs | {{ state_attr('sensor.aws_live_global_summary',
-          'elastic_ips') }} ({{ state_attr('sensor.aws_live_global_summary',
-          'elastic_ips_unattached') }} unattached) |
+          | 🔁 Classic Load Balancers | {{ state_attr('sensor.aws_live_global_summary', 'classic_load_balancers') }} |
 
-          | 🔔 SNS Topics | {{ state_attr('sensor.aws_live_global_summary',
-          'sns_topics') }} |
+          | 🔢 Elastic IPs | {{ state_attr('sensor.aws_live_global_summary', 'elastic_ips') }} ({{ state_attr('sensor.aws_live_global_summary', 'elastic_ips_unattached') }} unattached) |
 
-          | 📬 SQS Queues | {{ state_attr('sensor.aws_live_global_summary',
-          'sqs_queues') }} |
+          | 🔔 SNS Topics | {{ state_attr('sensor.aws_live_global_summary', 'sns_topics') }} |
+
+          | 📬 SQS Queues | {{ state_attr('sensor.aws_live_global_summary', 'sqs_queues') }} |
+
+          | 🌊 Kinesis Streams | {{ state_attr('sensor.aws_live_global_summary', 'kinesis_streams') }} |
+      - type: markdown
+        content: >
+          ## 🔌 APIs & CDN
+
+
+          | Resource | Count |
+
+          |----------|-------|
+
+          | 🔌 API Gateways | {{ state_attr('sensor.aws_live_global_summary', 'api_gateways') }} |
+
+          | ☁️ CloudFront Distributions | {{ state_attr('sensor.aws_live_global_summary', 'cloudfront_distributions') }} |
+
+          | 🌐 Route 53 Hosted Zones | {{ state_attr('sensor.aws_live_global_summary', 'route53_zones') }} |
       - type: markdown
         content: >
           ## 📊 Monitoring
@@ -94,10 +98,7 @@ views:
 
           |----------|-------|
 
-          | ⏰ CloudWatch Alarms | {{
-          state_attr('sensor.aws_live_global_summary', 'cloudwatch_alarms') }}
-          ({{ state_attr('sensor.aws_live_global_summary',
-          'cloudwatch_alarms_alarm') }} in ALARM) |
+          | ⏰ CloudWatch Alarms | {{ state_attr('sensor.aws_live_global_summary', 'cloudwatch_alarms') }} ({{ state_attr('sensor.aws_live_global_summary', 'cloudwatch_alarms_alarm') }} in ALARM) |
       - type: conditional
         conditions:
           - condition: state
@@ -122,12 +123,8 @@ views:
           # 🖥️ EC2 Instances
 
 
-          {% set running = state_attr('sensor.aws_live_global_summary',
-          'ec2_running') %}
-
-          {% set stopped = state_attr('sensor.aws_live_global_summary',
-          'ec2_stopped') %}
-
+          {% set running = state_attr('sensor.aws_live_global_summary', 'ec2_running') %}
+          {% set stopped = state_attr('sensor.aws_live_global_summary', 'ec2_stopped') %}
           **{{ running }} running** • {{ stopped }} stopped
 
 
@@ -135,52 +132,27 @@ views:
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_ec2_i_' in
-          state.entity_id -%}
-
-          {%- set instance_id = state.attributes.instance_id |
-          default('Unknown') -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_ec2_i_' in state.entity_id -%}
+          {%- set instance_id = state.attributes.instance_id | default('Unknown') -%}
           {%- set tags = state.attributes.tags | default({}) -%}
-
           {%- set instance_name = tags.get('Name', instance_id) -%}
-
           {%- set instance_state = state.state -%}
-
-          {%- set icon = '🟢' if instance_state == 'running' else '🔴' if
-          instance_state == 'stopped' else '⚫' %}
-
+          {%- set icon = '🟢' if instance_state == 'running' else '🔴' if instance_state == 'stopped' else '⚫' %}
 
           ### {{ icon }} {{ instance_name }}
-
           - **Instance ID**: {{ instance_id }}
-
           - **State**: {{ instance_state }}
-
           - **Type**: {{ state.attributes.instance_type | default('N/A') }}
-
           - **Launched**: {{ state.attributes.launch_time | default('N/A') }}
-
           {% if tags | length > 1 -%}
-
-          - **Tags**: {% for key, value in tags.items() -%}{%- if key != 'Name'
-          -%}{{ key }}={{ value }}{% if not loop.last %}, {% endif %}{% endif
-          -%}{%- endfor %}
-
+          - **Tags**: {% for key, value in tags.items() -%}{%- if key != 'Name' -%}{{ key }}={{ value }}{% if not loop.last %}, {% endif %}{% endif -%}{%- endfor %}
           {% endif %}
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_ec2_i_') |
-          list | length == 0 -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_ec2_i_') | list | length == 0 -%}
           _No EC2 instances found_
-
           {% endif %}
   - title: Lambda
     path: aws-lambda
@@ -191,54 +163,28 @@ views:
           # ⚡ Lambda Functions
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'lambda_functions')
-          }} functions**
+          **{{ state_attr('sensor.aws_live_global_summary', 'lambda_functions') }} functions**
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_lambda_'
-          in state.entity_id and '_lambda_count' not in state.entity_id -%}
-
-          {%- set parts = state.entity_id.replace('sensor.aws_live_',
-          '').split('_') -%}
-
-          {%- set region = parts[0] | replace('_', '-') -%}
-
-          {%- set function_name = state.attributes.function_name |
-          default('Unknown') %}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_lambda_' in state.entity_id and '_lambda_count' not in state.entity_id -%}
+          {%- set function_name = state.attributes.function_name | default('Unknown') %}
 
           ### ⚡ {{ function_name }}
-
-          - **Region**: {{ region | upper }}
-
           - **Runtime**: {{ state.attributes.runtime }}
-
           - **Memory**: {{ state.attributes.memory_size }} MB
-
           - **Timeout**: {{ state.attributes.timeout }} sec
-
-          - **Code Size**: {{ (state.attributes.code_size / 1024) | round(1) }}
-          KB
-
+          - **Code Size**: {{ (state.attributes.code_size / 1024) | round(1) }} KB
           - **Modified**: {{ state.attributes.last_modified }}
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_lambda_') |
-          rejectattr('entity_id', 'search', '_lambda_count') | list | length ==
-          0 -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_lambda_') | rejectattr('entity_id', 'search', '_lambda_count') | list | length == 0 -%}
           _No Lambda functions found_
-
           {% endif %}
   - title: RDS
     path: aws-rds
@@ -249,56 +195,29 @@ views:
           # 🗄️ RDS Databases
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'rds_instances') }}
-          databases**
+          **{{ state_attr('sensor.aws_live_global_summary', 'rds_instances') }} databases**
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_rds_' in
-          state.entity_id and '_rds_count' not in state.entity_id -%}
-
-          {%- set parts = state.entity_id.replace('sensor.aws_live_',
-          '').split('_') -%}
-
-          {%- set region = parts[0] | replace('_', '-') -%}
-
-          {%- set db_id = state.attributes.db_instance_identifier |
-          default('Unknown') -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_rds_' in state.entity_id and '_rds_count' not in state.entity_id -%}
+          {%- set db_id = state.attributes.db_instance_identifier | default('Unknown') -%}
           {%- set db_status = state.state -%}
-
           {%- set icon = '🟢' if db_status == 'available' else '⚫' %}
 
-
           ### {{ icon }} {{ db_id }}
-
-          - **Region**: {{ region | upper }}
-
           - **Status**: {{ db_status }}
-
-          - **Engine**: {{ state.attributes.engine }} {{
-          state.attributes.engine_version }}
-
+          - **Engine**: {{ state.attributes.engine }} {{ state.attributes.engine_version }}
           - **Class**: {{ state.attributes.db_instance_class }}
-
           - **Storage**: {{ state.attributes.allocated_storage }} GB
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_rds_') |
-          rejectattr('entity_id', 'search', '_rds_count') | list | length == 0
-          -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_rds_') | rejectattr('entity_id', 'search', '_rds_count') | list | length == 0 -%}
           _No RDS databases found_
-
           {% endif %}
   - title: DynamoDB
     path: aws-dynamodb
@@ -309,56 +228,29 @@ views:
           # 📊 DynamoDB Tables
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'dynamodb_tables')
-          }} tables**
+          **{{ state_attr('sensor.aws_live_global_summary', 'dynamodb_tables') }} tables**
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_dynamodb_'
-          in state.entity_id and '_dynamodb_count' not in state.entity_id -%}
-
-          {%- set parts = state.entity_id.replace('sensor.aws_live_',
-          '').split('_') -%}
-
-          {%- set region = parts[0] | replace('_', '-') -%}
-
-          {%- set table_name = state.attributes.table_name | default('Unknown')
-          -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_dynamodb_' in state.entity_id and '_dynamodb_count' not in state.entity_id -%}
+          {%- set table_name = state.attributes.table_name | default('Unknown') -%}
           {%- set table_status = state.state -%}
-
           {%- set icon = '🟢' if table_status == 'ACTIVE' else '⚫' %}
 
-
           ### {{ icon }} {{ table_name }}
-
-          - **Region**: {{ region | upper }}
-
           - **Status**: {{ table_status }}
-
           - **Items**: {{ state.attributes.item_count | default(0) }}
-
-          - **Size**: {{ (state.attributes.size_bytes / 1024 / 1024) | round(2)
-          }} MB
-
+          - **Size**: {{ (state.attributes.size_bytes / 1024 / 1024) | round(2) }} MB
           - **Created**: {{ state.attributes.created }}
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_dynamodb_')
-          | rejectattr('entity_id', 'search', '_dynamodb_count') | list | length
-          == 0 -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_dynamodb_') | rejectattr('entity_id', 'search', '_dynamodb_count') | list | length == 0 -%}
           _No DynamoDB tables found_
-
           {% endif %}
   - title: ElastiCache
     path: aws-elasticache
@@ -369,57 +261,29 @@ views:
           # 💾 ElastiCache Clusters
 
 
-          **{{ state_attr('sensor.aws_live_global_summary',
-          'elasticache_clusters') }} clusters**
+          **{{ state_attr('sensor.aws_live_global_summary', 'elasticache_clusters') }} clusters**
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and
-          '_elasticache_' in state.entity_id and '_elasticache_count' not in
-          state.entity_id -%}
-
-          {%- set parts = state.entity_id.replace('sensor.aws_live_',
-          '').split('_') -%}
-
-          {%- set region = parts[0] | replace('_', '-') -%}
-
-          {%- set cluster_id = state.attributes.cluster_id | default('Unknown')
-          -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_elasticache_' in state.entity_id and '_elasticache_count' not in state.entity_id -%}
+          {%- set cluster_id = state.attributes.cluster_id | default('Unknown') -%}
           {%- set cluster_status = state.state -%}
-
           {%- set icon = '🟢' if cluster_status == 'available' else '⚫' %}
 
-
           ### {{ icon }} {{ cluster_id }}
-
-          - **Region**: {{ region | upper }}
-
           - **Status**: {{ cluster_status }}
-
-          - **Engine**: {{ state.attributes.engine }} {{
-          state.attributes.engine_version }}
-
+          - **Engine**: {{ state.attributes.engine }} {{ state.attributes.engine_version }}
           - **Node Type**: {{ state.attributes.node_type }}
-
           - **Nodes**: {{ state.attributes.num_nodes }}
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search',
-          '_elasticache_') | rejectattr('entity_id', 'search',
-          '_elasticache_count') | list | length == 0 -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_elasticache_') | rejectattr('entity_id', 'search', '_elasticache_count') | list | length == 0 -%}
           _No ElastiCache clusters found_
-
           {% endif %}
   - title: Containers
     path: aws-containers
@@ -430,110 +294,58 @@ views:
           # 🐳 ECS Clusters
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'ecs_clusters') }}
-          clusters**
+          **{{ state_attr('sensor.aws_live_global_summary', 'ecs_clusters') }} clusters**
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_ecs_' in
-          state.entity_id and '_ecs_count' not in state.entity_id -%}
-
-          {%- set parts = state.entity_id.replace('sensor.aws_live_',
-          '').split('_') -%}
-
-          {%- set region = parts[0] | replace('_', '-') -%}
-
-          {%- set cluster_name = state.attributes.cluster_name |
-          default('Unknown') -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_ecs_' in state.entity_id and '_ecs_count' not in state.entity_id -%}
+          {%- set cluster_name = state.attributes.cluster_name | default('Unknown') -%}
           {%- set running_tasks = state.state | int(0) %}
 
-
           ### 🐳 {{ cluster_name }}
-
-          - **Region**: {{ region | upper }}
-
           - **Status**: {{ state.attributes.status }}
-
           - **Running Tasks**: {{ running_tasks }}
-
           - **Pending Tasks**: {{ state.attributes.pending_tasks }}
-
           - **Services**: {{ state.attributes.active_services }}
-
           - **Instances**: {{ state.attributes.registered_instances }}
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_ecs_') |
-          rejectattr('entity_id', 'search', '_ecs_count') | list | length == 0
-          -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_ecs_') | rejectattr('entity_id', 'search', '_ecs_count') | list | length == 0 -%}
           _No ECS clusters found_
-
           {% endif %}
       - type: markdown
         content: >
           # ☸️ EKS Clusters
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'eks_clusters') }}
-          clusters**
+          **{{ state_attr('sensor.aws_live_global_summary', 'eks_clusters') }} clusters**
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_eks_' in
-          state.entity_id and '_eks_count' not in state.entity_id -%}
-
-          {%- set parts = state.entity_id.replace('sensor.aws_live_',
-          '').split('_') -%}
-
-          {%- set region = parts[0] | replace('_', '-') -%}
-
-          {%- set cluster_name = state.attributes.cluster_name |
-          default('Unknown') -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_eks_' in state.entity_id and '_eks_count' not in state.entity_id -%}
+          {%- set cluster_name = state.attributes.cluster_name | default('Unknown') -%}
           {%- set cluster_status = state.state -%}
-
           {%- set icon = '🟢' if cluster_status == 'ACTIVE' else '⚫' %}
 
-
           ### {{ icon }} {{ cluster_name }}
-
-          - **Region**: {{ region | upper }}
-
           - **Status**: {{ cluster_status }}
-
           - **Version**: {{ state.attributes.version }}
-
           - **Endpoint**: {{ state.attributes.endpoint }}
-
           - **Created**: {{ state.attributes.created_at }}
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_eks_') |
-          rejectattr('entity_id', 'search', '_eks_count') | list | length == 0
-          -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_eks_') | rejectattr('entity_id', 'search', '_eks_count') | list | length == 0 -%}
           _No EKS clusters found_
-
           {% endif %}
   - title: Storage
     path: aws-storage
@@ -544,100 +356,91 @@ views:
           # 📦 S3 Buckets
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 's3_buckets') }}
-          buckets**
+          **{{ state_attr('sensor.aws_live_global_summary', 's3_buckets') }} buckets**
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_s3_' in
-          state.entity_id and '_s3_count' not in state.entity_id -%}
-
-          {%- set bucket_name = state.attributes.bucket_name |
-          default('Unknown') -%}
-
-          {%- set bucket_region = state.state %}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_s3_' in state.entity_id and '_s3_count' not in state.entity_id -%}
+          {%- set bucket_name = state.attributes.bucket_name | default('Unknown') -%}
 
           ### 🪣 {{ bucket_name }}
-
-          - **Region**: {{ bucket_region | upper }}
-
+          - **Region**: {{ state.state | upper }}
           - **Created**: {{ state.attributes.created }}
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_s3_') |
-          rejectattr('entity_id', 'search', '_s3_count') | list | length == 0
-          -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_s3_') | rejectattr('entity_id', 'search', '_s3_count') | list | length == 0 -%}
           _No S3 buckets found_
-
           {% endif %}
       - type: markdown
         content: >-
           # 💿 EBS Volumes
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'ebs_volumes') }}
-          volumes** ({{ state_attr('sensor.aws_live_global_summary',
-          'ebs_unattached') }} unattached)
+          **{{ state_attr('sensor.aws_live_global_summary', 'ebs_volumes') }} volumes** ({{ state_attr('sensor.aws_live_global_summary', 'ebs_unattached') }} unattached)
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_ebs_vol_'
-          in state.entity_id -%}
-
-          {%- set volume_id = state.attributes.volume_id | default('Unknown')
-          -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_ebs_vol_' in state.entity_id -%}
+          {%- set volume_id = state.attributes.volume_id | default('Unknown') -%}
           {%- set volume_state = state.state -%}
-
           {%- set icon = '🟢' if volume_state == 'in-use' else '⚫' %}
 
-
           ### {{ icon }} {{ volume_id }}
-
           - **State**: {{ volume_state }}
-
           - **Size**: {{ state.attributes.size_gb | default('N/A') }} GB
-
           - **Type**: {{ state.attributes.type | default('N/A') }}
-
           - **IOPS**: {{ state.attributes.iops | default('N/A') }}
-
           - **AZ**: {{ state.attributes.availability_zone | default('N/A') }}
-
-          - **Attached to**: {{ state.attributes.attached_to | default('None')
-          }}
-
+          - **Attached to**: {{ state.attributes.attached_to | default('None') }}
           - **Encrypted**: {{ state.attributes.encrypted | default('N/A') }}
-
           - **Created**: {{ state.attributes.created | default('N/A') }}
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_ebs_vol_') |
-          list | length == 0 -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_ebs_vol_') | list | length == 0 -%}
           _No EBS volumes found_
+          {% endif %}
+      - type: markdown
+        content: >
+          # 📁 EFS File Systems
 
-          {% endif %}  
+
+          **{{ state_attr('sensor.aws_live_global_summary', 'efs_file_systems') }} file systems**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_efs_' in state.entity_id and '_efs_count' not in state.entity_id -%}
+          {%- set fs_state = state.state -%}
+          {%- set icon = '🟢' if fs_state == 'available' else '⚫' %}
+
+          ### {{ icon }} {{ state.attributes.name | default(state.attributes.filesystem_id) }}
+          - **ID**: {{ state.attributes.filesystem_id }}
+          - **State**: {{ fs_state }}
+          - **Size**: {{ state.attributes.size_gb | default(0) }} GB
+          - **Mount Targets**: {{ state.attributes.number_of_mount_targets }}
+          - **Performance Mode**: {{ state.attributes.performance_mode }}
+          - **Throughput Mode**: {{ state.attributes.throughput_mode }}
+          - **Encrypted**: {{ state.attributes.encrypted }}
+          - **Created**: {{ state.attributes.created_time }}
+
+          {% endif -%}
+          {%- endfor %}
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_efs_') | rejectattr('entity_id', 'search', '_efs_count') | list | length == 0 -%}
+          _No EFS file systems found_
+          {% endif %}
   - title: Messaging
     path: aws-messaging
     icon: mdi:email
@@ -647,98 +450,85 @@ views:
           # 🔔 SNS Topics
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'sns_topics') }}
-          topics**
+          **{{ state_attr('sensor.aws_live_global_summary', 'sns_topics') }} topics**
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_sns_' in
-          state.entity_id and '_sns_count' not in state.entity_id -%}
-
-          {%- set topic_name = state.attributes.topic_name | default('Unknown')
-          -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_sns_' in state.entity_id and '_sns_count' not in state.entity_id -%}
+          {%- set topic_name = state.attributes.topic_name | default('Unknown') -%}
           {%- set subscriptions = state.state | int(0) %}
 
-
           ### 🔔 {{ topic_name }}
-
           - **Subscriptions**: {{ subscriptions }}
-
           - **ARN**: {{ state.attributes.arn | default('N/A') }}
-
-          - **Display Name**: {{ state.attributes.display_name | default('N/A')
-          }}
-
+          - **Display Name**: {{ state.attributes.display_name | default('N/A') }}
 
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_sns_') |
-          rejectattr('entity_id', 'search', '_sns_count') | list | length == 0
-          -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_sns_') | rejectattr('entity_id', 'search', '_sns_count') | list | length == 0 -%}
           _No SNS topics found_
-
           {% endif %}
       - type: markdown
         content: >
           # 📬 SQS Queues
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'sqs_queues') }}
-          queues**
+          **{{ state_attr('sensor.aws_live_global_summary', 'sqs_queues') }} queues**
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_sqs_' in
-          state.entity_id and '_sqs_count' not in state.entity_id -%}
-
-          {%- set parts = state.entity_id.replace('sensor.aws_live_',
-          '').split('_') -%}
-
-          {%- set region = parts[0] | replace('_', '-') -%}
-
-          {%- set queue_name = state.attributes.queue_name | default('Unknown')
-          -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_sqs_' in state.entity_id and '_sqs_count' not in state.entity_id -%}
+          {%- set queue_name = state.attributes.queue_name | default('Unknown') -%}
           {%- set messages = state.state | int(0) %}
 
-
           ### 📬 {{ queue_name }}
-
-          - **Region**: {{ region | upper }}
-
           - **Messages Available**: {{ messages }}
-
           - **In Flight**: {{ state.attributes.messages_in_flight }}
-
           - **Delayed**: {{ state.attributes.messages_delayed }}
-
           - **URL**: {{ state.attributes.url }}
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_sqs_') |
-          rejectattr('entity_id', 'search', '_sqs_count') | list | length == 0
-          -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_sqs_') | rejectattr('entity_id', 'search', '_sqs_count') | list | length == 0 -%}
           _No SQS queues found_
+          {% endif %}
+      - type: markdown
+        content: >
+          # 🌊 Kinesis Streams
 
+
+          **{{ state_attr('sensor.aws_live_global_summary', 'kinesis_streams') }} streams**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_kinesis_' in state.entity_id and '_kinesis_count' not in state.entity_id -%}
+          {%- set stream_name = state.attributes.stream_name | default('Unknown') -%}
+          {%- set stream_status = state.state -%}
+          {%- set icon = '🟢' if stream_status == 'ACTIVE' else '⚫' %}
+
+          ### {{ icon }} {{ stream_name }}
+          - **Status**: {{ stream_status }}
+          - **Mode**: {{ state.attributes.stream_mode }}
+          - **Shards**: {{ state.attributes.shard_count | default('N/A') }}
+          - **Retention**: {{ state.attributes.retention_hours | default('N/A') }} hours
+          - **Consumers**: {{ state.attributes.consumer_count | default(0) }}
+
+          {% endif -%}
+          {%- endfor %}
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_kinesis_') | rejectattr('entity_id', 'search', '_kinesis_count') | list | length == 0 -%}
+          _No Kinesis streams found_
           {% endif %}
   - title: Networking
     path: aws-networking
@@ -746,112 +536,246 @@ views:
     cards:
       - type: markdown
         content: >
-          # 🌐 Load Balancers
+          # 🌐 ALB / NLB Load Balancers
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'load_balancers') }}
-          load balancers**
+          **{{ state_attr('sensor.aws_live_global_summary', 'load_balancers') }} load balancers**
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_lb_' in
-          state.entity_id -%}
-
-          {%- set parts = state.entity_id.replace('sensor.aws_live_',
-          '').split('_') -%}
-
-          {%- set region = parts[0] | replace('_', '-') -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_lb_' in state.entity_id and '_classic_lb_' not in state.entity_id -%}
           {%- set lb_name = state.attributes.name | default('Unknown') -%}
-
           {%- set lb_state = state.state -%}
-
           {%- set icon = '🟢' if lb_state == 'active' else '⚫' %}
 
-
           ### {{ icon }} {{ lb_name }}
-
-          - **Region**: {{ region | upper }}
-
           - **State**: {{ lb_state }}
-
           - **Type**: {{ state.attributes.type | upper }}
-
           - **Scheme**: {{ state.attributes.scheme }}
-
           - **DNS**: `{{ state.attributes.dns_name }}`
-
           - **VPC**: {{ state.attributes.vpc_id }}
 
-
           {% endif -%}
-
           {%- endfor %}
 
+          {% if states.sensor | selectattr('entity_id', 'search', '_lb_') | rejectattr('entity_id', 'search', '_classic_lb_') | list | length == 0 -%}
+          _No ALB/NLB load balancers found_
+          {% endif %}
+      - type: markdown
+        content: >
+          # 🔁 Classic Load Balancers
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_lb_') | list
-          | length == 0 -%}
 
-          _No Load Balancers found_
+          **{{ state_attr('sensor.aws_live_global_summary', 'classic_load_balancers') }} classic load balancers**
 
+
+          ---
+
+
+          {% for state in states.sensor -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_classic_lb_' in state.entity_id and '_classic_lb_count' not in state.entity_id -%}
+          {%- set lb_name = state.attributes.name | default('Unknown') -%}
+          {%- set instance_count = state.state | int(0) %}
+
+          ### 🔁 {{ lb_name }}
+          - **Instances**: {{ instance_count }}
+          - **Scheme**: {{ state.attributes.scheme | default('N/A') }}
+          - **DNS**: `{{ state.attributes.dns_name }}`
+          - **VPC**: {{ state.attributes.vpc_id | default('EC2-Classic') }}
+          - **Health Check**: {{ state.attributes.health_check_target | default('N/A') }}
+          - **Created**: {{ state.attributes.created_time | default('N/A') }}
+          {%- set listeners = state.attributes.listeners | default([]) %}
+          {%- if listeners | length > 0 %}
+          - **Listeners**: {% for l in listeners %}{{ l.lb_protocol }}:{{ l.lb_port }}→{{ l.instance_protocol }}:{{ l.instance_port }}{% if not loop.last %}, {% endif %}{% endfor %}
+          {%- endif %}
+
+          {% endif -%}
+          {%- endfor %}
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_classic_lb_') | rejectattr('entity_id', 'search', '_classic_lb_count') | list | length == 0 -%}
+          _No Classic Load Balancers found_
           {% endif %}
       - type: markdown
         content: >
           # 🔢 Elastic IPs
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'elastic_ips') }}
-          IPs** ({{ state_attr('sensor.aws_live_global_summary',
-          'elastic_ips_unattached') }} unattached)
+          **{{ state_attr('sensor.aws_live_global_summary', 'elastic_ips') }} IPs** ({{ state_attr('sensor.aws_live_global_summary', 'elastic_ips_unattached') }} unattached)
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_eip_' in
-          state.entity_id and '_eip_count' not in state.entity_id -%}
-
-          {%- set parts = state.entity_id.replace('sensor.aws_live_',
-          '').split('_') -%}
-
-          {%- set region = parts[0] | replace('_', '-') -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_eip_' in state.entity_id and '_eip_count' not in state.entity_id -%}
           {%- set ip = state.attributes.ip_address | default('Unknown') -%}
-
           {%- set attached = state.state == 'attached' -%}
-
           {%- set icon = '🟢' if attached else '🔴' %}
 
-
           ### {{ icon }} {{ ip }}
-
-          - **Region**: {{ region | upper }}
-
           - **Status**: {{ state.state }}
-
           - **Allocation ID**: {{ state.attributes.allocation_id }}
-
-          - **Associated with**: {{ state.attributes.associated_with |
-          default('None') }}
-
+          - **Associated with**: {{ state.attributes.associated_with | default('None') }}
 
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_eip_') |
-          rejectattr('entity_id', 'search', '_eip_count') | list | length == 0
-          -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_eip_') | rejectattr('entity_id', 'search', '_eip_count') | list | length == 0 -%}
           _No Elastic IPs found_
+          {% endif %}
+  - title: API & CDN
+    path: aws-api-cdn
+    icon: mdi:api
+    cards:
+      - type: markdown
+        content: >
+          # 🔌 API Gateways
 
+
+          **{{ state_attr('sensor.aws_live_global_summary', 'api_gateways') }} APIs**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_apigw_' in state.entity_id -%}
+          {%- set api_name = state.attributes.name | default('Unknown') -%}
+          {%- set api_type = state.state -%}
+          {%- set icon = '🔵' if api_type == 'REST' else '🟣' if api_type == 'HTTP' else '🟠' %}
+
+          ### {{ icon }} {{ api_name }}
+          - **Type**: {{ api_type }}
+          - **ID**: {{ state.attributes.api_id }}
+          - **Endpoint Type**: {{ state.attributes.endpoint_type | default('N/A') }}
+          {%- if state.attributes.api_endpoint %}
+          - **Endpoint**: `{{ state.attributes.api_endpoint }}`
+          {%- endif %}
+          {%- if state.attributes.description %}
+          - **Description**: {{ state.attributes.description }}
+          {%- endif %}
+          - **Created**: {{ state.attributes.created_date | default('N/A') }}
+
+          {% endif -%}
+          {%- endfor %}
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_apigw_') | list | length == 0 -%}
+          _No API Gateways found_
+          {% endif %}
+      - type: markdown
+        content: >
+          # ☁️ CloudFront Distributions
+
+
+          **{{ state_attr('sensor.aws_live_global_summary', 'cloudfront_distributions') }} distributions**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_cloudfront_' in state.entity_id and '_cloudfront_count' not in state.entity_id -%}
+          {%- set dist_status = state.state -%}
+          {%- set icon = '🟢' if dist_status == 'Deployed' else '🟡' %}
+
+          ### {{ icon }} {{ state.attributes.distribution_id }}
+          - **Status**: {{ dist_status }}
+          - **Domain**: `{{ state.attributes.domain_name }}`
+          - **Enabled**: {{ state.attributes.enabled }}
+          - **HTTP Version**: {{ state.attributes.http_version | default('N/A') }}
+          - **Price Class**: {{ state.attributes.price_class | default('N/A') }}
+          {%- set aliases = state.attributes.aliases | default([]) %}
+          {%- if aliases | length > 0 %}
+          - **Aliases**: {{ aliases | join(', ') }}
+          {%- endif %}
+          {%- set origins = state.attributes.origins | default([]) %}
+          {%- if origins | length > 0 %}
+          - **Origins**: {{ origins | join(', ') }}
+          {%- endif %}
+          {%- if state.attributes.comment %}
+          - **Comment**: {{ state.attributes.comment }}
+          {%- endif %}
+          - **Modified**: {{ state.attributes.last_modified | default('N/A') }}
+
+          {% endif -%}
+          {%- endfor %}
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_cloudfront_') | rejectattr('entity_id', 'search', '_cloudfront_count') | list | length == 0 -%}
+          _No CloudFront distributions found_
+          {% endif %}
+      - type: markdown
+        content: >
+          # 🌐 Route 53 Hosted Zones
+
+
+          **{{ state_attr('sensor.aws_live_global_summary', 'route53_zones') }} zones**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_route53_' in state.entity_id and '_route53_count' not in state.entity_id -%}
+          {%- set zone_name = state.attributes.name | default('Unknown') -%}
+          {%- set private = state.attributes.private | default(false) -%}
+          {%- set icon = '🔒' if private else '🌐' %}
+
+          ### {{ icon }} {{ zone_name }}
+          - **Zone ID**: {{ state.attributes.zone_id }}
+          - **Type**: {{ 'Private' if private else 'Public' }}
+          - **Records**: {{ state.state }}
+          {%- if state.attributes.comment %}
+          - **Comment**: {{ state.attributes.comment }}
+          {%- endif %}
+
+          {% endif -%}
+          {%- endfor %}
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_route53_') | rejectattr('entity_id', 'search', '_route53_count') | list | length == 0 -%}
+          _No Route 53 hosted zones found_
+          {% endif %}
+  - title: Beanstalk
+    path: aws-beanstalk
+    icon: mdi:sprout
+    cards:
+      - type: markdown
+        content: >
+          # 🌱 Elastic Beanstalk Environments
+
+
+          **{{ state_attr('sensor.aws_live_global_summary', 'beanstalk_environments') }} environments**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_beanstalk_' in state.entity_id and '_beanstalk_count' not in state.entity_id -%}
+          {%- set env_health = state.state -%}
+          {%- set icon = '🟢' if env_health == 'Green' else '🟡' if env_health == 'Yellow' else '🔴' if env_health == 'Red' else '⚫' %}
+
+          ### {{ icon }} {{ state.attributes.environment_name }}
+          - **Application**: {{ state.attributes.application_name }}
+          - **Health**: {{ env_health }}
+          - **Status**: {{ state.attributes.status }}
+          - **Health Status**: {{ state.attributes.health_status | default('N/A') }}
+          - **Tier**: {{ state.attributes.tier_name | default('N/A') }} ({{ state.attributes.tier_type | default('N/A') }})
+          {%- if state.attributes.cname %}
+          - **CNAME**: `{{ state.attributes.cname }}`
+          {%- endif %}
+          {%- if state.attributes.endpoint_url %}
+          - **Endpoint**: `{{ state.attributes.endpoint_url }}`
+          {%- endif %}
+          - **Updated**: {{ state.attributes.date_updated | default('N/A') }}
+
+          {% endif -%}
+          {%- endfor %}
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_beanstalk_') | rejectattr('entity_id', 'search', '_beanstalk_count') | list | length == 0 -%}
+          _No Elastic Beanstalk environments found_
           {% endif %}
   - title: ASG
     path: aws-asg
@@ -862,52 +786,28 @@ views:
           # 📈 Auto Scaling Groups
 
 
-          **{{ state_attr('sensor.aws_live_global_summary',
-          'auto_scaling_groups') }} groups**
+          **{{ state_attr('sensor.aws_live_global_summary', 'auto_scaling_groups') }} groups**
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_asg_' in
-          state.entity_id -%}
-
-          {%- set parts = state.entity_id.replace('sensor.aws_live_',
-          '').split('_') -%}
-
-          {%- set region = parts[0] | replace('_', '-') -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_asg_' in state.entity_id -%}
           {%- set asg_name = state.attributes.name | default('Unknown') -%}
-
           {%- set instance_count = state.state | int(0) %}
 
-
           ### 📈 {{ asg_name }}
-
-          - **Region**: {{ region | upper }}
-
           - **Current**: {{ instance_count }} instances
-
           - **Desired**: {{ state.attributes.desired_capacity }}
-
-          - **Range**: {{ state.attributes.min_size }} - {{
-          state.attributes.max_size }}
-
+          - **Range**: {{ state.attributes.min_size }} - {{ state.attributes.max_size }}
           - **Health Check**: {{ state.attributes.health_check_type }}
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_asg_') |
-          list | length == 0 -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_asg_') | list | length == 0 -%}
           _No Auto Scaling Groups found_
-
           {% endif %}
   - title: Monitoring
     path: aws-monitoring
@@ -918,59 +818,30 @@ views:
           # ⏰ CloudWatch Alarms
 
 
-          **{{ state_attr('sensor.aws_live_global_summary', 'cloudwatch_alarms')
-          }} alarms** ({{ state_attr('sensor.aws_live_global_summary',
-          'cloudwatch_alarms_alarm') }} in ALARM state)
+          **{{ state_attr('sensor.aws_live_global_summary', 'cloudwatch_alarms') }} alarms** ({{ state_attr('sensor.aws_live_global_summary', 'cloudwatch_alarms_alarm') }} in ALARM state)
 
 
           ---
 
 
           {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_alarm_' in
-          state.entity_id and '_alarm_count' not in state.entity_id -%}
-
-          {%- set parts = state.entity_id.replace('sensor.aws_live_',
-          '').split('_') -%}
-
-          {%- set region = parts[0] | replace('_', '-') -%}
-
-          {%- set alarm_name = state.attributes.alarm_name | default('Unknown')
-          -%}
-
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_alarm_' in state.entity_id and '_alarm_count' not in state.entity_id -%}
+          {%- set alarm_name = state.attributes.alarm_name | default('Unknown') -%}
           {%- set alarm_state = state.state -%}
-
-          {%- set icon = '🔴' if alarm_state == 'ALARM' else '🟢' if alarm_state
-          == 'OK' else '⚪' %}
-
+          {%- set icon = '🔴' if alarm_state == 'ALARM' else '🟢' if alarm_state == 'OK' else '⚪' %}
 
           ### {{ icon }} {{ alarm_name }}
-
-          - **Region**: {{ region | upper }}
-
           - **State**: {{ alarm_state }}
-
           - **Metric**: {{ state.attributes.metric }}
-
           - **Namespace**: {{ state.attributes.namespace }}
-
           - **Reason**: {{ state.attributes.reason }}
-
           - **Enabled**: {{ state.attributes.enabled }}
 
-
           {% endif -%}
-
           {%- endfor %}
 
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_alarm_') |
-          rejectattr('entity_id', 'search', '_alarm_count') | list | length == 0
-          -%}
-
+          {% if states.sensor | selectattr('entity_id', 'search', '_alarm_') | rejectattr('entity_id', 'search', '_alarm_count') | list | length == 0 -%}
           _No CloudWatch alarms found_
-
           {% endif %}
   - title: Costs
     path: aws-costs
@@ -982,24 +853,15 @@ views:
 
 
           {% set yesterday = states('sensor.aws_live_global_cost_yesterday') %}
-
           {% set mtd = states('sensor.aws_live_global_cost_month_to_date') %}
 
-
-          {% if yesterday in ['unknown', 'unavailable'] or mtd in ['unknown',
-          'unavailable'] %}
-
+          {% if yesterday in ['unknown', 'unavailable'] or mtd in ['unknown', 'unavailable'] %}
           ## ⏳ Cost Data Loading...
 
-
           AWS Cost Explorer data typically takes **24 hours** to populate.
-
           Check back tomorrow!
-
           {% else %}
-
           **Yesterday:** ${{ yesterday }} • **Month to Date:** ${{ mtd }}
-
           {% endif %}
       - type: conditional
         conditions:
@@ -1036,33 +898,16 @@ views:
           ## 💳 Cost by Service (Yesterday)
 
 
-          {% set service_sensors = states.sensor | selectattr('entity_id',
-          'search', 'sensor.aws_live_global_cost_service_') | list %}
-
+          {% set service_sensors = states.sensor | selectattr('entity_id', 'search', 'sensor.aws_live_global_cost_service_') | list %}
           {% if service_sensors | length > 0 %}
 
-
           | Rank | Service | Cost | % |
-
           |------|---------|------|---|
-
-          {% for sensor in service_sensors | sort(attribute='state',
-          reverse=true) -%}
-
+          {% for sensor in service_sensors | sort(attribute='state', reverse=true) -%}
           {%- if sensor.state not in ['unknown', 'unavailable'] -%}
-
-          | {{ sensor.attributes.rank | default(loop.index) }} | {{
-          sensor.attributes.service_name | default(sensor.name) }} | ${{
-          sensor.state | float | round(2) }} | {{ sensor.attributes.percentage |
-          default(0) }}% |
-
+          | {{ sensor.attributes.rank | default(loop.index) }} | {{ sensor.attributes.service_name | default(sensor.name) }} | ${{ sensor.state | float | round(2) }} | {{ sensor.attributes.percentage | default(0) }}% |
           {% endif -%}
-
           {%- endfor %}
-
           {% else %}
-
           _Service breakdown will appear after 24 hours_
-
           {% endif %}
-

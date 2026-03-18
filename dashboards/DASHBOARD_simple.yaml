@@ -10,145 +10,86 @@ views:
 
 
           {% set total = states('sensor.aws_live_global_summary') | int(0) %}
+          {% set active_regions = state_attr('sensor.aws_live_global_summary', 'active_regions') | int(0) %}
 
-          {% set active_regions = state_attr('sensor.aws_live_global_summary',
-          'active_regions') | int(0) %}
-
-          {% set ec2_running = state_attr('sensor.aws_live_global_summary',
-          'ec2_running') | int(0) %}
-
-          {% set ec2_stopped = state_attr('sensor.aws_live_global_summary',
-          'ec2_stopped') | int(0) %}
-
-          {% set lambda_count = state_attr('sensor.aws_live_global_summary',
-          'lambda_functions') | int(0) %}
-
-          {% set rds_count = state_attr('sensor.aws_live_global_summary',
-          'rds_instances') | int(0) %}
-
-          {% set lb_count = state_attr('sensor.aws_live_global_summary',
-          'load_balancers') | int(0) %}
-
-          {% set asg_count = state_attr('sensor.aws_live_global_summary',
-          'auto_scaling_groups') | int(0) %}
-
-          {% set dynamodb_count = state_attr('sensor.aws_live_global_summary',
-          'dynamodb_tables') | int(0) %}
-
-          {% set elasticache_count =
-          state_attr('sensor.aws_live_global_summary', 'elasticache_clusters') |
-          int(0) %}
-
-          {% set ecs_count = state_attr('sensor.aws_live_global_summary',
-          'ecs_clusters') | int(0) %}
-
-          {% set eks_count = state_attr('sensor.aws_live_global_summary',
-          'eks_clusters') | int(0) %}
-
-          {% set ebs_count = state_attr('sensor.aws_live_global_summary',
-          'ebs_volumes') | int(0) %}
-
-          {% set ebs_unattached = state_attr('sensor.aws_live_global_summary',
-          'ebs_unattached') | int(0) %}
-
-          {% set sns_count = state_attr('sensor.aws_live_global_summary',
-          'sns_topics') | int(0) %}
-
-          {% set sqs_count = state_attr('sensor.aws_live_global_summary',
-          'sqs_queues') | int(0) %}
-
-          {% set s3_count = state_attr('sensor.aws_live_global_summary',
-          's3_buckets') | int(0) %}
-
-          {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
-          'cloudwatch_alarms') | int(0) %}
-
-          {% set cw_alarms_alarm = state_attr('sensor.aws_live_global_summary',
-          'cloudwatch_alarms_alarm') | int(0) %}
-
-          {% set eips_count = state_attr('sensor.aws_live_global_summary',
-          'elastic_ips') | int(0) %}
-
-          {% set eips_unattached = state_attr('sensor.aws_live_global_summary',
-          'elastic_ips_unattached') | int(0) %}
-
-
-          **Total Resources:** {{ total }}  
-
-          **Active Regions:** {{ active_regions }}
+          **Total Resources:** {{ total }} • **Active Regions:** {{ active_regions }}
 
 
           ### 💻 Compute
 
-          - **EC2 Running:** {{ ec2_running }} | Stopped: {{ ec2_stopped }}
+          - **EC2 Running:** {{ state_attr('sensor.aws_live_global_summary', 'ec2_running') | int(0) }} | Stopped: {{ state_attr('sensor.aws_live_global_summary', 'ec2_stopped') | int(0) }}
 
-          - **Lambda Functions:** {{ lambda_count }}
+          - **Lambda Functions:** {{ state_attr('sensor.aws_live_global_summary', 'lambda_functions') | int(0) }}
 
-          - **ECS Clusters:** {{ ecs_count }}
+          - **ECS Clusters:** {{ state_attr('sensor.aws_live_global_summary', 'ecs_clusters') | int(0) }}
 
-          - **EKS Clusters:** {{ eks_count }}
+          - **EKS Clusters:** {{ state_attr('sensor.aws_live_global_summary', 'eks_clusters') | int(0) }}
 
-          - Auto Scaling Groups: {{ asg_count }}
+          - **Auto Scaling Groups:** {{ state_attr('sensor.aws_live_global_summary', 'auto_scaling_groups') | int(0) }}
+
+          - **Beanstalk Environments:** {{ state_attr('sensor.aws_live_global_summary', 'beanstalk_environments') | int(0) }}
 
 
           ### 🗄️ Data & Storage
 
-          - **RDS Databases:** {{ rds_count }}
+          - **RDS Databases:** {{ state_attr('sensor.aws_live_global_summary', 'rds_instances') | int(0) }}
 
-          - **DynamoDB Tables:** {{ dynamodb_count }}
+          - **DynamoDB Tables:** {{ state_attr('sensor.aws_live_global_summary', 'dynamodb_tables') | int(0) }}
 
-          - **ElastiCache Clusters:** {{ elasticache_count }}
+          - **ElastiCache Clusters:** {{ state_attr('sensor.aws_live_global_summary', 'elasticache_clusters') | int(0) }}
 
-          - **S3 Buckets:** {{ s3_count }}
+          - **S3 Buckets:** {{ state_attr('sensor.aws_live_global_summary', 's3_buckets') | int(0) }}
 
-          - **EBS Volumes:** {{ ebs_count }} ({{ ebs_unattached }} unattached)
+          - **EBS Volumes:** {{ state_attr('sensor.aws_live_global_summary', 'ebs_volumes') | int(0) }} ({{ state_attr('sensor.aws_live_global_summary', 'ebs_unattached') | int(0) }} unattached)
+
+          - **EFS File Systems:** {{ state_attr('sensor.aws_live_global_summary', 'efs_file_systems') | int(0) }}
 
 
           ### 🌐 Networking & Messaging
 
-          - **Load Balancers:** {{ lb_count }}
+          - **ALB/NLB Load Balancers:** {{ state_attr('sensor.aws_live_global_summary', 'load_balancers') | int(0) }}
 
-          - **Elastic IPs:** {{ eips_count }} ({{ eips_unattached }} unattached)
+          - **Classic Load Balancers:** {{ state_attr('sensor.aws_live_global_summary', 'classic_load_balancers') | int(0) }}
 
-          - **SNS Topics:** {{ sns_count }}
+          - **Elastic IPs:** {{ state_attr('sensor.aws_live_global_summary', 'elastic_ips') | int(0) }} ({{ state_attr('sensor.aws_live_global_summary', 'elastic_ips_unattached') | int(0) }} unattached)
 
-          - **SQS Queues:** {{ sqs_count }}
+          - **SNS Topics:** {{ state_attr('sensor.aws_live_global_summary', 'sns_topics') | int(0) }}
+
+          - **SQS Queues:** {{ state_attr('sensor.aws_live_global_summary', 'sqs_queues') | int(0) }}
+
+          - **Kinesis Streams:** {{ state_attr('sensor.aws_live_global_summary', 'kinesis_streams') | int(0) }}
+
+
+          ### 🔌 APIs & CDN
+
+          - **API Gateways:** {{ state_attr('sensor.aws_live_global_summary', 'api_gateways') | int(0) }}
+
+          - **CloudFront Distributions:** {{ state_attr('sensor.aws_live_global_summary', 'cloudfront_distributions') | int(0) }}
+
+          - **Route 53 Hosted Zones:** {{ state_attr('sensor.aws_live_global_summary', 'route53_zones') | int(0) }}
 
 
           ### 📊 Monitoring
 
-          - **CloudWatch Alarms:** {{ cw_alarms }} ({{ cw_alarms_alarm }} in
-          ALARM state)
+          - **CloudWatch Alarms:** {{ state_attr('sensor.aws_live_global_summary', 'cloudwatch_alarms') | int(0) }} ({{ state_attr('sensor.aws_live_global_summary', 'cloudwatch_alarms_alarm') | int(0) }} in ALARM state)
       - type: markdown
         content: >
           ## 💰 Current AWS Costs
 
 
           {% set yesterday = states('sensor.aws_live_global_cost_yesterday') %}
-
           {% set mtd = states('sensor.aws_live_global_cost_month_to_date') %}
 
-
-          {% if yesterday in ['unknown', 'unavailable'] or mtd in ['unknown',
-          'unavailable'] %}
-
+          {% if yesterday in ['unknown', 'unavailable'] or mtd in ['unknown', 'unavailable'] %}
           **⏳ Cost data is being collected...**
 
-
-          AWS Cost Explorer data typically takes 24 hours to populate after
-          initial setup.
-
+          AWS Cost Explorer data typically takes 24 hours to populate after initial setup.
           Check back tomorrow!
-
           {% else %}
 
-
           | Period | Amount |
-
           |--------|--------|
-
           | 💵 Yesterday | ${{ yesterday }} |
-
           | 📅 Month to Date | ${{ mtd }} |
 
           {% endif %}
@@ -187,33 +128,18 @@ views:
           ## 🔝 Top Service Costs (Yesterday)
 
 
-          {% set service_sensors = states.sensor | selectattr('entity_id',
-          'search', 'sensor.aws_live_global_cost_service_') | list %}
-
+          {% set service_sensors = states.sensor | selectattr('entity_id', 'search', 'sensor.aws_live_global_cost_service_') | list %}
           {% if service_sensors | length > 0 %}
 
-
           | Service | Cost | % |
-
           |---------|------|---|
-
-          {% for sensor in service_sensors | sort(attribute='state',
-          reverse=true) -%}
-
+          {% for sensor in service_sensors | sort(attribute='state', reverse=true) -%}
           {%- if sensor.state not in ['unknown', 'unavailable'] -%}
-
-          | {{ sensor.attributes.service_name | default(sensor.name |
-          replace('cost service ', '')) | title }} | ${{ sensor.state }} | {{
-          sensor.attributes.percentage | default(0) }}% |
-
+          | {{ sensor.attributes.service_name | default(sensor.name | replace('cost service ', '')) | title }} | ${{ sensor.state }} | {{ sensor.attributes.percentage | default(0) }}% |
           {% endif -%}
-
           {%- endfor %}
-
           {% else %}
-
           _Cost breakdown will appear after 24 hours_
-
           {% endif %}
       - type: markdown
         content: >
@@ -221,37 +147,21 @@ views:
 
 
           {% for state in states.sensor -%}
-
-          {%- if 'aws_live' in state.entity_id and
-          state.entity_id.endswith('_summary') and 'global' not in
-          state.entity_id -%}
-
-          {%- if state.state not in ['unknown', 'unavailable'] and state.state |
-          int(0) > 0 -%}
-
+          {%- if 'aws_live' in state.entity_id and state.entity_id.endswith('_summary') and 'global' not in state.entity_id -%}
+          {%- if state.state not in ['unknown', 'unavailable'] and state.state | int(0) > 0 -%}
           {%- set region = state.attributes.region -%}
-
-          {%- set total = state.state | int(0) -%}
-
           {%- set ec2_r = state.attributes.ec2_running | default(0) -%}
-
           {%- set lambda_f = state.attributes.lambda_functions | default(0) -%}
-
           {%- set rds = state.attributes.rds_instances | default(0) -%}
-
           {%- set dynamo = state.attributes.dynamodb_tables | default(0) -%}
+          {%- set s3 = state.attributes.s3_buckets | default(0) -%}
+          {%- set apigw = state.attributes.api_gateways | default(0) -%}
+          {%- set eb = state.attributes.beanstalk_environments | default(0) %}
 
-          {%- set s3 = state.attributes.s3_buckets | default(0) %}
-
-
-          **{{ region | upper | replace('_', '-') }}:** {{ total }} resources
-          (EC2: {{ ec2_r }}, Lambda: {{ lambda_f }}, RDS: {{ rds }}, DynamoDB:
-          {{ dynamo }}, S3: {{ s3 }})  
-
+          **{{ region | upper | replace('_', '-') }}:** {{ state.state }} resources
+          (EC2: {{ ec2_r }}, Lambda: {{ lambda_f }}, RDS: {{ rds }}, DynamoDB: {{ dynamo }}, S3: {{ s3 }}{% if apigw > 0 %}, API GW: {{ apigw }}{% endif %}{% if eb > 0 %}, Beanstalk: {{ eb }}{% endif %})
           {% endif -%}
-
           {%- endif -%}
-
           {%- endfor %}
       - type: markdown
         content: >
@@ -259,18 +169,10 @@ views:
 
 
           {% for state in states.sensor -%}
-
-          {%- if 'aws_live' in state.entity_id and
-          state.entity_id.endswith('_summary') and 'global' not in
-          state.entity_id -%}
-
-          {%- if state.state not in ['unknown', 'unavailable', 'None'] and
-          state.state | int(0) > 0 -%}
-
+          {%- if 'aws_live' in state.entity_id and state.entity_id.endswith('_summary') and 'global' not in state.entity_id -%}
+          {%- if state.state not in ['unknown', 'unavailable', 'None'] and state.state | int(0) > 0 -%}
           {%- set region = state.attributes.region -%}
-
           {%- set region_name = region | upper | replace('_', '-') -%}
-
           {%- set flag_map = {
             'us-east-1': '🇺🇸', 'us-east-2': '🇺🇸', 'us-west-1': '🇺🇸', 'us-west-2': '🇺🇸',
             'eu-west-1': '🇮🇪', 'eu-west-2': '🇬🇧', 'eu-west-3': '🇫🇷',
@@ -279,92 +181,58 @@ views:
             'ap-northeast-3': '🇯🇵', 'ap-southeast-1': '🇸🇬', 'ap-southeast-2': '🇦🇺',
             'ca-central-1': '🇨🇦', 'sa-east-1': '🇧🇷'
           } -%}
-
           {%- set flag = flag_map.get(region, '🌍') %}
-
 
           ### {{ flag }} {{ region_name }}
 
-
           **Total Resources:** {{ state.state }}
 
-
           #### 💻 Compute
-
           | Resource | Count |
-
           |----------|-------|
-
           | 🟢 EC2 Running | {{ state.attributes.ec2_running | default(0) }} |
-
           | 🔴 EC2 Stopped | {{ state.attributes.ec2_stopped | default(0) }} |
-
-          | ⚡ Lambda Functions | {{ state.attributes.lambda_functions |
-          default(0) }} |
-
+          | ⚡ Lambda Functions | {{ state.attributes.lambda_functions | default(0) }} |
           | 🐳 ECS Clusters | {{ state.attributes.ecs_clusters | default(0) }} |
-
           | ☸️ EKS Clusters | {{ state.attributes.eks_clusters | default(0) }} |
-
-          | 📈 Auto Scaling Groups | {{ state.attributes.auto_scaling_groups |
-          default(0) }} |
-
+          | 📈 Auto Scaling Groups | {{ state.attributes.auto_scaling_groups | default(0) }} |
+          | 🌱 Beanstalk Environments | {{ state.attributes.beanstalk_environments | default(0) }} |
 
           #### 🗄️ Data & Storage
-
           | Resource | Count |
-
           |----------|-------|
-
-          | 🗄️ RDS Databases | {{ state.attributes.rds_instances | default(0)
-          }} |
-
-          | 📊 DynamoDB Tables | {{ state.attributes.dynamodb_tables |
-          default(0) }} |
-
-          | 💾 ElastiCache Clusters | {{ state.attributes.elasticache_clusters |
-          default(0) }} |
-
+          | 🗄️ RDS Databases | {{ state.attributes.rds_instances | default(0) }} |
+          | 📊 DynamoDB Tables | {{ state.attributes.dynamodb_tables | default(0) }} |
+          | 💾 ElastiCache Clusters | {{ state.attributes.elasticache_clusters | default(0) }} |
           | 🪣 S3 Buckets | {{ state.attributes.s3_buckets | default(0) }} |
-
-          | 💿 EBS Volumes | {{ state.attributes.ebs_volumes | default(0) }} ({{
-          state.attributes.ebs_unattached | default(0) }} unattached) |
-
+          | 💿 EBS Volumes | {{ state.attributes.ebs_volumes | default(0) }} ({{ state.attributes.ebs_unattached | default(0) }} unattached) |
+          | 📁 EFS File Systems | {{ state.attributes.efs_file_systems | default(0) }} |
 
           #### 🌐 Networking & Messaging
-
           | Resource | Count |
-
           |----------|-------|
-
-          | 🌐 Load Balancers | {{ state.attributes.load_balancers | default(0)
-          }} |
-
-          | 🔢 Elastic IPs | {{ state.attributes.elastic_ips | default(0) }} ({{
-          state.attributes.elastic_ips_unattached | default(0) }} unattached) |
-
+          | 🌐 ALB/NLB Load Balancers | {{ state.attributes.load_balancers | default(0) }} |
+          | 🔁 Classic Load Balancers | {{ state.attributes.classic_load_balancers | default(0) }} |
+          | 🔢 Elastic IPs | {{ state.attributes.elastic_ips | default(0) }} ({{ state.attributes.elastic_ips_unattached | default(0) }} unattached) |
           | 🔔 SNS Topics | {{ state.attributes.sns_topics | default(0) }} |
-
           | 📬 SQS Queues | {{ state.attributes.sqs_queues | default(0) }} |
+          | 🌊 Kinesis Streams | {{ state.attributes.kinesis_streams | default(0) }} |
 
+          #### 🔌 APIs & CDN
+          | Resource | Count |
+          |----------|-------|
+          | 🔌 API Gateways | {{ state.attributes.api_gateways | default(0) }} |
+          | ☁️ CloudFront Distributions | {{ state.attributes.cloudfront_distributions | default(0) }} |
+          | 🌐 Route 53 Hosted Zones | {{ state.attributes.route53_zones | default(0) }} |
 
           #### 📊 Monitoring
-
           | Resource | Count |
-
           |----------|-------|
-
-          | ⏰ CloudWatch Alarms | {{ state.attributes.cloudwatch_alarms |
-          default(0) }} ({{ state.attributes.cloudwatch_alarms_alarm |
-          default(0) }} in ALARM) |
-
+          | ⏰ CloudWatch Alarms | {{ state.attributes.cloudwatch_alarms | default(0) }} ({{ state.attributes.cloudwatch_alarms_alarm | default(0) }} in ALARM) |
 
           ---
-
           {% endif -%}
-
           {%- endif -%}
-
           {%- endfor %}
       - type: horizontal-stack
         cards:
@@ -387,29 +255,14 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 15 AWS Services:**  
+          **Monitoring 23 AWS Services:**
+          EC2, RDS, Lambda, ECS, EKS, DynamoDB, ElastiCache, S3, EBS, EFS,
+          ALB/NLB Load Balancers, Classic Load Balancers, Auto Scaling Groups,
+          Elastic Beanstalk, SNS, SQS, Kinesis, CloudWatch Alarms, Elastic IPs,
+          API Gateway, CloudFront, Route 53
 
-          EC2, RDS, Lambda, ECS, EKS, DynamoDB, ElastiCache, S3, EBS, Load
-          Balancers, Auto Scaling, SNS, SQS, CloudWatch Alarms, Elastic IPs
 
-
-          **Cost Data**: Updates daily (24hr delay for new accounts)  
-
-          **Resource Counts**: Updates every 5 minutes  
-
+          **Cost Data**: Updates daily (24hr delay for new accounts)
+          **Resource Counts**: Updates every 5 minutes
           **Dynamic Regions**: Only shows regions with resources
-
-
-          **Set up cost alerts:**
-
-
-          automation:
-            trigger:
-              platform: numeric_state
-              entity_id: sensor.aws_live_global_cost_yesterday
-              above: 100
-            action:
-              service: notify.mobile_app
-              data:
-                message: "AWS cost yesterday exceeded expected budget"
-
+          **Global Services**: CloudFront and Route 53 shown under us-east-1
