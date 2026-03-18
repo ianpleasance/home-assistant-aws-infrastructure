@@ -13,6 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
@@ -74,310 +75,446 @@ async def async_setup_entry(
     account_name = entry.data[CONF_ACCOUNT_NAME].lower()
     create_individual = entry.data.get(CONF_CREATE_INDIVIDUAL_COUNT_SENSORS, False)
 
-    entities = []
+    # Track which unique_ids have already been registered to avoid duplicates
+    # across the initial setup and subsequent coordinator updates.
+    registered_ids: set[str] = set()
 
-    # Global summary sensor (aggregates all regions)
-    if "global" in hass.data[DOMAIN][entry.entry_id]:
-        global_coordinator_data = hass.data[DOMAIN][entry.entry_id]["global"]
-        entities.append(
-            AwsGlobalSummarySensor(
-                hass,
-                account_name,
-                global_coordinator_data["coordinators"],
-            )
-        )
-
-    # Create sensors for each region
-    for region, coordinators in all_coordinators.items():
-        # Regional summary sensor
-        entities.append(AwsRegionSummarySensor(coordinators, account_name, region))
+    def _build_entities_for_coordinator(
+        coordinator_key: str,
+        coordinator,
+        region: str,
+        coordinators: dict,
+    ) -> list:
+        """Build the list of new entities for a single coordinator's current data."""
+        new_entities = []
 
         # Cost sensors (only in us-east-1)
-        if COORDINATOR_COST in coordinators:
-            cost_coordinator = coordinators[COORDINATOR_COST]
+        if coordinator_key == COORDINATOR_COST:
+            for uid, entity in [
+                (f"aws_{account_name}_cost_yesterday", AwsCostYesterdaySensor(coordinator, account_name)),
+                (f"aws_{account_name}_cost_month_to_date", AwsCostMonthToDateSensor(coordinator, account_name)),
+            ]:
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(entity)
 
-            entities.extend([
-                AwsCostYesterdaySensor(cost_coordinator, account_name),
-                AwsCostMonthToDateSensor(cost_coordinator, account_name),
-            ])
+            if coordinator.data and "service_costs" in coordinator.data:
+                for service_slug, service_data in coordinator.data["service_costs"].items():
+                    uid = f"aws_{account_name}_cost_service_{service_slug}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsServiceCostSensor(coordinator, account_name, service_slug, service_data))
 
-            # Per-service cost sensors (top 10 services by cost)
-            if cost_coordinator.data and "service_costs" in cost_coordinator.data:
-                for service_slug, service_data in cost_coordinator.data["service_costs"].items():
-                    entities.append(
-                        AwsServiceCostSensor(
-                            cost_coordinator,
-                            account_name,
-                            service_slug,
-                            service_data,
-                        )
-                    )
-
-        # EC2 sensors
-        if COORDINATOR_EC2 in coordinators:
-            ec2_coordinator = coordinators[COORDINATOR_EC2]
-
+        # EC2
+        elif coordinator_key == COORDINATOR_EC2:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsEc2CountSensor(ec2_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_ec2_total"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsEc2CountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for instance in coordinator.data.get("instances", []):
+                    iid = instance["instance_id"].replace("-", "_")
+                    uid = f"aws_{account_name}_{region_n}_ec2_{iid}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsEc2InstanceSensor(coordinator, account_name, region, instance["instance_id"]))
 
-            if ec2_coordinator.data and "instances" in ec2_coordinator.data:
-                for instance in ec2_coordinator.data["instances"]:
-                    entities.append(
-                        AwsEc2InstanceSensor(
-                            ec2_coordinator,
-                            account_name,
-                            region,
-                            instance["instance_id"],
-                        )
-                    )
-
-        # RDS sensors
-        if COORDINATOR_RDS in coordinators:
-            rds_coordinator = coordinators[COORDINATOR_RDS]
-
+        # RDS
+        elif coordinator_key == COORDINATOR_RDS:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsRdsCountSensor(rds_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_rds_total_instances"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsRdsCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for instance in coordinator.data.get("instances", []):
+                    db_n = instance["db_instance_identifier"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_rds_{db_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsRdsInstanceSensor(coordinator, account_name, region, instance["db_instance_identifier"]))
 
-            if rds_coordinator.data and "instances" in rds_coordinator.data:
-                for instance in rds_coordinator.data["instances"]:
-                    entities.append(
-                        AwsRdsInstanceSensor(
-                            rds_coordinator,
-                            account_name,
-                            region,
-                            instance["db_instance_identifier"],
-                        )
-                    )
-
-        # Lambda sensors
-        if COORDINATOR_LAMBDA in coordinators:
-            lambda_coordinator = coordinators[COORDINATOR_LAMBDA]
-
+        # Lambda
+        elif coordinator_key == COORDINATOR_LAMBDA:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsLambdaCountSensor(lambda_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_lambda_total_functions"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsLambdaCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for function in coordinator.data.get("functions", []):
+                    fn = function["function_name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_lambda_{fn}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsLambdaFunctionSensor(coordinator, account_name, region, function["function_name"]))
 
-            if lambda_coordinator.data and "functions" in lambda_coordinator.data:
-                for function in lambda_coordinator.data["functions"]:
-                    entities.append(
-                        AwsLambdaFunctionSensor(
-                            lambda_coordinator,
-                            account_name,
-                            region,
-                            function["function_name"],
-                        )
-                    )
+        # Load Balancers
+        elif coordinator_key == COORDINATOR_LOADBALANCER:
+            region_n = region.replace("-", "_")
+            if coordinator.data:
+                for lb in coordinator.data.get("load_balancers", []):
+                    lb_n = lb["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_lb_{lb_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsLoadBalancerSensor(coordinator, account_name, region, lb["name"]))
 
-        # Load Balancer sensors
-        if COORDINATOR_LOADBALANCER in coordinators:
-            lb_coordinator = coordinators[COORDINATOR_LOADBALANCER]
+        # ASG
+        elif coordinator_key == COORDINATOR_ASG:
+            region_n = region.replace("-", "_")
+            if coordinator.data:
+                for asg in coordinator.data.get("auto_scaling_groups", []):
+                    asg_n = asg["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_asg_{asg_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsAsgSensor(coordinator, account_name, region, asg["name"]))
 
-            if lb_coordinator.data and "load_balancers" in lb_coordinator.data:
-                for lb in lb_coordinator.data["load_balancers"]:
-                    entities.append(
-                        AwsLoadBalancerSensor(
-                            lb_coordinator,
-                            account_name,
-                            region,
-                            lb["name"],
-                        )
-                    )
-
-        # Auto Scaling Group sensors
-        if COORDINATOR_ASG in coordinators:
-            asg_coordinator = coordinators[COORDINATOR_ASG]
-
-            if asg_coordinator.data and "auto_scaling_groups" in asg_coordinator.data:
-                for asg in asg_coordinator.data["auto_scaling_groups"]:
-                    entities.append(
-                        AwsAsgSensor(
-                            asg_coordinator,
-                            account_name,
-                            region,
-                            asg["name"],
-                        )
-                    )
-
-        # DynamoDB sensors
-        if COORDINATOR_DYNAMODB in coordinators:
-            dynamodb_coordinator = coordinators[COORDINATOR_DYNAMODB]
-
+        # DynamoDB
+        elif coordinator_key == COORDINATOR_DYNAMODB:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsDynamoDBCountSensor(dynamodb_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_dynamodb_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsDynamoDBCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for table in coordinator.data.get("tables", []):
+                    t_n = table["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_dynamodb_{t_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsDynamoDBTableSensor(coordinator, account_name, region, table["name"]))
 
-            if dynamodb_coordinator.data and "tables" in dynamodb_coordinator.data:
-                for table in dynamodb_coordinator.data["tables"]:
-                    entities.append(
-                        AwsDynamoDBTableSensor(
-                            dynamodb_coordinator,
-                            account_name,
-                            region,
-                            table["name"],
-                        )
-                    )
-
-        # ElastiCache sensors
-        if COORDINATOR_ELASTICACHE in coordinators:
-            elasticache_coordinator = coordinators[COORDINATOR_ELASTICACHE]
-
+        # ElastiCache
+        elif coordinator_key == COORDINATOR_ELASTICACHE:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsElastiCacheCountSensor(elasticache_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_elasticache_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsElastiCacheCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for cluster in coordinator.data.get("clusters", []):
+                    c_n = cluster["id"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_elasticache_{c_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsElastiCacheClusterSensor(coordinator, account_name, region, cluster["id"]))
 
-            if elasticache_coordinator.data and "clusters" in elasticache_coordinator.data:
-                for cluster in elasticache_coordinator.data["clusters"]:
-                    entities.append(
-                        AwsElastiCacheClusterSensor(
-                            elasticache_coordinator,
-                            account_name,
-                            region,
-                            cluster["id"],
-                        )
-                    )
-
-        # ECS sensors
-        if COORDINATOR_ECS in coordinators:
-            ecs_coordinator = coordinators[COORDINATOR_ECS]
-
+        # ECS
+        elif coordinator_key == COORDINATOR_ECS:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsECSCountSensor(ecs_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_ecs_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsECSCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for cluster in coordinator.data.get("clusters", []):
+                    c_n = cluster["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_ecs_{c_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsECSClusterSensor(coordinator, account_name, region, cluster["name"]))
 
-            if ecs_coordinator.data and "clusters" in ecs_coordinator.data:
-                for cluster in ecs_coordinator.data["clusters"]:
-                    entities.append(
-                        AwsECSClusterSensor(
-                            ecs_coordinator,
-                            account_name,
-                            region,
-                            cluster["name"],
-                        )
-                    )
-
-        # EKS sensors
-        if COORDINATOR_EKS in coordinators:
-            eks_coordinator = coordinators[COORDINATOR_EKS]
-
+        # EKS
+        elif coordinator_key == COORDINATOR_EKS:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsEKSCountSensor(eks_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_eks_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsEKSCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for cluster in coordinator.data.get("clusters", []):
+                    c_n = cluster["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_eks_{c_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsEKSClusterSensor(coordinator, account_name, region, cluster["name"]))
 
-            if eks_coordinator.data and "clusters" in eks_coordinator.data:
-                for cluster in eks_coordinator.data["clusters"]:
-                    entities.append(
-                        AwsEKSClusterSensor(
-                            eks_coordinator,
-                            account_name,
-                            region,
-                            cluster["name"],
-                        )
-                    )
-
-        # EBS Volume sensors
-        if COORDINATOR_EBS in coordinators:
-            ebs_coordinator = coordinators[COORDINATOR_EBS]
-
+        # EBS
+        elif coordinator_key == COORDINATOR_EBS:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsEBSCountSensor(ebs_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_ebs_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsEBSCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for volume in coordinator.data.get("volumes", []):
+                    v_n = volume["id"].replace("-", "_")
+                    uid = f"aws_{account_name}_{region_n}_ebs_{v_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsEBSVolumeSensor(coordinator, account_name, region, volume["id"]))
 
-            if ebs_coordinator.data and "volumes" in ebs_coordinator.data:
-                for volume in ebs_coordinator.data["volumes"]:
-                    entities.append(
-                        AwsEBSVolumeSensor(
-                            ebs_coordinator,
-                            account_name,
-                            region,
-                            volume["id"],
-                        )
-                    )
-
-        # SNS sensors
-        if COORDINATOR_SNS in coordinators:
-            sns_coordinator = coordinators[COORDINATOR_SNS]
-
+        # SNS
+        elif coordinator_key == COORDINATOR_SNS:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsSNSCountSensor(sns_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_sns_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsSNSCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for topic in coordinator.data.get("topics", []):
+                    t_n = topic["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_sns_{t_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsSNSTopicSensor(coordinator, account_name, region, topic["name"]))
 
-            if sns_coordinator.data and "topics" in sns_coordinator.data:
-                for topic in sns_coordinator.data["topics"]:
-                    entities.append(
-                        AwsSNSTopicSensor(
-                            sns_coordinator,
-                            account_name,
-                            region,
-                            topic["name"],
-                        )
-                    )
-
-        # SQS sensors
-        if COORDINATOR_SQS in coordinators:
-            sqs_coordinator = coordinators[COORDINATOR_SQS]
-
+        # SQS
+        elif coordinator_key == COORDINATOR_SQS:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsSQSCountSensor(sqs_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_sqs_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsSQSCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for queue in coordinator.data.get("queues", []):
+                    q_n = queue["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_sqs_{q_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsSQSQueueSensor(coordinator, account_name, region, queue["name"]))
 
-            if sqs_coordinator.data and "queues" in sqs_coordinator.data:
-                for queue in sqs_coordinator.data["queues"]:
-                    entities.append(
-                        AwsSQSQueueSensor(
-                            sqs_coordinator,
-                            account_name,
-                            region,
-                            queue["name"],
-                        )
-                    )
-
-        # S3 sensors
-        if COORDINATOR_S3 in coordinators:
-            s3_coordinator = coordinators[COORDINATOR_S3]
-
+        # S3
+        elif coordinator_key == COORDINATOR_S3:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsS3CountSensor(s3_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_s3_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsS3CountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for bucket in coordinator.data.get("buckets", []):
+                    b_n = bucket["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_s3_{b_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsS3BucketSensor(coordinator, account_name, region, bucket["name"]))
 
-            if s3_coordinator.data and "buckets" in s3_coordinator.data:
-                for bucket in s3_coordinator.data["buckets"]:
-                    entities.append(
-                        AwsS3BucketSensor(
-                            s3_coordinator,
-                            account_name,
-                            region,
-                            bucket["name"],
-                        )
-                    )
-
-        # CloudWatch Alarms sensors
-        if COORDINATOR_CLOUDWATCH_ALARMS in coordinators:
-            cloudwatch_coordinator = coordinators[COORDINATOR_CLOUDWATCH_ALARMS]
-
+        # CloudWatch Alarms
+        elif coordinator_key == COORDINATOR_CLOUDWATCH_ALARMS:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsCloudWatchAlarmsCountSensor(cloudwatch_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_cloudwatch_alarms_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsCloudWatchAlarmsCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for alarm in coordinator.data.get("alarms", []):
+                    a_n = alarm["name"].replace("-", "_").replace(".", "_").replace(" ", "_")
+                    uid = f"aws_{account_name}_{region_n}_alarm_{a_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsCloudWatchAlarmSensor(coordinator, account_name, region, alarm["name"]))
 
-            if cloudwatch_coordinator.data and "alarms" in cloudwatch_coordinator.data:
-                for alarm in cloudwatch_coordinator.data["alarms"]:
-                    entities.append(
-                        AwsCloudWatchAlarmSensor(
-                            cloudwatch_coordinator,
-                            account_name,
-                            region,
-                            alarm["name"],
-                        )
-                    )
-
-        # Elastic IP sensors
-        if COORDINATOR_ELASTIC_IPS in coordinators:
-            eip_coordinator = coordinators[COORDINATOR_ELASTIC_IPS]
-
+        # Elastic IPs
+        elif coordinator_key == COORDINATOR_ELASTIC_IPS:
+            region_n = region.replace("-", "_")
             if create_individual:
-                entities.append(AwsElasticIPsCountSensor(eip_coordinator, account_name, region))
+                uid = f"aws_{account_name}_{region_n}_elastic_ips_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsElasticIPsCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for address in coordinator.data.get("addresses", []):
+                    ip_n = address["ip"].replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_eip_{ip_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsElasticIPSensor(coordinator, account_name, region, address["ip"]))
 
-            if eip_coordinator.data and "addresses" in eip_coordinator.data:
-                for address in eip_coordinator.data["addresses"]:
-                    entities.append(
-                        AwsElasticIPSensor(
-                            eip_coordinator,
-                            account_name,
-                            region,
-                            address["ip"],
-                        )
-                    )
+        return new_entities
+
+    # --- Initial entity registration ---
+    entities = []
+
+    # Global summary sensor
+    if "global" in hass.data[DOMAIN][entry.entry_id]:
+        global_coordinator_data = hass.data[DOMAIN][entry.entry_id]["global"]
+        uid = f"aws_{account_name}_global_summary"
+        registered_ids.add(uid)
+        entities.append(AwsGlobalSummarySensor(hass, account_name, global_coordinator_data["coordinators"]))
+
+    for region, coordinators in all_coordinators.items():
+        # Regional summary sensor
+        region_n = region.replace("-", "_")
+        uid = f"aws_{account_name}_{region_n}_summary"
+        registered_ids.add(uid)
+        entities.append(AwsRegionSummarySensor(coordinators, account_name, region))
+
+        # Build entities from whatever data is already available
+        for coordinator_key, coordinator in coordinators.items():
+            entities.extend(_build_entities_for_coordinator(coordinator_key, coordinator, region, coordinators))
 
     async_add_entities(entities)
+
+    # --- Dynamic registration and cleanup on subsequent coordinator updates ---
+    # When coordinator data changes: register new entities and remove stale ones.
+    # A stale entity is one whose unique_id was registered by this integration
+    # but whose resource no longer exists in the coordinator's current data.
+
+    # Build a mapping of coordinator_key -> set of unique_ids it owns,
+    # so we know which ids to clean up when a coordinator updates.
+    coordinator_owned_ids: dict[str, set[str]] = {}
+    for uid in registered_ids:
+        # We can't reverse-map perfectly at this point, so we'll track per-coordinator
+        # using a snapshot approach in the listener instead.
+        pass
+
+    for region, coordinators in all_coordinators.items():
+        for coordinator_key, coordinator in coordinators.items():
+
+            # Snapshot which unique_ids belong to this coordinator right now
+            # by running the builder on empty data and comparing
+            owned_by_coord: set[str] = set()
+
+            def make_listener(key, coord, reg, owned: set):
+                def _listener():
+                    # Build entities from current data — registered_ids filter
+                    # prevents duplicates for new resources
+                    new = _build_entities_for_coordinator(key, coord, reg, coordinators)
+                    if new:
+                        _LOGGER.debug(
+                            "Dynamically registering %d new entities for %s [%s]",
+                            len(new), key, reg,
+                        )
+                        async_add_entities(new)
+
+                    # Clean up entities for resources that no longer exist.
+                    # Compute the set of unique_ids that SHOULD exist for this
+                    # coordinator given its current data.
+                    current_ids: set[str] = set()
+                    if coord.data:
+                        region_n = reg.replace("-", "_")
+                        data = coord.data
+
+                        if key == COORDINATOR_EC2:
+                            for i in data.get("instances", []):
+                                iid = i["instance_id"].replace("-", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_ec2_{iid}")
+                        elif key == COORDINATOR_RDS:
+                            for i in data.get("instances", []):
+                                db_n = i["db_instance_identifier"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_rds_{db_n}")
+                        elif key == COORDINATOR_LAMBDA:
+                            for f_ in data.get("functions", []):
+                                fn = f_["function_name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_lambda_{fn}")
+                        elif key == COORDINATOR_LOADBALANCER:
+                            for lb in data.get("load_balancers", []):
+                                lb_n = lb["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_lb_{lb_n}")
+                        elif key == COORDINATOR_ASG:
+                            for asg in data.get("auto_scaling_groups", []):
+                                asg_n = asg["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_asg_{asg_n}")
+                        elif key == COORDINATOR_DYNAMODB:
+                            for t in data.get("tables", []):
+                                t_n = t["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_dynamodb_{t_n}")
+                        elif key == COORDINATOR_ELASTICACHE:
+                            for c in data.get("clusters", []):
+                                c_n = c["id"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_elasticache_{c_n}")
+                        elif key == COORDINATOR_ECS:
+                            for c in data.get("clusters", []):
+                                c_n = c["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_ecs_{c_n}")
+                        elif key == COORDINATOR_EKS:
+                            for c in data.get("clusters", []):
+                                c_n = c["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_eks_{c_n}")
+                        elif key == COORDINATOR_EBS:
+                            for v in data.get("volumes", []):
+                                v_n = v["id"].replace("-", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_ebs_{v_n}")
+                        elif key == COORDINATOR_SNS:
+                            for t in data.get("topics", []):
+                                t_n = t["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_sns_{t_n}")
+                        elif key == COORDINATOR_SQS:
+                            for q in data.get("queues", []):
+                                q_n = q["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_sqs_{q_n}")
+                        elif key == COORDINATOR_S3:
+                            for b in data.get("buckets", []):
+                                b_n = b["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_s3_{b_n}")
+                        elif key == COORDINATOR_CLOUDWATCH_ALARMS:
+                            for a in data.get("alarms", []):
+                                a_n = a["name"].replace("-", "_").replace(".", "_").replace(" ", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_alarm_{a_n}")
+                        elif key == COORDINATOR_ELASTIC_IPS:
+                            for addr in data.get("addresses", []):
+                                ip_n = addr["ip"].replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_eip_{ip_n}")
+                        elif key == COORDINATOR_COST:
+                            for slug in data.get("service_costs", {}).keys():
+                                current_ids.add(f"aws_{account_name}_cost_service_{slug}")
+
+                    # Find ids that were registered for this coordinator but
+                    # are no longer in the current data — these resources were deleted
+                    stale_ids = owned - current_ids
+                    if stale_ids:
+                        entity_reg = async_get_entity_registry(hass)
+                        for uid in stale_ids:
+                            entity_entry = entity_reg.async_get_entity_id("sensor", DOMAIN, uid)
+                            if entity_entry:
+                                _LOGGER.info(
+                                    "Removing deleted resource entity %s [%s %s]",
+                                    uid, key, reg,
+                                )
+                                entity_reg.async_remove(entity_entry)
+                                registered_ids.discard(uid)
+                                owned.discard(uid)
+
+                    # Update owned set with any newly registered ids
+                    for entity in new:
+                        owned.add(entity.unique_id)
+
+                return _listener
+
+            # Populate owned set with ids currently registered for this coordinator
+            region_n = region.replace("-", "_")
+            for uid in list(registered_ids):
+                # Match ids that belong to this coordinator by checking known patterns
+                coord_prefix_map = {
+                    COORDINATOR_EC2: f"aws_{account_name}_{region_n}_ec2_i_",
+                    COORDINATOR_RDS: f"aws_{account_name}_{region_n}_rds_",
+                    COORDINATOR_LAMBDA: f"aws_{account_name}_{region_n}_lambda_",
+                    COORDINATOR_LOADBALANCER: f"aws_{account_name}_{region_n}_lb_",
+                    COORDINATOR_ASG: f"aws_{account_name}_{region_n}_asg_",
+                    COORDINATOR_DYNAMODB: f"aws_{account_name}_{region_n}_dynamodb_",
+                    COORDINATOR_ELASTICACHE: f"aws_{account_name}_{region_n}_elasticache_",
+                    COORDINATOR_ECS: f"aws_{account_name}_{region_n}_ecs_",
+                    COORDINATOR_EKS: f"aws_{account_name}_{region_n}_eks_",
+                    COORDINATOR_EBS: f"aws_{account_name}_{region_n}_ebs_",
+                    COORDINATOR_SNS: f"aws_{account_name}_{region_n}_sns_",
+                    COORDINATOR_SQS: f"aws_{account_name}_{region_n}_sqs_",
+                    COORDINATOR_S3: f"aws_{account_name}_{region_n}_s3_",
+                    COORDINATOR_CLOUDWATCH_ALARMS: f"aws_{account_name}_{region_n}_alarm_",
+                    COORDINATOR_ELASTIC_IPS: f"aws_{account_name}_{region_n}_eip_",
+                    COORDINATOR_COST: f"aws_{account_name}_cost_service_",
+                }
+                prefix = coord_prefix_map.get(coordinator_key)
+                if prefix and uid.startswith(prefix):
+                    owned_by_coord.add(uid)
+
+            entry.async_on_unload(
+                coordinator.async_add_listener(make_listener(coordinator_key, coordinator, region, owned_by_coord))
+            )
 
 
 # ============================================================================

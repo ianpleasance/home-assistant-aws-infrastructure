@@ -1,9 +1,10 @@
 """The AWS Infrastructure integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
@@ -177,17 +178,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass, aws_client, account_name, refresh_interval
         )
 
-        # Skip initial refresh if requested (faster startup)
-        # Data will be fetched on first scheduled update
-        skip_initial_refresh = entry.options.get("skip_initial_refresh", False)
+        # skip_initial_refresh only applies when HA is restarting with an existing
+        # entry — on a fresh setup or reconfigure we always do a full blocking refresh
+        # so the user sees real data immediately after adding the integration.
+        is_new_entry = entry.state == ConfigEntryState.SETUP_IN_PROGRESS and not entry.unique_id
+        skip_initial_refresh = (
+            entry.options.get("skip_initial_refresh", False)
+            and entry.state != ConfigEntryState.SETUP_IN_PROGRESS
+        )
 
-        for coordinator in coordinators.values():
-            if skip_initial_refresh:
-                # Skip blocking refresh — data will arrive on first scheduled update
-                pass
-            else:
-                # Traditional blocking refresh (ensures data is available on startup)
-                await coordinator.async_config_entry_first_refresh()
+        if not skip_initial_refresh:
+            # Refresh all coordinators for this region concurrently rather than
+            # sequentially — a single slow/hung service no longer blocks all others.
+            async def _refresh_one(key, coord):
+                _LOGGER.debug(
+                    "Starting first refresh for %s [account=%s region=%s]",
+                    key, account_name, region,
+                )
+                try:
+                    await coord.async_config_entry_first_refresh()
+                    _LOGGER.debug(
+                        "Completed first refresh for %s [account=%s region=%s]",
+                        key, account_name, region,
+                    )
+                except Exception as err:
+                    _LOGGER.error(
+                        "First refresh failed for %s [account=%s region=%s]: %s",
+                        key, account_name, region, err,
+                    )
+
+            await asyncio.gather(
+                *[_refresh_one(k, c) for k, c in coordinators.items()]
+            )
 
         all_coordinators[region] = coordinators
 
