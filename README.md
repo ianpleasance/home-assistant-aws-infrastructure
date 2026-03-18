@@ -7,7 +7,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 
 ## Features
 
-### 📊 **15 AWS Services Monitored**
+### 📊 **16 AWS Services Monitored**
 
 #### 💻 Compute
 - **EC2 Instances** — Track running/stopped instances with state, type, launch time, and tags
@@ -25,6 +25,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 
 #### 🌐 Networking & Messaging
 - **ALB / NLB Load Balancers** — Application and Network load balancers with DNS, scheme, state, and VPC
+- **Classic Load Balancers** — Legacy ELB with registered instances, listeners, health check config, and VPC
 - **Elastic IPs** — Track allocated IPs and identify unattached (costly) IPs
 - **SNS Topics** — Monitor notification topics and subscription counts
 - **SQS Queues** — Track message queues with available/in-flight/delayed message counts
@@ -109,6 +110,7 @@ Create a dedicated IAM user with read-only permissions. The minimum required pol
                 "eks:ListClusters",
                 "elasticache:DescribeCacheClusters",
                 "elasticloadbalancing:DescribeLoadBalancers",
+                "elasticloadbalancing:DescribeLoadBalancerAttributes",
                 "lambda:ListFunctions",
                 "rds:DescribeDBInstances",
                 "s3:GetBucketLocation",
@@ -225,7 +227,10 @@ Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## Changelog
 
-### v1.5.1 (2026-03-18)
+### v1.5.4 (2026-03-18)
+- ✨ Added Classic Load Balancer (ELB v1) monitoring with instance count, listeners, health check, and VPC
+
+### v1.5.0 (2026-03-18)
 - 🔒 Added botocore exception classification (credentials, permissions, throttling, timeouts, unavailable regions)
 - 🔒 Credential errors now raise a persistent HA notification
 - 🔒 IAM permission errors warned once then suppressed — no log spam

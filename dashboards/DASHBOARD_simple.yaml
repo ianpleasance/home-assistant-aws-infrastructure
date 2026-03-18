@@ -29,6 +29,9 @@ views:
           {% set lb_count = state_attr('sensor.aws_live_global_summary',
           'load_balancers') | int(0) %}
 
+          {% set clb_count = state_attr('sensor.aws_live_global_summary',
+          'classic_load_balancers') | int(0) %}
+
           {% set asg_count = state_attr('sensor.aws_live_global_summary',
           'auto_scaling_groups') | int(0) %}
 
@@ -106,7 +109,9 @@ views:
 
           ### 🌐 Networking & Messaging
 
-          - **Load Balancers:** {{ lb_count }}
+          - **ALB/NLB Load Balancers:** {{ lb_count }}
+
+          - **Classic Load Balancers:** {{ clb_count }}
 
           - **Elastic IPs:** {{ eips_count }} ({{ eips_unattached }} unattached)
 
@@ -337,8 +342,9 @@ views:
 
           |----------|-------|
 
-          | 🌐 Load Balancers | {{ state.attributes.load_balancers | default(0)
-          }} |
+          | 🌐 ALB/NLB Load Balancers | {{ state.attributes.load_balancers | default(0) }} |
+
+          | 🔁 Classic Load Balancers | {{ state.attributes.classic_load_balancers | default(0) }} |
 
           | 🔢 Elastic IPs | {{ state.attributes.elastic_ips | default(0) }} ({{
           state.attributes.elastic_ips_unattached | default(0) }} unattached) |
@@ -387,10 +393,11 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 15 AWS Services:**  
+          **Monitoring 16 AWS Services:**  
 
-          EC2, RDS, Lambda, ECS, EKS, DynamoDB, ElastiCache, S3, EBS, Load
-          Balancers, Auto Scaling, SNS, SQS, CloudWatch Alarms, Elastic IPs
+          EC2, RDS, Lambda, ECS, EKS, DynamoDB, ElastiCache, S3, EBS,
+          ALB/NLB Load Balancers, Classic Load Balancers, Auto Scaling,
+          SNS, SQS, CloudWatch Alarms, Elastic IPs
 
 
           **Cost Data**: Updates daily (24hr delay for new accounts)  
@@ -412,4 +419,3 @@ views:
               service: notify.mobile_app
               data:
                 message: "AWS cost yesterday exceeded expected budget"
-

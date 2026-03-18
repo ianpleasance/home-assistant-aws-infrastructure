@@ -4,8 +4,18 @@ from __future__ import annotations
 import logging
 
 import boto3
+from botocore.config import Config
 
 _LOGGER = logging.getLogger(__name__)
+
+# Apply a connect and read timeout to all boto3 clients.
+# Without this, a hung or slow AWS endpoint can block a coordinator
+# indefinitely, producing no log output and keeping all sensors unavailable.
+_BOTO_CONFIG = Config(
+    connect_timeout=10,
+    read_timeout=30,
+    retries={"max_attempts": 2, "mode": "standard"},
+)
 
 
 class AwsClient:
@@ -27,61 +37,69 @@ class AwsClient:
             region_name=region,
         )
 
+    def _client(self, service: str, **kwargs):
+        """Create a boto3 client with standard timeouts."""
+        return self._session.client(service, config=_BOTO_CONFIG, **kwargs)
+
     def get_cost_explorer_client(self):
         """Get Cost Explorer client."""
-        return self._session.client("ce")
+        return self._client("ce")
 
     def get_ec2_client(self):
         """Get EC2 client."""
-        return self._session.client("ec2")
+        return self._client("ec2")
 
     def get_rds_client(self):
         """Get RDS client."""
-        return self._session.client("rds")
+        return self._client("rds")
 
     def get_lambda_client(self):
         """Get Lambda client."""
-        return self._session.client("lambda")
+        return self._client("lambda")
 
     def get_elbv2_client(self):
         """Get ELBv2 client (for ALB/NLB)."""
-        return self._session.client("elbv2")
+        return self._client("elbv2")
+
+    def get_elb_client(self):
+        """Get ELB client (for Classic Load Balancers)."""
+        return self._client("elb")
 
     def get_autoscaling_client(self):
         """Get Auto Scaling client."""
-        return self._session.client("autoscaling")
+        return self._client("autoscaling")
 
     def get_cloudwatch_client(self):
         """Get CloudWatch client."""
-        return self._session.client("cloudwatch")
+        return self._client("cloudwatch")
 
     def get_dynamodb_client(self):
         """Get DynamoDB client."""
-        return self._session.client("dynamodb")
+        return self._client("dynamodb")
 
     def get_elasticache_client(self):
         """Get ElastiCache client."""
-        return self._session.client("elasticache")
+        return self._client("elasticache")
 
     def get_ecs_client(self):
         """Get ECS client."""
-        return self._session.client("ecs")
+        return self._client("ecs")
 
     def get_eks_client(self):
         """Get EKS client."""
-        return self._session.client("eks")
+        return self._client("eks")
 
     def get_sns_client(self):
         """Get SNS client."""
-        return self._session.client("sns")
+        return self._client("sns")
 
     def get_sqs_client(self):
         """Get SQS client."""
-        return self._session.client("sqs")
+        return self._client("sqs")
 
     def get_s3_client(self):
         """Get S3 client."""
-        return self._session.client("s3")
+        return self._client("s3")
 
     @property
     def region(self) -> str:

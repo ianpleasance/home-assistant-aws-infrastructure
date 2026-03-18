@@ -4,10 +4,10 @@ Monitor your entire AWS infrastructure from Home Assistant. Track 15 AWS service
 
 ## 🚀 Features
 
-### 15 AWS Services Monitored
+### 16 AWS Services Monitored
 - **Compute**: EC2, Lambda, ECS, EKS, Auto Scaling Groups
 - **Data & Storage**: RDS, DynamoDB, ElastiCache, S3, EBS Volumes
-- **Networking**: ALB/NLB Load Balancers, Elastic IPs, SNS, SQS
+- **Networking**: ALB/NLB Load Balancers, Classic Load Balancers, Elastic IPs, SNS, SQS
 - **Monitoring**: CloudWatch Alarms
 
 ### 💰 Cost Tracking
@@ -90,7 +90,7 @@ Default: **24-hour refresh = ~$0.60/month** ✅
 
 English • French • German • Italian • Spanish • Dutch • Swedish • Norwegian • Danish • Polish • Portuguese • Finnish • Japanese
 
-## 📝 What's New in v1.5.1
+## 📝 What's New in v1.5.0
 
 - 🔒 Proper error classification: credentials, permissions, throttling, timeouts handled differently
 - 🔔 Persistent HA notification on credential failure
@@ -98,6 +98,10 @@ English • French • German • Italian • Spanish • Dutch • Swedish • 
 - 🧹 Automatic stale sensor cleanup when resources are deleted
 - ⚡ Concurrent startup refresh — faster, more resilient
 - 📋 Clean minimal IAM policy with no duplicates
+
+## 📝 What's New in v1.5.4
+
+- ✨ Classic Load Balancer (ELB v1) monitoring
 
 ## 🔗 Links
 

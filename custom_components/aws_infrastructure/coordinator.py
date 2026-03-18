@@ -908,3 +908,60 @@ class AwsElasticIPsCoordinator(AwsBaseCoordinator):
         except Exception as err:
             _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Elastic IPs", self.account_name, self.region, err)
             return {"addresses": []}
+
+
+class AwsClassicLBCoordinator(AwsBaseCoordinator):
+    """Coordinator for Classic Load Balancer (ELB v1) data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"Classic Load Balancers ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch Classic Load Balancer data."""
+        try:
+            elb_client = self.aws_client.get_elb_client()
+
+            load_balancers = []
+            paginator = elb_client.get_paginator('describe_load_balancers')
+            for page in paginator.paginate():
+                for lb in page.get('LoadBalancerDescriptions', []):
+                    hc = lb.get('HealthCheck', {})
+                    listeners = [
+                        {
+                            'lb_port': l.get('Listener', {}).get('LoadBalancerPort'),
+                            'lb_protocol': l.get('Listener', {}).get('Protocol'),
+                            'instance_port': l.get('Listener', {}).get('InstancePort'),
+                            'instance_protocol': l.get('Listener', {}).get('InstanceProtocol'),
+                        }
+                        for l in lb.get('ListenerDescriptions', [])
+                    ]
+                    instances = [i.get('InstanceId') for i in lb.get('Instances', [])]
+                    load_balancers.append({
+                        'name': lb.get('LoadBalancerName'),
+                        'dns_name': lb.get('DNSName'),
+                        'scheme': lb.get('Scheme'),
+                        'vpc_id': lb.get('VPCId'),
+                        'availability_zones': lb.get('AvailabilityZones', []),
+                        'subnets': lb.get('Subnets', []),
+                        'security_groups': lb.get('SecurityGroups', []),
+                        'instances': instances,
+                        'instance_count': len(instances),
+                        'listeners': listeners,
+                        'health_check_target': hc.get('Target'),
+                        'health_check_interval': hc.get('Interval'),
+                        'created_time': str(lb.get('CreatedTime', '')),
+                    })
+
+            return {"load_balancers": load_balancers}
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Classic Load Balancers", self.account_name, self.region, err)
+            return {"load_balancers": []}

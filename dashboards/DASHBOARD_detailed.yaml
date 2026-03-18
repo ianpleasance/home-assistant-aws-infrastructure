@@ -73,8 +73,9 @@ views:
 
           |----------|-------|
 
-          | 🌐 Load Balancers | {{ state_attr('sensor.aws_live_global_summary',
-          'load_balancers') }} |
+          | 🌐 ALB/NLB Load Balancers | {{ state_attr('sensor.aws_live_global_summary', 'load_balancers') }} |
+
+          | 🔁 Classic Load Balancers | {{ state_attr('sensor.aws_live_global_summary', 'classic_load_balancers') | default(0) }} |
 
           | 🔢 Elastic IPs | {{ state_attr('sensor.aws_live_global_summary',
           'elastic_ips') }} ({{ state_attr('sensor.aws_live_global_summary',
@@ -746,7 +747,7 @@ views:
     cards:
       - type: markdown
         content: >
-          # 🌐 Load Balancers
+          # 🌐 ALB / NLB Load Balancers
 
 
           {% set n = state_attr('sensor.aws_live_global_summary', 'load_balancers') | int(0) %}
@@ -796,7 +797,63 @@ views:
           {% if states.sensor | selectattr('entity_id', 'search', '_load_balancer_') | list
           | length == 0 -%}
 
-          _No Load Balancers found_
+          _No ALB/NLB load balancers found_
+
+          {% endif %}
+      - type: markdown
+        content: >
+          # 🔁 Classic Load Balancers
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'classic_load_balancers') | default(0) | int(0) %}
+          **{{ n }} {{ 'classic load balancer' if n == 1 else 'classic load balancers' }}**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_classic_load_balancer_' in
+          state.entity_id -%}
+
+          {%- set lb_name = state.attributes.name | default('Unknown') -%}
+
+          {%- set instance_count = state.state | int(0) %}
+
+
+          ### 🔁 {{ lb_name }}
+
+          - **Instances**: {{ instance_count }} {{ 'instance' if instance_count == 1 else 'instances' }}
+
+          - **Scheme**: {{ state.attributes.scheme | default('N/A') }}
+
+          - **DNS**: `{{ state.attributes.dns_name | default('N/A') }}`
+
+          - **VPC**: {{ state.attributes.vpc_id | default('EC2-Classic') }}
+
+          - **Health Check**: {{ state.attributes.health_check_target | default('N/A') }}
+
+          {%- set listeners = state.attributes.listeners | default([]) %}
+
+          {%- if listeners | length > 0 %}
+
+          - **Listeners**: {% for l in listeners %}{{ l.lb_protocol }}:{{ l.lb_port }}→{{ l.instance_protocol }}:{{ l.instance_port }}{% if not loop.last %}, {% endif %}{% endfor %}
+
+          {%- endif %}
+
+          - **Created**: {{ state.attributes.created_time | default('N/A') }}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_classic_load_balancer_') | list
+          | length == 0 -%}
+
+          _No Classic Load Balancers found_
 
           {% endif %}
       - type: markdown
@@ -1065,4 +1122,3 @@ views:
           _Service breakdown will appear after 24 hours_
 
           {% endif %}
-

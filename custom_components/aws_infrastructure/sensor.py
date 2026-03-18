@@ -37,6 +37,7 @@ from .const import (
     COORDINATOR_S3,
     COORDINATOR_SNS,
     COORDINATOR_SQS,
+    COORDINATOR_CLASSIC_LB,
     DOMAIN,
 )
 
@@ -335,6 +336,22 @@ async def async_setup_entry(
                         registered_ids.add(uid)
                         new_entities.append(AwsElasticIPSensor(coordinator, account_name, region, address["ip"]))
 
+        # Classic Load Balancers
+        elif coordinator_key == COORDINATOR_CLASSIC_LB:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_classic_lb_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsClassicLBCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for lb in coordinator.data.get("load_balancers", []):
+                    lb_n = lb["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_classic_load_balancer_{lb_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsClassicLBSensor(coordinator, account_name, region, lb["name"]))
+
         return new_entities
 
     # --- Initial entity registration ---
@@ -460,6 +477,10 @@ async def async_setup_entry(
                             for addr in data.get("addresses", []):
                                 ip_n = addr["ip"].replace(".", "_")
                                 current_ids.add(f"aws_{account_name}_{region_n}_eip_{ip_n}")
+                        elif key == COORDINATOR_CLASSIC_LB:
+                            for lb in data.get("load_balancers", []):
+                                lb_n = lb["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_classic_load_balancer_{lb_n}")
                         elif key == COORDINATOR_COST:
                             for slug in data.get("service_costs", {}).keys():
                                 current_ids.add(f"aws_{account_name}_cost_service_{slug}")
@@ -506,6 +527,7 @@ async def async_setup_entry(
                     COORDINATOR_S3: f"aws_{account_name}_{region_n}_s3_",
                     COORDINATOR_CLOUDWATCH_ALARMS: f"aws_{account_name}_{region_n}_alarm_",
                     COORDINATOR_ELASTIC_IPS: f"aws_{account_name}_{region_n}_eip_",
+                    COORDINATOR_CLASSIC_LB: f"aws_{account_name}_{region_n}_classic_load_balancer_",
                     COORDINATOR_COST: f"aws_{account_name}_cost_service_",
                 }
                 prefix = coord_prefix_map.get(coordinator_key)
@@ -567,6 +589,7 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_S3, "buckets"),
             (COORDINATOR_CLOUDWATCH_ALARMS, "alarms"),
             (COORDINATOR_ELASTIC_IPS, "addresses"),
+            (COORDINATOR_CLASSIC_LB, "load_balancers"),
         ]:
             if key in self._coordinators and self._coordinators[key].data:
                 total += len(self._coordinators[key].data.get(data_key, []))
@@ -636,6 +659,9 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
             attrs["elastic_ips"] = len(addresses)
             attrs["elastic_ips_unattached"] = sum(1 for a in addresses if not a.get("attached"))
 
+        if COORDINATOR_CLASSIC_LB in self._coordinators and self._coordinators[COORDINATOR_CLASSIC_LB].data:
+            attrs["classic_load_balancers"] = len(self._coordinators[COORDINATOR_CLASSIC_LB].data.get("load_balancers", []))
+
         return attrs
 
 
@@ -694,6 +720,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_S3, "buckets"),
                 (COORDINATOR_CLOUDWATCH_ALARMS, "alarms"),
                 (COORDINATOR_ELASTIC_IPS, "addresses"),
+                (COORDINATOR_CLASSIC_LB, "load_balancers"),
             ]:
                 if key in region_coordinators and region_coordinators[key].data:
                     total += len(region_coordinators[key].data.get(data_key, []))
@@ -710,6 +737,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "ebs_unattached": 0, "sns_topics": 0, "sqs_queues": 0,
             "s3_buckets": 0, "cloudwatch_alarms": 0, "cloudwatch_alarms_alarm": 0,
             "elastic_ips": 0, "elastic_ips_unattached": 0,
+            "classic_load_balancers": 0,
         }
         active_regions = 0
 
@@ -810,6 +838,12 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                     region_has_resources = True
                 totals["elastic_ips"] += len(addresses)
                 totals["elastic_ips_unattached"] += sum(1 for a in addresses if not a.get("attached"))
+
+            if COORDINATOR_CLASSIC_LB in region_coordinators and region_coordinators[COORDINATOR_CLASSIC_LB].data:
+                clbs = region_coordinators[COORDINATOR_CLASSIC_LB].data.get("load_balancers", [])
+                if clbs:
+                    region_has_resources = True
+                totals["classic_load_balancers"] += len(clbs)
 
             if region_has_resources:
                 active_regions += 1
@@ -2160,6 +2194,95 @@ class AwsElasticIPSensor(CoordinatorEntity, SensorEntity):
                         "associated_with": address.get("associated_with"),
                         "domain": address.get("domain"),
                         "attached": address.get("attached"),
+                        "last_updated": dt_util.now(),
+                    }
+        return {"last_updated": dt_util.now()}
+
+
+# ============================================================================
+# SENSORS - Classic Load Balancers
+# ============================================================================
+
+
+class AwsClassicLBCountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for Classic Load Balancer count."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:scale-balance"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str, region: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        region_normalized = region.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_classic_lb_count"
+        self._attr_name = "Classic Load Balancers"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of Classic Load Balancers."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("load_balancers", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        return {"last_updated": dt_util.now()}
+
+
+class AwsClassicLBSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for individual Classic Load Balancer."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:scale-balance"
+
+    def __init__(self, coordinator, account_name: str, region: str, lb_name: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        self._lb_name = lb_name
+        region_normalized = region.replace("-", "_")
+        lb_normalized = lb_name.replace("-", "_").replace(".", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_classic_load_balancer_{lb_normalized}"
+        self._attr_name = f"Classic LB {lb_name}"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of registered instances."""
+        if self.coordinator.data and "load_balancers" in self.coordinator.data:
+            for lb in self.coordinator.data["load_balancers"]:
+                if lb.get("name") == self._lb_name:
+                    return lb.get("instance_count", 0)
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        if self.coordinator.data and "load_balancers" in self.coordinator.data:
+            for lb in self.coordinator.data["load_balancers"]:
+                if lb.get("name") == self._lb_name:
+                    return {
+                        "name": lb.get("name"),
+                        "dns_name": lb.get("dns_name"),
+                        "scheme": lb.get("scheme"),
+                        "vpc_id": lb.get("vpc_id"),
+                        "availability_zones": lb.get("availability_zones"),
+                        "subnets": lb.get("subnets"),
+                        "security_groups": lb.get("security_groups"),
+                        "instances": lb.get("instances"),
+                        "instance_count": lb.get("instance_count"),
+                        "listeners": lb.get("listeners"),
+                        "health_check_target": lb.get("health_check_target"),
+                        "health_check_interval": lb.get("health_check_interval"),
+                        "created_time": lb.get("created_time"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}
