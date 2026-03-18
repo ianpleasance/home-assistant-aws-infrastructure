@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .aws_client import AwsClient
 
@@ -39,12 +39,19 @@ class AwsBaseCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from API."""
         try:
-            # Run the synchronous _fetch_data in executor
             return await self.hass.async_add_executor_job(self._fetch_data)
         except Exception as err:
-            raise UpdateFailed(
-                f"Error fetching {self.service_name} data: {err}"
-            ) from err
+            _LOGGER.error(
+                "Error fetching %s data for account %s in %s: %s",
+                self.service_name,
+                self.account_name,
+                self.region,
+                err,
+            )
+            # Return previous data if available, otherwise empty dict.
+            # Never raise UpdateFailed — a single service error must not
+            # mark the entire config entry as unavailable.
+            return self.data if self.data is not None else {}
 
     def _fetch_data(self) -> dict[str, Any]:
         """Override this in subclasses - runs in executor."""
@@ -137,7 +144,7 @@ class AwsCostCoordinator(AwsBaseCoordinator):
                 "service_costs": service_costs,
             }
         except Exception as err:
-            _LOGGER.error(f"Error fetching cost data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Cost Explorer", self.account_name, self.region, err)
             return {"cost_yesterday": {}, "cost_mtd": {}, "service_costs": {}}
 
 
@@ -178,7 +185,7 @@ class AwsEc2Coordinator(AwsBaseCoordinator):
             
             return {"instances": instances}
         except Exception as err:
-            _LOGGER.error(f"Error fetching EC2 data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching EC2", self.account_name, self.region, err)
             return {"instances": []}
 
 
@@ -216,7 +223,7 @@ class AwsRdsCoordinator(AwsBaseCoordinator):
             
             return {"instances": instances}
         except Exception as err:
-            _LOGGER.error(f"Error fetching RDS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching RDS", self.account_name, self.region, err)
             return {"instances": []}
 
 
@@ -255,7 +262,7 @@ class AwsLambdaCoordinator(AwsBaseCoordinator):
             
             return {"functions": functions}
         except Exception as err:
-            _LOGGER.error(f"Error fetching Lambda data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Lambda", self.account_name, self.region, err)
             return {"functions": []}
 
 
@@ -294,7 +301,7 @@ class AwsLoadBalancerCoordinator(AwsBaseCoordinator):
             
             return {"load_balancers": load_balancers}
         except Exception as err:
-            _LOGGER.error(f"Error fetching Load Balancer data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Load Balancers (ALB/NLB)", self.account_name, self.region, err)
             return {"load_balancers": []}
 
 
@@ -333,7 +340,7 @@ class AwsAutoScalingCoordinator(AwsBaseCoordinator):
             
             return {"auto_scaling_groups": auto_scaling_groups}
         except Exception as err:
-            _LOGGER.error(f"Error fetching ASG data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Auto Scaling Groups", self.account_name, self.region, err)
             return {"auto_scaling_groups": []}
 
 
@@ -381,7 +388,7 @@ class AwsDynamoDBCoordinator(AwsBaseCoordinator):
             
             return {"tables": table_details}
         except Exception as err:
-            _LOGGER.error(f"Error fetching DynamoDB data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching DynamoDB", self.account_name, self.region, err)
             return {"tables": []}
 
 
@@ -421,7 +428,7 @@ class AwsElastiCacheCoordinator(AwsBaseCoordinator):
             
             return {"clusters": clusters}
         except Exception as err:
-            _LOGGER.error(f"Error fetching ElastiCache data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching ElastiCache", self.account_name, self.region, err)
             return {"clusters": []}
 
 
@@ -468,7 +475,7 @@ class AwsECSCoordinator(AwsBaseCoordinator):
             
             return {"clusters": clusters}
         except Exception as err:
-            _LOGGER.error(f"Error fetching ECS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching ECS", self.account_name, self.region, err)
             return {"clusters": []}
 
 
@@ -517,7 +524,7 @@ class AwsEKSCoordinator(AwsBaseCoordinator):
             
             return {"clusters": clusters}
         except Exception as err:
-            _LOGGER.error(f"Error fetching EKS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching EKS", self.account_name, self.region, err)
             return {"clusters": []}
 
 
@@ -565,7 +572,7 @@ class AwsEBSCoordinator(AwsBaseCoordinator):
             
             return {"volumes": volumes}
         except Exception as err:
-            _LOGGER.error(f"Error fetching EBS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching EBS", self.account_name, self.region, err)
             return {"volumes": []}
 
 
@@ -612,7 +619,7 @@ class AwsSNSCoordinator(AwsBaseCoordinator):
             
             return {"topics": topics}
         except Exception as err:
-            _LOGGER.error(f"Error fetching SNS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching SNS", self.account_name, self.region, err)
             return {"topics": []}
 
 
@@ -663,7 +670,7 @@ class AwsSQSCoordinator(AwsBaseCoordinator):
             
             return {"queues": queues}
         except Exception as err:
-            _LOGGER.error(f"Error fetching SQS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching SQS", self.account_name, self.region, err)
             return {"queues": []}
 
 
@@ -713,7 +720,7 @@ class AwsS3Coordinator(AwsBaseCoordinator):
             
             return {"buckets": buckets}
         except Exception as err:
-            _LOGGER.error(f"Error fetching S3 data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching S3", self.account_name, self.region, err)
             return {"buckets": []}
 
 
@@ -753,7 +760,7 @@ class AwsCloudWatchAlarmsCoordinator(AwsBaseCoordinator):
             
             return {"alarms": alarms}
         except Exception as err:
-            _LOGGER.error(f"Error fetching CloudWatch alarms data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching CloudWatch Alarms", self.account_name, self.region, err)
             return {"alarms": []}
 
 
@@ -792,7 +799,7 @@ class AwsElasticIPsCoordinator(AwsBaseCoordinator):
             
             return {"addresses": addresses}
         except Exception as err:
-            _LOGGER.error(f"Error fetching Elastic IPs data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Elastic IPs", self.account_name, self.region, err)
             return {"addresses": []}
 
 
@@ -849,7 +856,7 @@ class AwsClassicLBCoordinator(AwsBaseCoordinator):
 
             return {"load_balancers": load_balancers}
         except Exception as err:
-            _LOGGER.error(f"Error fetching Classic Load Balancer data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Classic Load Balancers", self.account_name, self.region, err)
             return {"load_balancers": []}
 
 
@@ -912,7 +919,7 @@ class AwsApiGatewayCoordinator(AwsBaseCoordinator):
 
             return {"apis": apis}
         except Exception as err:
-            _LOGGER.error(f"Error fetching API Gateway data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching API Gateway", self.account_name, self.region, err)
             return {"apis": []}
 
 
@@ -958,7 +965,7 @@ class AwsCloudFrontCoordinator(AwsBaseCoordinator):
 
             return {"distributions": distributions}
         except Exception as err:
-            _LOGGER.error(f"Error fetching CloudFront data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching CloudFront", self.account_name, self.region, err)
             return {"distributions": []}
 
 
@@ -1003,7 +1010,7 @@ class AwsEFSCoordinator(AwsBaseCoordinator):
 
             return {"file_systems": file_systems}
         except Exception as err:
-            _LOGGER.error(f"Error fetching EFS data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching EFS", self.account_name, self.region, err)
             return {"file_systems": []}
 
 
@@ -1042,7 +1049,7 @@ class AwsRoute53Coordinator(AwsBaseCoordinator):
 
             return {"zones": zones}
         except Exception as err:
-            _LOGGER.error(f"Error fetching Route 53 data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Route 53", self.account_name, self.region, err)
             return {"zones": []}
 
 
@@ -1099,7 +1106,7 @@ class AwsKinesisCoordinator(AwsBaseCoordinator):
 
             return {"streams": streams}
         except Exception as err:
-            _LOGGER.error(f"Error fetching Kinesis data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Kinesis", self.account_name, self.region, err)
             return {"streams": []}
 
 
@@ -1146,5 +1153,5 @@ class AwsBeanstalkCoordinator(AwsBaseCoordinator):
 
             return {"environments": environments}
         except Exception as err:
-            _LOGGER.error(f"Error fetching Elastic Beanstalk data: {err}")
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Elastic Beanstalk", self.account_name, self.region, err)
             return {"environments": []}
