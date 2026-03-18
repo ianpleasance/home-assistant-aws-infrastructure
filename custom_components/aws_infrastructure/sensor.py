@@ -159,7 +159,7 @@ async def async_setup_entry(
             if coordinator.data:
                 for lb in coordinator.data.get("load_balancers", []):
                     lb_n = lb["name"].replace("-", "_").replace(".", "_")
-                    uid = f"aws_{account_name}_{region_n}_lb_{lb_n}"
+                    uid = f"aws_{account_name}_{region_n}_load_balancer_{lb_n}"
                     if uid not in registered_ids:
                         registered_ids.add(uid)
                         new_entities.append(AwsLoadBalancerSensor(coordinator, account_name, region, lb["name"]))
@@ -170,7 +170,7 @@ async def async_setup_entry(
             if coordinator.data:
                 for asg in coordinator.data.get("auto_scaling_groups", []):
                     asg_n = asg["name"].replace("-", "_").replace(".", "_")
-                    uid = f"aws_{account_name}_{region_n}_asg_{asg_n}"
+                    uid = f"aws_{account_name}_{region_n}_auto_scaling_group_{asg_n}"
                     if uid not in registered_ids:
                         registered_ids.add(uid)
                         new_entities.append(AwsAsgSensor(coordinator, account_name, region, asg["name"]))
@@ -415,11 +415,11 @@ async def async_setup_entry(
                         elif key == COORDINATOR_LOADBALANCER:
                             for lb in data.get("load_balancers", []):
                                 lb_n = lb["name"].replace("-", "_").replace(".", "_")
-                                current_ids.add(f"aws_{account_name}_{region_n}_lb_{lb_n}")
+                                current_ids.add(f"aws_{account_name}_{region_n}_load_balancer_{lb_n}")
                         elif key == COORDINATOR_ASG:
                             for asg in data.get("auto_scaling_groups", []):
                                 asg_n = asg["name"].replace("-", "_").replace(".", "_")
-                                current_ids.add(f"aws_{account_name}_{region_n}_asg_{asg_n}")
+                                current_ids.add(f"aws_{account_name}_{region_n}_auto_scaling_group_{asg_n}")
                         elif key == COORDINATOR_DYNAMODB:
                             for t in data.get("tables", []):
                                 t_n = t["name"].replace("-", "_").replace(".", "_")
@@ -494,8 +494,8 @@ async def async_setup_entry(
                     COORDINATOR_EC2: f"aws_{account_name}_{region_n}_ec2_i_",
                     COORDINATOR_RDS: f"aws_{account_name}_{region_n}_rds_",
                     COORDINATOR_LAMBDA: f"aws_{account_name}_{region_n}_lambda_",
-                    COORDINATOR_LOADBALANCER: f"aws_{account_name}_{region_n}_lb_",
-                    COORDINATOR_ASG: f"aws_{account_name}_{region_n}_asg_",
+                    COORDINATOR_LOADBALANCER: f"aws_{account_name}_{region_n}_load_balancer_",
+                    COORDINATOR_ASG: f"aws_{account_name}_{region_n}_auto_scaling_group_",
                     COORDINATOR_DYNAMODB: f"aws_{account_name}_{region_n}_dynamodb_",
                     COORDINATOR_ELASTICACHE: f"aws_{account_name}_{region_n}_elasticache_",
                     COORDINATOR_ECS: f"aws_{account_name}_{region_n}_ecs_",
@@ -1238,7 +1238,7 @@ class AwsLoadBalancerSensor(CoordinatorEntity, SensorEntity):
         self._lb_name = lb_name
         region_normalized = region.replace("-", "_")
         lb_normalized = lb_name.replace("-", "_").replace(".", "_")
-        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_lb_{lb_normalized}"
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_load_balancer_{lb_normalized}"
         self._attr_name = f"Load Balancer {lb_name}"
         self._attr_device_info = _make_device_info(account_name, region)
 
@@ -1289,7 +1289,7 @@ class AwsAsgSensor(CoordinatorEntity, SensorEntity):
         self._asg_name = asg_name
         region_normalized = region.replace("-", "_")
         asg_normalized = asg_name.replace("-", "_").replace(".", "_")
-        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_asg_{asg_normalized}"
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_auto_scaling_group_{asg_normalized}"
         self._attr_name = f"Auto Scaling Group {asg_name}"
         self._attr_device_info = _make_device_info(account_name, region)
 
