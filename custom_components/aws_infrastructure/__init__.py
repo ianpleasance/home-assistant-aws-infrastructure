@@ -42,6 +42,7 @@ from .const import (
     COORDINATOR_BEANSTALK,
     COORDINATOR_ROUTE53,
     COORDINATOR_API_GATEWAY,
+    COORDINATOR_CLOUDFRONT,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_COST_REFRESH_INTERVAL,
     DOMAIN,
@@ -72,6 +73,7 @@ from .coordinator import (
     AwsBeanstalkCoordinator,
     AwsRoute53Coordinator,
     AwsApiGatewayCoordinator,
+    AwsCloudFrontCoordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -126,6 +128,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
             # Route 53 is a global service — only fetch from us-east-1
             coordinators[COORDINATOR_ROUTE53] = AwsRoute53Coordinator(
+                hass, aws_client, account_name, refresh_interval
+            )
+            # CloudFront is a global service — only fetch from us-east-1
+            coordinators[COORDINATOR_CLOUDFRONT] = AwsCloudFrontCoordinator(
                 hass, aws_client, account_name, refresh_interval
             )
 

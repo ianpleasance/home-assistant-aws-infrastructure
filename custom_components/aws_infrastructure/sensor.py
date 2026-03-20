@@ -43,6 +43,7 @@ from .const import (
     COORDINATOR_BEANSTALK,
     COORDINATOR_ROUTE53,
     COORDINATOR_API_GATEWAY,
+    COORDINATOR_CLOUDFRONT,
     DOMAIN,
 )
 
@@ -405,6 +406,21 @@ async def async_setup_entry(
                         registered_ids.add(uid)
                         new_entities.append(AwsApiGatewaySensor(coordinator, account_name, region, api["id"]))
 
+        # CloudFront (global — only present in us-east-1 coordinators)
+        elif coordinator_key == COORDINATOR_CLOUDFRONT:
+            if create_individual:
+                uid = f"aws_{account_name}_cloudfront_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsCloudFrontCountSensor(coordinator, account_name))
+            if coordinator.data:
+                for dist in coordinator.data.get("distributions", []):
+                    d_n = dist["id"].replace("-", "_")
+                    uid = f"aws_{account_name}_cloudfront_{d_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsCloudFrontDistributionSensor(coordinator, account_name, dist["id"]))
+
         # Route 53 (global — only present in us-east-1 coordinators)
         elif coordinator_key == COORDINATOR_ROUTE53:
             if create_individual:
@@ -581,6 +597,10 @@ async def async_setup_entry(
                             for z in data.get("zones", []):
                                 z_n = z["id"].replace("-", "_")
                                 current_ids.add(f"aws_{account_name}_route53_{z_n}")
+                        elif key == COORDINATOR_CLOUDFRONT:
+                            for d in data.get("distributions", []):
+                                d_n = d["id"].replace("-", "_")
+                                current_ids.add(f"aws_{account_name}_cloudfront_{d_n}")
                         elif key == COORDINATOR_API_GATEWAY:
                             for a in data.get("apis", []):
                                 a_n = a["id"].replace("-", "_")
@@ -636,6 +656,7 @@ async def async_setup_entry(
                     COORDINATOR_KINESIS: f"aws_{account_name}_{region_n}_kinesis_",
                     COORDINATOR_BEANSTALK: f"aws_{account_name}_{region_n}_beanstalk_",
                     COORDINATOR_ROUTE53: f"aws_{account_name}_route53_",
+                    COORDINATOR_CLOUDFRONT: f"aws_{account_name}_cloudfront_",
                     COORDINATOR_API_GATEWAY: f"aws_{account_name}_{region_n}_apigw_",
                     COORDINATOR_COST: f"aws_{account_name}_cost_service_",
                 }
@@ -846,6 +867,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_API_GATEWAY, "apis"),
                 (COORDINATOR_ROUTE53, "zones"),
+                (COORDINATOR_CLOUDFRONT, "distributions"),
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_KINESIS, "streams"),
@@ -877,6 +899,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "beanstalk_environments": 0,
             "api_gateways": 0,
             "route53_zones": 0,
+            "cloudfront_distributions": 0,
         }
         active_regions = 0
 
@@ -1013,6 +1036,12 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 if zones:
                     region_has_resources = True
                 totals["route53_zones"] += len(zones)
+
+            if COORDINATOR_CLOUDFRONT in region_coordinators and region_coordinators[COORDINATOR_CLOUDFRONT].data:
+                dists = region_coordinators[COORDINATOR_CLOUDFRONT].data.get("distributions", [])
+                if dists:
+                    region_has_resources = True
+                totals["cloudfront_distributions"] += len(dists)
 
             if region_has_resources:
                 active_regions += 1
@@ -2872,6 +2901,88 @@ class AwsApiGatewaySensor(CoordinatorEntity, SensorEntity):
                         "endpoint_type": api.get("endpoint_type"),
                         "api_endpoint": api.get("api_endpoint"),
                         "created_date": api.get("created_date"),
+                        "last_updated": dt_util.now(),
+                    }
+        return {"last_updated": dt_util.now()}
+
+
+# ============================================================================
+# SENSORS - CloudFront
+# ============================================================================
+
+
+class AwsCloudFrontCountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for CloudFront distribution count (global)."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:cloud-outline"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._attr_unique_id = f"aws_{account_name}_cloudfront_count"
+        self._attr_name = "CloudFront Distributions"
+        self._attr_device_info = _make_global_device_info(account_name)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of CloudFront distributions."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("distributions", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        return {"last_updated": dt_util.now()}
+
+
+class AwsCloudFrontDistributionSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual CloudFront distribution."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:cloud-outline"
+
+    def __init__(self, coordinator, account_name: str, dist_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._dist_id = dist_id
+        dist_normalized = dist_id.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_cloudfront_{dist_normalized}"
+        self._attr_name = f"CloudFront {dist_id}"
+        self._attr_device_info = _make_global_device_info(account_name)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the deployment status of the distribution."""
+        if self.coordinator.data:
+            for dist in self.coordinator.data.get("distributions", []):
+                if dist.get("id") == self._dist_id:
+                    return dist.get("status")
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        if self.coordinator.data:
+            for dist in self.coordinator.data.get("distributions", []):
+                if dist.get("id") == self._dist_id:
+                    return {
+                        "distribution_id": dist.get("id"),
+                        "domain_name": dist.get("domain_name"),
+                        "status": dist.get("status"),
+                        "enabled": dist.get("enabled"),
+                        "http_version": dist.get("http_version"),
+                        "price_class": dist.get("price_class"),
+                        "origins": dist.get("origins"),
+                        "aliases": dist.get("aliases"),
+                        "comment": dist.get("comment"),
+                        "last_modified": dist.get("last_modified"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}

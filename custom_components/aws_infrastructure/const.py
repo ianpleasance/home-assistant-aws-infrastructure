@@ -77,6 +77,7 @@ COORDINATOR_KINESIS = "kinesis"
 COORDINATOR_BEANSTALK = "beanstalk"
 COORDINATOR_ROUTE53 = "route53"
 COORDINATOR_API_GATEWAY = "api_gateway"
+COORDINATOR_CLOUDFRONT = "cloudfront"
 
 # Attribution
 ATTRIBUTION = "Data provided by Amazon Web Services"

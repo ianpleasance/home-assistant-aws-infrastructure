@@ -1221,3 +1221,53 @@ class AwsApiGatewayCoordinator(AwsBaseCoordinator):
             _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching API Gateway v2", self.account_name, self.region, err)
 
         return {"apis": apis}
+
+
+class AwsCloudFrontCoordinator(AwsBaseCoordinator):
+    """Coordinator for CloudFront distribution data (global service, fetched via us-east-1)."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            "CloudFront (global)",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch CloudFront distribution data."""
+        try:
+            cf_client = self.aws_client.get_cloudfront_client()
+
+            distributions = []
+            paginator = cf_client.get_paginator('list_distributions')
+            for page in paginator.paginate():
+                dist_list = page.get('DistributionList', {})
+                for dist in dist_list.get('Items', []):
+                    config = dist.get('DefaultCacheBehavior', {})
+                    aliases = dist.get('Aliases', {}).get('Items', [])
+                    origins = [
+                        o.get('DomainName')
+                        for o in dist.get('Origins', {}).get('Items', [])
+                    ]
+                    distributions.append({
+                        'id': dist.get('Id'),
+                        'domain_name': dist.get('DomainName'),
+                        'status': dist.get('Status'),
+                        'enabled': dist.get('Enabled', False),
+                        'http_version': dist.get('HttpVersion'),
+                        'price_class': dist.get('PriceClass'),
+                        'origins': origins,
+                        'aliases': aliases,
+                        'comment': dist.get('Comment', ''),
+                        'last_modified': str(dist.get('LastModifiedTime', '')),
+                    })
+
+            return {"distributions": distributions}
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching CloudFront", self.account_name, self.region, err)
+            return {"distributions": []}

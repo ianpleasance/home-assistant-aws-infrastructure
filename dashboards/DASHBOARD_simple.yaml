@@ -78,6 +78,9 @@ views:
           {% set apigw_count = state_attr('sensor.aws_live_global_summary',
           'api_gateways') | int(0) %}
 
+          {% set cloudfront_count = state_attr('sensor.aws_live_global_summary',
+          'cloudfront_distributions') | int(0) %}
+
           {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
           'cloudwatch_alarms') | int(0) %}
 
@@ -129,6 +132,8 @@ views:
           - **Route 53 Hosted Zones:** {{ route53_count }}
 
           - **API Gateways:** {{ apigw_count }}
+
+          - **CloudFront Distributions:** {{ cloudfront_count }}
 
           - **ALB/NLB Load Balancers:** {{ lb_count }}
 
@@ -422,10 +427,10 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 21 AWS Services:**  
+          **Monitoring 22 AWS Services:**  
 
           EC2, RDS, Lambda, ECS, EKS, Beanstalk, DynamoDB, ElastiCache, S3, EBS, EFS,
-          Route 53, API Gateway, ALB/NLB Load Balancers, Classic Load Balancers,
+          Route 53, CloudFront, API Gateway, ALB/NLB Load Balancers, Classic Load Balancers,
           Auto Scaling, Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
 
 

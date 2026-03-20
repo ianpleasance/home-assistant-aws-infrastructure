@@ -77,6 +77,8 @@ views:
 
           | 🔌 API Gateways | {{ state_attr('sensor.aws_live_global_summary', 'api_gateways') | default(0) }} |
 
+          | ☁️ CloudFront Distributions | {{ state_attr('sensor.aws_live_global_summary', 'cloudfront_distributions') | default(0) }} |
+
           | 🌐 ALB/NLB Load Balancers | {{
           state_attr('sensor.aws_live_global_summary', 'load_balancers') }} |
 
@@ -1150,6 +1152,75 @@ views:
           -%}
 
           _No CloudWatch alarms found_
+
+          {% endif %}
+  - title: CloudFront
+    path: aws-cloudfront
+    icon: mdi:cloud-outline
+    cards:
+      - type: markdown
+        content: >
+          # ☁️ CloudFront Distributions
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'cloudfront_distributions') | default(0) | int(0) %}
+          **{{ n }} {{ 'distribution' if n == 1 else 'distributions' }}** (global)
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_cloudfront_' in
+          state.entity_id and '_cloudfront_distributions' not in state.entity_id -%}
+
+          {%- set dist_id = state.attributes.distribution_id | default('Unknown') -%}
+          {%- set status = state.state -%}
+          {%- set enabled = state.attributes.enabled | default(false) -%}
+          {%- set icon = '🟢' if status == 'Deployed' and enabled else '🟡' if status == 'InProgress' else '⚫' %}
+
+
+          ### {{ icon }} {{ dist_id }}
+
+          - **Status**: {{ status }}
+
+          - **Enabled**: {{ enabled }}
+
+          - **Domain**: `{{ state.attributes.domain_name | default('N/A') }}`
+
+          {%- set aliases = state.attributes.aliases | default([]) %}
+
+          {%- if aliases | length > 0 %}
+
+          - **Aliases**: {{ aliases | join(', ') }}
+
+          {%- endif %}
+
+          - **Origins**: {{ state.attributes.origins | default([]) | join(', ') }}
+
+          - **HTTP Version**: {{ state.attributes.http_version | default('N/A') }}
+
+          - **Price Class**: {{ state.attributes.price_class | default('N/A') }}
+
+          {%- if state.attributes.comment %}
+
+          - **Comment**: {{ state.attributes.comment }}
+
+          {%- endif %}
+
+          - **Last Modified**: {{ state.attributes.last_modified | default('N/A') }}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_cloudfront_') |
+          rejectattr('entity_id', 'search', '_cloudfront_distributions') | list | length == 0 -%}
+
+          _No CloudFront distributions found_
 
           {% endif %}
   - title: API Gateway

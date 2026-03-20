@@ -89,6 +89,10 @@ class AwsClient:
         """Get API Gateway v2 (HTTP/WebSocket) client."""
         return self._client("apigatewayv2")
 
+    def get_cloudfront_client(self):
+        """Get CloudFront client (global service, uses us-east-1)."""
+        return self._client("cloudfront", region_name="us-east-1")
+
     def get_autoscaling_client(self):
         """Get Auto Scaling client."""
         return self._client("autoscaling")
