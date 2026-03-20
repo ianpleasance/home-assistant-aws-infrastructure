@@ -1161,3 +1161,63 @@ class AwsRoute53Coordinator(AwsBaseCoordinator):
         except Exception as err:
             _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Route 53", self.account_name, self.region, err)
             return {"zones": []}
+
+
+class AwsApiGatewayCoordinator(AwsBaseCoordinator):
+    """Coordinator for API Gateway (v1 REST and v2 HTTP/WebSocket) data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"API Gateway ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch API Gateway data from both v1 and v2."""
+        apis = []
+
+        # v1 REST APIs
+        try:
+            apigw1_client = self.aws_client.get_apigateway_client()
+            paginator = apigw1_client.get_paginator('get_rest_apis')
+            for page in paginator.paginate():
+                for api in page.get('items', []):
+                    apis.append({
+                        'id': api.get('id'),
+                        'name': api.get('name'),
+                        'type': 'REST',
+                        'description': api.get('description', ''),
+                        'endpoint_type': ', '.join(
+                            api.get('endpointConfiguration', {}).get('types', [])
+                        ),
+                        'created_date': str(api.get('createdDate', '')),
+                        'api_endpoint': None,
+                    })
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching API Gateway v1", self.account_name, self.region, err)
+
+        # v2 HTTP/WebSocket APIs
+        try:
+            apigw2_client = self.aws_client.get_apigatewayv2_client()
+            paginator = apigw2_client.get_paginator('get_apis')
+            for page in paginator.paginate():
+                for api in page.get('Items', []):
+                    apis.append({
+                        'id': api.get('ApiId'),
+                        'name': api.get('Name'),
+                        'type': api.get('ProtocolType', 'HTTP'),
+                        'description': api.get('Description', ''),
+                        'endpoint_type': None,
+                        'created_date': str(api.get('CreatedDate', '')),
+                        'api_endpoint': api.get('ApiEndpoint'),
+                    })
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching API Gateway v2", self.account_name, self.region, err)
+
+        return {"apis": apis}

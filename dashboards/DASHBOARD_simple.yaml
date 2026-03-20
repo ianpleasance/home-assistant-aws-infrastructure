@@ -75,6 +75,9 @@ views:
           {% set route53_count = state_attr('sensor.aws_live_global_summary',
           'route53_zones') | int(0) %}
 
+          {% set apigw_count = state_attr('sensor.aws_live_global_summary',
+          'api_gateways') | int(0) %}
+
           {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
           'cloudwatch_alarms') | int(0) %}
 
@@ -124,6 +127,8 @@ views:
           ### 🌐 Networking & Messaging
 
           - **Route 53 Hosted Zones:** {{ route53_count }}
+
+          - **API Gateways:** {{ apigw_count }}
 
           - **ALB/NLB Load Balancers:** {{ lb_count }}
 
@@ -369,6 +374,8 @@ views:
           | 🔢 Elastic IPs | {{ state.attributes.elastic_ips | default(0) }} ({{
           state.attributes.elastic_ips_unattached | default(0) }} unattached) |
 
+          | 🔌 API Gateways | {{ state.attributes.api_gateways | default(0) }} |
+
           | 🌊 Kinesis Streams | {{ state.attributes.kinesis_streams | default(0) }} |
 
           | 🔔 SNS Topics | {{ state.attributes.sns_topics | default(0) }} |
@@ -415,11 +422,11 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 20 AWS Services:**  
+          **Monitoring 21 AWS Services:**  
 
           EC2, RDS, Lambda, ECS, EKS, Beanstalk, DynamoDB, ElastiCache, S3, EBS, EFS,
-          Route 53, ALB/NLB Load Balancers, Classic Load Balancers, Auto Scaling,
-          Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
+          Route 53, API Gateway, ALB/NLB Load Balancers, Classic Load Balancers,
+          Auto Scaling, Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
 
 
           **Cost Data**: Updates daily (24hr delay for new accounts)  

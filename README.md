@@ -7,7 +7,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 
 ## Features
 
-### 📊 **20 AWS Services Monitored**
+### 📊 **21 AWS Services Monitored**
 
 #### 💻 Compute
 - **EC2 Instances** — Track running/stopped instances with state, type, launch time, and tags
@@ -25,6 +25,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 - **EBS Volumes** — Monitor volumes, attachment status, size, type, IOPS, AZ, and encryption
 
 #### 🌐 Networking & Messaging
+- **API Gateway** — REST, HTTP, and WebSocket API monitoring with type, endpoint, and creation date
 - **Route 53** — Global DNS hosting with public/private zone monitoring, record counts, and comments
 - **ALB / NLB Load Balancers** — Application and Network load balancers with DNS, scheme, state, and VPC
 - **Classic Load Balancers** — Legacy ELB with registered instances, listeners, health check config, and VPC
@@ -99,6 +100,7 @@ Create a dedicated IAM user with read-only permissions. The minimum required pol
             "Sid": "HomeAssistantAWSMonitoring",
             "Effect": "Allow",
             "Action": [
+                "apigateway:GET",
                 "autoscaling:DescribeAutoScalingGroups",
                 "ce:GetCostAndUsage",
                 "cloudwatch:DescribeAlarms",
@@ -235,6 +237,9 @@ Contributions are welcome! Fork the repository, create a feature branch, make yo
 Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## Changelog
+
+### v1.5.9 (2026-03-20)
+- ✨ Added API Gateway monitoring (v1 REST and v2 HTTP/WebSocket) with type, endpoint type, API endpoint, and creation date
 
 ### v1.5.8 (2026-03-18)
 - ✨ Added Route 53 hosted zone monitoring with public/private type, record counts, and comments (global service, fetched via us-east-1)

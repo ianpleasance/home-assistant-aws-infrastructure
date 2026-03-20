@@ -41,6 +41,7 @@ from .const import (
     COORDINATOR_KINESIS,
     COORDINATOR_BEANSTALK,
     COORDINATOR_ROUTE53,
+    COORDINATOR_API_GATEWAY,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_COST_REFRESH_INTERVAL,
     DOMAIN,
@@ -70,6 +71,7 @@ from .coordinator import (
     AwsKinesisCoordinator,
     AwsBeanstalkCoordinator,
     AwsRoute53Coordinator,
+    AwsApiGatewayCoordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -209,6 +211,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Elastic Beanstalk
         coordinators[COORDINATOR_BEANSTALK] = AwsBeanstalkCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # API Gateway (v1 REST + v2 HTTP/WebSocket)
+        coordinators[COORDINATOR_API_GATEWAY] = AwsApiGatewayCoordinator(
             hass, aws_client, account_name, refresh_interval
         )
 

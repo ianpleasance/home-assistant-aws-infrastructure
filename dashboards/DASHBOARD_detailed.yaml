@@ -75,6 +75,8 @@ views:
 
           | 🌐 Route 53 Hosted Zones | {{ state_attr('sensor.aws_live_global_summary', 'route53_zones') | default(0) }} |
 
+          | 🔌 API Gateways | {{ state_attr('sensor.aws_live_global_summary', 'api_gateways') | default(0) }} |
+
           | 🌐 ALB/NLB Load Balancers | {{
           state_attr('sensor.aws_live_global_summary', 'load_balancers') }} |
 
@@ -1148,6 +1150,70 @@ views:
           -%}
 
           _No CloudWatch alarms found_
+
+          {% endif %}
+  - title: API Gateway
+    path: aws-apigw
+    icon: mdi:api
+    cards:
+      - type: markdown
+        content: >
+          # 🔌 API Gateway
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'api_gateways') | default(0) | int(0) %}
+          **{{ n }} {{ 'API' if n == 1 else 'APIs' }}**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_api_gw_' in
+          state.entity_id and '_api_gateways' not in state.entity_id -%}
+
+          {%- set api_name = state.attributes.name | default('Unknown') -%}
+          {%- set api_type = state.state -%}
+          {%- set icon = '🔵' if api_type == 'REST' else '🟢' if api_type == 'HTTP' else '🟣' if api_type == 'WEBSOCKET' else '⚫' %}
+
+
+          ### {{ icon }} {{ api_name }}
+
+          - **ID**: {{ state.attributes.api_id | default('N/A') }}
+
+          - **Type**: {{ api_type }}
+
+          {%- if state.attributes.endpoint_type %}
+
+          - **Endpoint Type**: {{ state.attributes.endpoint_type }}
+
+          {%- endif %}
+
+          {%- if state.attributes.api_endpoint %}
+
+          - **Endpoint**: `{{ state.attributes.api_endpoint }}`
+
+          {%- endif %}
+
+          {%- if state.attributes.description %}
+
+          - **Description**: {{ state.attributes.description }}
+
+          {%- endif %}
+
+          - **Created**: {{ state.attributes.created_date | default('N/A') }}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_api_gw_') |
+          rejectattr('entity_id', 'search', '_api_gateways') | list | length == 0 -%}
+
+          _No API Gateways found_
 
           {% endif %}
   - title: Route 53

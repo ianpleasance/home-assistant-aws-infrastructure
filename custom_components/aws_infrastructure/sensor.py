@@ -42,6 +42,7 @@ from .const import (
     COORDINATOR_KINESIS,
     COORDINATOR_BEANSTALK,
     COORDINATOR_ROUTE53,
+    COORDINATOR_API_GATEWAY,
     DOMAIN,
 )
 
@@ -388,6 +389,22 @@ async def async_setup_entry(
                         registered_ids.add(uid)
                         new_entities.append(AwsBeanstalkEnvironmentSensor(coordinator, account_name, region, env["name"]))
 
+        # API Gateway
+        elif coordinator_key == COORDINATOR_API_GATEWAY:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_apigw_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsApiGatewayCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for api in coordinator.data.get("apis", []):
+                    a_n = api["id"].replace("-", "_")
+                    uid = f"aws_{account_name}_{region_n}_apigw_{a_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsApiGatewaySensor(coordinator, account_name, region, api["id"]))
+
         # Route 53 (global — only present in us-east-1 coordinators)
         elif coordinator_key == COORDINATOR_ROUTE53:
             if create_individual:
@@ -564,6 +581,10 @@ async def async_setup_entry(
                             for z in data.get("zones", []):
                                 z_n = z["id"].replace("-", "_")
                                 current_ids.add(f"aws_{account_name}_route53_{z_n}")
+                        elif key == COORDINATOR_API_GATEWAY:
+                            for a in data.get("apis", []):
+                                a_n = a["id"].replace("-", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_apigw_{a_n}")
                         elif key == COORDINATOR_COST:
                             for slug in data.get("service_costs", {}).keys():
                                 current_ids.add(f"aws_{account_name}_cost_service_{slug}")
@@ -615,6 +636,7 @@ async def async_setup_entry(
                     COORDINATOR_KINESIS: f"aws_{account_name}_{region_n}_kinesis_",
                     COORDINATOR_BEANSTALK: f"aws_{account_name}_{region_n}_beanstalk_",
                     COORDINATOR_ROUTE53: f"aws_{account_name}_route53_",
+                    COORDINATOR_API_GATEWAY: f"aws_{account_name}_{region_n}_apigw_",
                     COORDINATOR_COST: f"aws_{account_name}_cost_service_",
                 }
                 prefix = coord_prefix_map.get(coordinator_key)
@@ -680,6 +702,7 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_EFS, "file_systems"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
+            (COORDINATOR_API_GATEWAY, "apis"),
         ]:
             if key in self._coordinators and self._coordinators[key].data:
                 total += len(self._coordinators[key].data.get(data_key, []))
@@ -820,13 +843,18 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_EFS, "file_systems"),
                 (COORDINATOR_KINESIS, "streams"),
                 (COORDINATOR_BEANSTALK, "environments"),
+                (COORDINATOR_API_GATEWAY, "apis"),
+            (COORDINATOR_API_GATEWAY, "apis"),
                 (COORDINATOR_ROUTE53, "zones"),
             (COORDINATOR_BEANSTALK, "environments"),
+            (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
+            (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_EFS, "file_systems"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
+            (COORDINATOR_API_GATEWAY, "apis"),
             ]:
                 if key in region_coordinators and region_coordinators[key].data:
                     total += len(region_coordinators[key].data.get(data_key, []))
@@ -847,6 +875,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "efs_file_systems": 0,
             "kinesis_streams": 0,
             "beanstalk_environments": 0,
+            "api_gateways": 0,
             "route53_zones": 0,
         }
         active_regions = 0
@@ -972,6 +1001,12 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 if envs:
                     region_has_resources = True
                 totals["beanstalk_environments"] += len(envs)
+
+            if COORDINATOR_API_GATEWAY in region_coordinators and region_coordinators[COORDINATOR_API_GATEWAY].data:
+                apis = region_coordinators[COORDINATOR_API_GATEWAY].data.get("apis", [])
+                if apis:
+                    region_has_resources = True
+                totals["api_gateways"] += len(apis)
 
             if COORDINATOR_ROUTE53 in region_coordinators and region_coordinators[COORDINATOR_ROUTE53].data:
                 zones = region_coordinators[COORDINATOR_ROUTE53].data.get("zones", [])
@@ -2754,6 +2789,89 @@ class AwsRoute53ZoneSensor(CoordinatorEntity, SensorEntity):
                         "private": zone.get("private"),
                         "record_count": zone.get("record_count"),
                         "comment": zone.get("comment"),
+                        "last_updated": dt_util.now(),
+                    }
+        return {"last_updated": dt_util.now()}
+
+
+# ============================================================================
+# SENSORS - API Gateway
+# ============================================================================
+
+
+class AwsApiGatewayCountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for API Gateway count."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:api"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str, region: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        region_normalized = region.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_apigw_count"
+        self._attr_name = "API Gateways"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of APIs."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("apis", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        return {"last_updated": dt_util.now()}
+
+
+class AwsApiGatewaySensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual API Gateway."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:api"
+
+    def __init__(self, coordinator, account_name: str, region: str, api_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        self._api_id = api_id
+        region_normalized = region.replace("-", "_")
+        api_normalized = api_id.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_apigw_{api_normalized}"
+        self._attr_name = f"API GW {api_id}"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the API type (REST/HTTP/WEBSOCKET)."""
+        if self.coordinator.data:
+            for api in self.coordinator.data.get("apis", []):
+                if api.get("id") == self._api_id:
+                    return api.get("type")
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        if self.coordinator.data:
+            for api in self.coordinator.data.get("apis", []):
+                if api.get("id") == self._api_id:
+                    return {
+                        "api_id": api.get("id"),
+                        "name": api.get("name"),
+                        "type": api.get("type"),
+                        "description": api.get("description"),
+                        "endpoint_type": api.get("endpoint_type"),
+                        "api_endpoint": api.get("api_endpoint"),
+                        "created_date": api.get("created_date"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}

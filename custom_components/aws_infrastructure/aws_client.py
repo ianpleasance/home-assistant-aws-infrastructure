@@ -81,6 +81,14 @@ class AwsClient:
         """Get Route 53 client (global service, uses us-east-1)."""
         return self._client("route53", region_name="us-east-1")
 
+    def get_apigateway_client(self):
+        """Get API Gateway v1 (REST) client."""
+        return self._client("apigateway")
+
+    def get_apigatewayv2_client(self):
+        """Get API Gateway v2 (HTTP/WebSocket) client."""
+        return self._client("apigatewayv2")
+
     def get_autoscaling_client(self):
         """Get Auto Scaling client."""
         return self._client("autoscaling")
