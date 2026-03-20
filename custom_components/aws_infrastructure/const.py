@@ -74,6 +74,7 @@ COORDINATOR_ELASTIC_IPS = "elastic_ips"
 COORDINATOR_CLASSIC_LB = "classic_lb"
 COORDINATOR_EFS = "efs"
 COORDINATOR_KINESIS = "kinesis"
+COORDINATOR_BEANSTALK = "beanstalk"
 
 # Attribution
 ATTRIBUTION = "Data provided by Amazon Web Services"

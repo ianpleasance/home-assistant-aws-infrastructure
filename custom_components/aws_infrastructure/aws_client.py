@@ -73,6 +73,10 @@ class AwsClient:
         """Get Kinesis client."""
         return self._client("kinesis")
 
+    def get_beanstalk_client(self):
+        """Get Elastic Beanstalk client."""
+        return self._client("elasticbeanstalk")
+
     def get_autoscaling_client(self):
         """Get Auto Scaling client."""
         return self._client("autoscaling")

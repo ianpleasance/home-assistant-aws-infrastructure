@@ -40,6 +40,7 @@ from .const import (
     COORDINATOR_CLASSIC_LB,
     COORDINATOR_EFS,
     COORDINATOR_KINESIS,
+    COORDINATOR_BEANSTALK,
     DOMAIN,
 )
 
@@ -370,6 +371,22 @@ async def async_setup_entry(
                         registered_ids.add(uid)
                         new_entities.append(AwsKinesisStreamSensor(coordinator, account_name, region, stream["name"]))
 
+        # Elastic Beanstalk
+        elif coordinator_key == COORDINATOR_BEANSTALK:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_beanstalk_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsBeanstalkCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for env in coordinator.data.get("environments", []):
+                    e_n = env["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_beanstalk_{e_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsBeanstalkEnvironmentSensor(coordinator, account_name, region, env["name"]))
+
         # EFS
         elif coordinator_key == COORDINATOR_EFS:
             region_n = region.replace("-", "_")
@@ -523,6 +540,10 @@ async def async_setup_entry(
                             for s in data.get("streams", []):
                                 s_n = s["name"].replace("-", "_").replace(".", "_")
                                 current_ids.add(f"aws_{account_name}_{region_n}_kinesis_{s_n}")
+                        elif key == COORDINATOR_BEANSTALK:
+                            for e in data.get("environments", []):
+                                e_n = e["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_beanstalk_{e_n}")
                         elif key == COORDINATOR_COST:
                             for slug in data.get("service_costs", {}).keys():
                                 current_ids.add(f"aws_{account_name}_cost_service_{slug}")
@@ -572,6 +593,7 @@ async def async_setup_entry(
                     COORDINATOR_CLASSIC_LB: f"aws_{account_name}_{region_n}_classic_lb_",
                     COORDINATOR_EFS: f"aws_{account_name}_{region_n}_efs_",
                     COORDINATOR_KINESIS: f"aws_{account_name}_{region_n}_kinesis_",
+                    COORDINATOR_BEANSTALK: f"aws_{account_name}_{region_n}_beanstalk_",
                     COORDINATOR_COST: f"aws_{account_name}_cost_service_",
                 }
                 prefix = coord_prefix_map.get(coordinator_key)
@@ -636,6 +658,7 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_CLASSIC_LB, "load_balancers"),
             (COORDINATOR_EFS, "file_systems"),
             (COORDINATOR_KINESIS, "streams"),
+            (COORDINATOR_BEANSTALK, "environments"),
         ]:
             if key in self._coordinators and self._coordinators[key].data:
                 total += len(self._coordinators[key].data.get(data_key, []))
@@ -775,9 +798,13 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_CLASSIC_LB, "load_balancers"),
                 (COORDINATOR_EFS, "file_systems"),
                 (COORDINATOR_KINESIS, "streams"),
+                (COORDINATOR_BEANSTALK, "environments"),
+            (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_KINESIS, "streams"),
+            (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_EFS, "file_systems"),
             (COORDINATOR_KINESIS, "streams"),
+            (COORDINATOR_BEANSTALK, "environments"),
             ]:
                 if key in region_coordinators and region_coordinators[key].data:
                     total += len(region_coordinators[key].data.get(data_key, []))
@@ -797,6 +824,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "classic_load_balancers": 0,
             "efs_file_systems": 0,
             "kinesis_streams": 0,
+            "beanstalk_environments": 0,
         }
         active_regions = 0
 
@@ -915,6 +943,12 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 if streams:
                     region_has_resources = True
                 totals["kinesis_streams"] += len(streams)
+
+            if COORDINATOR_BEANSTALK in region_coordinators and region_coordinators[COORDINATOR_BEANSTALK].data:
+                envs = region_coordinators[COORDINATOR_BEANSTALK].data.get("environments", [])
+                if envs:
+                    region_has_resources = True
+                totals["beanstalk_environments"] += len(envs)
 
             if region_has_resources:
                 active_regions += 1
@@ -2525,6 +2559,95 @@ class AwsKinesisStreamSensor(CoordinatorEntity, SensorEntity):
                         "shard_count": stream.get("shard_count"),
                         "retention_hours": stream.get("retention_hours"),
                         "consumer_count": stream.get("consumer_count"),
+                        "last_updated": dt_util.now(),
+                    }
+        return {"last_updated": dt_util.now()}
+
+
+# ============================================================================
+# SENSORS - Elastic Beanstalk
+# ============================================================================
+
+
+class AwsBeanstalkCountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for Elastic Beanstalk environment count."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:leaf"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str, region: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        region_normalized = region.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_beanstalk_count"
+        self._attr_name = "Beanstalk Environments"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of Beanstalk environments."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("environments", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        return {"last_updated": dt_util.now()}
+
+
+class AwsBeanstalkEnvironmentSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual Elastic Beanstalk environment."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:leaf"
+
+    def __init__(self, coordinator, account_name: str, region: str, env_name: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        self._env_name = env_name
+        region_normalized = region.replace("-", "_")
+        env_normalized = env_name.replace("-", "_").replace(".", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_beanstalk_{env_normalized}"
+        self._attr_name = f"Beanstalk {env_name}"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the health of the environment."""
+        if self.coordinator.data:
+            for env in self.coordinator.data.get("environments", []):
+                if env.get("name") == self._env_name:
+                    return env.get("health")
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        if self.coordinator.data:
+            for env in self.coordinator.data.get("environments", []):
+                if env.get("name") == self._env_name:
+                    return {
+                        "name": env.get("name"),
+                        "environment_id": env.get("id"),
+                        "application_name": env.get("application_name"),
+                        "status": env.get("status"),
+                        "health": env.get("health"),
+                        "health_status": env.get("health_status"),
+                        "tier_name": env.get("tier_name"),
+                        "tier_type": env.get("tier_type"),
+                        "cname": env.get("cname"),
+                        "endpoint_url": env.get("endpoint_url"),
+                        "solution_stack": env.get("solution_stack"),
+                        "date_created": env.get("date_created"),
+                        "date_updated": env.get("date_updated"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}

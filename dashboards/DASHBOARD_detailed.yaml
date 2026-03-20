@@ -37,9 +37,9 @@ views:
           | ☸️ EKS Clusters | {{ state_attr('sensor.aws_live_global_summary',
           'eks_clusters') }} |
 
-          | 📈 Auto Scaling Groups | {{
-          state_attr('sensor.aws_live_global_summary', 'auto_scaling_groups') }}
-          |
+          | 📈 Auto Scaling Groups | {{ state_attr('sensor.aws_live_global_summary', 'auto_scaling_groups') }} |
+
+          | 🌿 Beanstalk Environments | {{ state_attr('sensor.aws_live_global_summary', 'beanstalk_environments') | default(0) }} |
       - type: markdown
         content: >
           ## 🗄️ Data & Storage
@@ -1146,6 +1146,62 @@ views:
           -%}
 
           _No CloudWatch alarms found_
+
+          {% endif %}
+  - title: Beanstalk
+    path: aws-beanstalk
+    icon: mdi:leaf
+    cards:
+      - type: markdown
+        content: >
+          # 🌿 Elastic Beanstalk Environments
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'beanstalk_environments') | default(0) | int(0) %}
+          **{{ n }} {{ 'environment' if n == 1 else 'environments' }}**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_beanstalk_' in
+          state.entity_id and '_beanstalk_count' not in state.entity_id -%}
+
+          {%- set env_name = state.attributes.name | default('Unknown') -%}
+          {%- set health = state.state -%}
+          {%- set icon = '🟢' if health == 'Green' else '🟡' if health == 'Yellow' else '🔴' if health == 'Red' else '⚫' %}
+
+
+          ### {{ icon }} {{ env_name }}
+
+          - **Application**: {{ state.attributes.application_name | default('N/A') }}
+
+          - **Health**: {{ health }}
+
+          - **Health Status**: {{ state.attributes.health_status | default('N/A') }}
+
+          - **Status**: {{ state.attributes.status | default('N/A') }}
+
+          - **Tier**: {{ state.attributes.tier_name | default('N/A') }} ({{ state.attributes.tier_type | default('N/A') }})
+
+          - **CNAME**: {{ state.attributes.cname | default('N/A') }}
+
+          - **Solution Stack**: {{ state.attributes.solution_stack | default('N/A') }}
+
+          - **Updated**: {{ state.attributes.date_updated | default('N/A') }}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_beanstalk_') |
+          rejectattr('entity_id', 'search', '_beanstalk_count') | list | length == 0 -%}
+
+          _No Beanstalk environments found_
 
           {% endif %}
   - title: Costs

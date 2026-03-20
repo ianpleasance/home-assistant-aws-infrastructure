@@ -7,7 +7,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 
 ## Features
 
-### 📊 **18 AWS Services Monitored**
+### 📊 **19 AWS Services Monitored**
 
 #### 💻 Compute
 - **EC2 Instances** — Track running/stopped instances with state, type, launch time, and tags
@@ -15,6 +15,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 - **ECS Clusters** — Container orchestration with running/pending task counts and service status
 - **EKS Clusters** — Kubernetes cluster monitoring with version, endpoint, and health status
 - **Auto Scaling Groups** — Monitor ASG capacity, desired/min/max instances and health check type
+- **Elastic Beanstalk** — Monitor environments with health (Green/Yellow/Red), status, tier, CNAME, and solution stack
 
 #### 🗄️ Data & Storage
 - **RDS Databases** — Track database instances, engine versions, class, and allocated storage
@@ -103,6 +104,7 @@ Create a dedicated IAM user with read-only permissions. The minimum required pol
                 "dynamodb:DescribeTable",
                 "dynamodb:ListTables",
                 "ec2:DescribeAddresses",
+                "elasticbeanstalk:DescribeEnvironments",
                 "ec2:DescribeInstances",
                 "ec2:DescribeRegions",
                 "ec2:DescribeVolumes",
@@ -231,6 +233,9 @@ Contributions are welcome! Fork the repository, create a feature branch, make yo
 Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## Changelog
+
+### v1.5.7 (2026-03-18)
+- ✨ Added Elastic Beanstalk environment monitoring with health, status, tier, CNAME, and solution stack
 
 ### v1.5.6 (2026-03-18)
 - ✨ Added Kinesis stream monitoring with status, mode, shard count, retention, and consumer count

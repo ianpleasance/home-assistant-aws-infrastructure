@@ -1074,3 +1074,50 @@ class AwsKinesisCoordinator(AwsBaseCoordinator):
         except Exception as err:
             _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Kinesis", self.account_name, self.region, err)
             return {"streams": []}
+
+
+class AwsBeanstalkCoordinator(AwsBaseCoordinator):
+    """Coordinator for Elastic Beanstalk environment data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"Elastic Beanstalk ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch Elastic Beanstalk environment data."""
+        try:
+            eb_client = self.aws_client.get_beanstalk_client()
+
+            environments = []
+            paginator = eb_client.get_paginator('describe_environments')
+            for page in paginator.paginate():
+                for env in page.get('Environments', []):
+                    environments.append({
+                        'name': env.get('EnvironmentName'),
+                        'id': env.get('EnvironmentId'),
+                        'application_name': env.get('ApplicationName'),
+                        'status': env.get('Status'),
+                        'health': env.get('Health'),
+                        'health_status': env.get('HealthStatus'),
+                        'platform_arn': env.get('PlatformArn'),
+                        'solution_stack': env.get('SolutionStackName'),
+                        'tier_name': env.get('Tier', {}).get('Name'),
+                        'tier_type': env.get('Tier', {}).get('Type'),
+                        'cname': env.get('CNAME'),
+                        'endpoint_url': env.get('EndpointURL'),
+                        'date_created': str(env.get('DateCreated', '')),
+                        'date_updated': str(env.get('DateUpdated', '')),
+                    })
+
+            return {"environments": environments}
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Elastic Beanstalk", self.account_name, self.region, err)
+            return {"environments": []}

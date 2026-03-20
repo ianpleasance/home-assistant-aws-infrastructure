@@ -69,6 +69,9 @@ views:
           {% set kinesis_count = state_attr('sensor.aws_live_global_summary',
           'kinesis_streams') | int(0) %}
 
+          {% set beanstalk_count = state_attr('sensor.aws_live_global_summary',
+          'beanstalk_environments') | int(0) %}
+
           {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
           'cloudwatch_alarms') | int(0) %}
 
@@ -407,9 +410,9 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 18 AWS Services:**  
+          **Monitoring 19 AWS Services:**  
 
-          EC2, RDS, Lambda, ECS, EKS, DynamoDB, ElastiCache, S3, EBS, EFS,
+          EC2, RDS, Lambda, ECS, EKS, Beanstalk, DynamoDB, ElastiCache, S3, EBS, EFS,
           ALB/NLB Load Balancers, Classic Load Balancers, Auto Scaling,
           Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
 
