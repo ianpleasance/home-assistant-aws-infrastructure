@@ -72,6 +72,9 @@ views:
           {% set beanstalk_count = state_attr('sensor.aws_live_global_summary',
           'beanstalk_environments') | int(0) %}
 
+          {% set route53_count = state_attr('sensor.aws_live_global_summary',
+          'route53_zones') | int(0) %}
+
           {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
           'cloudwatch_alarms') | int(0) %}
 
@@ -119,6 +122,8 @@ views:
 
 
           ### 🌐 Networking & Messaging
+
+          - **Route 53 Hosted Zones:** {{ route53_count }}
 
           - **ALB/NLB Load Balancers:** {{ lb_count }}
 
@@ -410,10 +415,10 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 19 AWS Services:**  
+          **Monitoring 20 AWS Services:**  
 
           EC2, RDS, Lambda, ECS, EKS, Beanstalk, DynamoDB, ElastiCache, S3, EBS, EFS,
-          ALB/NLB Load Balancers, Classic Load Balancers, Auto Scaling,
+          Route 53, ALB/NLB Load Balancers, Classic Load Balancers, Auto Scaling,
           Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
 
 

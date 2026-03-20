@@ -75,6 +75,7 @@ COORDINATOR_CLASSIC_LB = "classic_lb"
 COORDINATOR_EFS = "efs"
 COORDINATOR_KINESIS = "kinesis"
 COORDINATOR_BEANSTALK = "beanstalk"
+COORDINATOR_ROUTE53 = "route53"
 
 # Attribution
 ATTRIBUTION = "Data provided by Amazon Web Services"

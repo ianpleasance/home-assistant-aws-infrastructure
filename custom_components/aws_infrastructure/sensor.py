@@ -41,6 +41,7 @@ from .const import (
     COORDINATOR_EFS,
     COORDINATOR_KINESIS,
     COORDINATOR_BEANSTALK,
+    COORDINATOR_ROUTE53,
     DOMAIN,
 )
 
@@ -387,6 +388,21 @@ async def async_setup_entry(
                         registered_ids.add(uid)
                         new_entities.append(AwsBeanstalkEnvironmentSensor(coordinator, account_name, region, env["name"]))
 
+        # Route 53 (global — only present in us-east-1 coordinators)
+        elif coordinator_key == COORDINATOR_ROUTE53:
+            if create_individual:
+                uid = f"aws_{account_name}_route53_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsRoute53CountSensor(coordinator, account_name))
+            if coordinator.data:
+                for zone in coordinator.data.get("zones", []):
+                    z_n = zone["id"].replace("-", "_")
+                    uid = f"aws_{account_name}_route53_{z_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsRoute53ZoneSensor(coordinator, account_name, zone["id"]))
+
         # EFS
         elif coordinator_key == COORDINATOR_EFS:
             region_n = region.replace("-", "_")
@@ -544,6 +560,10 @@ async def async_setup_entry(
                             for e in data.get("environments", []):
                                 e_n = e["name"].replace("-", "_").replace(".", "_")
                                 current_ids.add(f"aws_{account_name}_{region_n}_beanstalk_{e_n}")
+                        elif key == COORDINATOR_ROUTE53:
+                            for z in data.get("zones", []):
+                                z_n = z["id"].replace("-", "_")
+                                current_ids.add(f"aws_{account_name}_route53_{z_n}")
                         elif key == COORDINATOR_COST:
                             for slug in data.get("service_costs", {}).keys():
                                 current_ids.add(f"aws_{account_name}_cost_service_{slug}")
@@ -594,6 +614,7 @@ async def async_setup_entry(
                     COORDINATOR_EFS: f"aws_{account_name}_{region_n}_efs_",
                     COORDINATOR_KINESIS: f"aws_{account_name}_{region_n}_kinesis_",
                     COORDINATOR_BEANSTALK: f"aws_{account_name}_{region_n}_beanstalk_",
+                    COORDINATOR_ROUTE53: f"aws_{account_name}_route53_",
                     COORDINATOR_COST: f"aws_{account_name}_cost_service_",
                 }
                 prefix = coord_prefix_map.get(coordinator_key)
@@ -799,6 +820,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_EFS, "file_systems"),
                 (COORDINATOR_KINESIS, "streams"),
                 (COORDINATOR_BEANSTALK, "environments"),
+                (COORDINATOR_ROUTE53, "zones"),
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
@@ -825,6 +847,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "efs_file_systems": 0,
             "kinesis_streams": 0,
             "beanstalk_environments": 0,
+            "route53_zones": 0,
         }
         active_regions = 0
 
@@ -949,6 +972,12 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 if envs:
                     region_has_resources = True
                 totals["beanstalk_environments"] += len(envs)
+
+            if COORDINATOR_ROUTE53 in region_coordinators and region_coordinators[COORDINATOR_ROUTE53].data:
+                zones = region_coordinators[COORDINATOR_ROUTE53].data.get("zones", [])
+                if zones:
+                    region_has_resources = True
+                totals["route53_zones"] += len(zones)
 
             if region_has_resources:
                 active_regions += 1
@@ -2648,6 +2677,83 @@ class AwsBeanstalkEnvironmentSensor(CoordinatorEntity, SensorEntity):
                         "solution_stack": env.get("solution_stack"),
                         "date_created": env.get("date_created"),
                         "date_updated": env.get("date_updated"),
+                        "last_updated": dt_util.now(),
+                    }
+        return {"last_updated": dt_util.now()}
+
+
+# ============================================================================
+# SENSORS - Route 53
+# ============================================================================
+
+
+class AwsRoute53CountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for Route 53 hosted zone count (global)."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:dns"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._attr_unique_id = f"aws_{account_name}_route53_count"
+        self._attr_name = "Route 53 Hosted Zones"
+        self._attr_device_info = _make_global_device_info(account_name)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of hosted zones."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("zones", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        return {"last_updated": dt_util.now()}
+
+
+class AwsRoute53ZoneSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual Route 53 hosted zone."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:dns"
+
+    def __init__(self, coordinator, account_name: str, zone_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._zone_id = zone_id
+        zone_normalized = zone_id.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_route53_{zone_normalized}"
+        self._attr_name = f"Route 53 {zone_id}"
+        self._attr_device_info = _make_global_device_info(account_name)
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the record count for the zone."""
+        if self.coordinator.data:
+            for zone in self.coordinator.data.get("zones", []):
+                if zone.get("id") == self._zone_id:
+                    return zone.get("record_count")
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        if self.coordinator.data:
+            for zone in self.coordinator.data.get("zones", []):
+                if zone.get("id") == self._zone_id:
+                    return {
+                        "zone_id": zone.get("id"),
+                        "name": zone.get("name"),
+                        "private": zone.get("private"),
+                        "record_count": zone.get("record_count"),
+                        "comment": zone.get("comment"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}

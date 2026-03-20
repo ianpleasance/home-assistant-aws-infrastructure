@@ -73,6 +73,8 @@ views:
 
           |----------|-------|
 
+          | 🌐 Route 53 Hosted Zones | {{ state_attr('sensor.aws_live_global_summary', 'route53_zones') | default(0) }} |
+
           | 🌐 ALB/NLB Load Balancers | {{
           state_attr('sensor.aws_live_global_summary', 'load_balancers') }} |
 
@@ -1146,6 +1148,59 @@ views:
           -%}
 
           _No CloudWatch alarms found_
+
+          {% endif %}
+  - title: Route 53
+    path: aws-route53
+    icon: mdi:dns
+    cards:
+      - type: markdown
+        content: >
+          # 🌐 Route 53 Hosted Zones
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'route53_zones') | default(0) | int(0) %}
+          **{{ n }} {{ 'hosted zone' if n == 1 else 'hosted zones' }}** (global)
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_route_53_' in
+          state.entity_id and '_route_53_hosted' not in state.entity_id -%}
+
+          {%- set zone_name = state.attributes.name | default('Unknown') -%}
+          {%- set record_count = state.state | int(0) -%}
+          {%- set private = state.attributes.private | default(false) -%}
+          {%- set icon = '🔒' if private else '🌐' %}
+
+
+          ### {{ icon }} {{ zone_name }}
+
+          - **Zone ID**: {{ state.attributes.zone_id | default('N/A') }}
+
+          - **Type**: {{ 'Private' if private else 'Public' }}
+
+          - **Records**: {{ record_count }}
+
+          {%- if state.attributes.comment %}
+
+          - **Comment**: {{ state.attributes.comment }}
+
+          {%- endif %}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_route_53_') |
+          rejectattr('entity_id', 'search', '_route_53_hosted') | list | length == 0 -%}
+
+          _No Route 53 hosted zones found_
 
           {% endif %}
   - title: Beanstalk

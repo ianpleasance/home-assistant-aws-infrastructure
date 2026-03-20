@@ -1121,3 +1121,43 @@ class AwsBeanstalkCoordinator(AwsBaseCoordinator):
         except Exception as err:
             _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Elastic Beanstalk", self.account_name, self.region, err)
             return {"environments": []}
+
+
+class AwsRoute53Coordinator(AwsBaseCoordinator):
+    """Coordinator for Route 53 hosted zone data (global service, fetched via us-east-1)."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            "Route 53 (global)",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch Route 53 hosted zone data."""
+        try:
+            r53_client = self.aws_client.get_route53_client()
+
+            zones = []
+            paginator = r53_client.get_paginator('list_hosted_zones')
+            for page in paginator.paginate():
+                for zone in page.get('HostedZones', []):
+                    config = zone.get('Config', {})
+                    zone_id = zone.get('Id', '').split('/')[-1]
+                    zones.append({
+                        'id': zone_id,
+                        'name': zone.get('Name', '').rstrip('.'),
+                        'private': config.get('PrivateZone', False),
+                        'record_count': zone.get('ResourceRecordSetCount', 0),
+                        'comment': config.get('Comment', ''),
+                    })
+
+            return {"zones": zones}
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Route 53", self.account_name, self.region, err)
+            return {"zones": []}

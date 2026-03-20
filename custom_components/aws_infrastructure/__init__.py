@@ -40,6 +40,7 @@ from .const import (
     COORDINATOR_EFS,
     COORDINATOR_KINESIS,
     COORDINATOR_BEANSTALK,
+    COORDINATOR_ROUTE53,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_COST_REFRESH_INTERVAL,
     DOMAIN,
@@ -68,6 +69,7 @@ from .coordinator import (
     AwsEFSCoordinator,
     AwsKinesisCoordinator,
     AwsBeanstalkCoordinator,
+    AwsRoute53Coordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -119,6 +121,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
             coordinators[COORDINATOR_COST] = AwsCostCoordinator(
                 hass, aws_client, account_name, cost_refresh_interval
+            )
+            # Route 53 is a global service — only fetch from us-east-1
+            coordinators[COORDINATOR_ROUTE53] = AwsRoute53Coordinator(
+                hass, aws_client, account_name, refresh_interval
             )
 
         coordinators[COORDINATOR_EC2] = AwsEc2Coordinator(

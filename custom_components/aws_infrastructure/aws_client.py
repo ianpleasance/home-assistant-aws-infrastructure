@@ -77,6 +77,10 @@ class AwsClient:
         """Get Elastic Beanstalk client."""
         return self._client("elasticbeanstalk")
 
+    def get_route53_client(self):
+        """Get Route 53 client (global service, uses us-east-1)."""
+        return self._client("route53", region_name="us-east-1")
+
     def get_autoscaling_client(self):
         """Get Auto Scaling client."""
         return self._client("autoscaling")

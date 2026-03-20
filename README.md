@@ -7,7 +7,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 
 ## Features
 
-### 📊 **19 AWS Services Monitored**
+### 📊 **20 AWS Services Monitored**
 
 #### 💻 Compute
 - **EC2 Instances** — Track running/stopped instances with state, type, launch time, and tags
@@ -25,6 +25,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 - **EBS Volumes** — Monitor volumes, attachment status, size, type, IOPS, AZ, and encryption
 
 #### 🌐 Networking & Messaging
+- **Route 53** — Global DNS hosting with public/private zone monitoring, record counts, and comments
 - **ALB / NLB Load Balancers** — Application and Network load balancers with DNS, scheme, state, and VPC
 - **Classic Load Balancers** — Legacy ELB with registered instances, listeners, health check config, and VPC
 - **EFS File Systems** — Elastic File System monitoring with state, size, mount targets, performance mode, and encryption
@@ -120,6 +121,7 @@ Create a dedicated IAM user with read-only permissions. The minimum required pol
                 "kinesis:ListStreams",
                 "lambda:ListFunctions",
                 "rds:DescribeDBInstances",
+                "route53:ListHostedZones",
                 "s3:GetBucketLocation",
                 "s3:ListAllMyBuckets",
                 "sns:GetTopicAttributes",
@@ -233,6 +235,9 @@ Contributions are welcome! Fork the repository, create a feature branch, make yo
 Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## Changelog
+
+### v1.5.8 (2026-03-18)
+- ✨ Added Route 53 hosted zone monitoring with public/private type, record counts, and comments (global service, fetched via us-east-1)
 
 ### v1.5.7 (2026-03-18)
 - ✨ Added Elastic Beanstalk environment monitoring with health, status, tier, CNAME, and solution stack
