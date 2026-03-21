@@ -44,6 +44,7 @@ from .const import (
     COORDINATOR_ROUTE53,
     COORDINATOR_API_GATEWAY,
     COORDINATOR_CLOUDFRONT,
+    COORDINATOR_VPC,
     DOMAIN,
 )
 
@@ -406,6 +407,22 @@ async def async_setup_entry(
                         registered_ids.add(uid)
                         new_entities.append(AwsApiGatewaySensor(coordinator, account_name, region, api["id"]))
 
+        # VPC
+        elif coordinator_key == COORDINATOR_VPC:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_vpc_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsVPCCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for vpc in coordinator.data.get("vpcs", []):
+                    v_n = vpc["vpc_id"].replace("-", "_")
+                    uid = f"aws_{account_name}_{region_n}_vpc_{v_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsVPCSensor(coordinator, account_name, region, vpc["vpc_id"]))
+
         # CloudFront (global — only present in us-east-1 coordinators)
         elif coordinator_key == COORDINATOR_CLOUDFRONT:
             if create_individual:
@@ -601,6 +618,10 @@ async def async_setup_entry(
                             for d in data.get("distributions", []):
                                 d_n = d["id"].replace("-", "_")
                                 current_ids.add(f"aws_{account_name}_cloudfront_{d_n}")
+                        elif key == COORDINATOR_VPC:
+                            for v in data.get("vpcs", []):
+                                v_n = v["vpc_id"].replace("-", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_vpc_{v_n}")
                         elif key == COORDINATOR_API_GATEWAY:
                             for a in data.get("apis", []):
                                 a_n = a["id"].replace("-", "_")
@@ -657,6 +678,7 @@ async def async_setup_entry(
                     COORDINATOR_BEANSTALK: f"aws_{account_name}_{region_n}_beanstalk_",
                     COORDINATOR_ROUTE53: f"aws_{account_name}_route53_",
                     COORDINATOR_CLOUDFRONT: f"aws_{account_name}_cloudfront_",
+                    COORDINATOR_VPC: f"aws_{account_name}_{region_n}_vpc_",
                     COORDINATOR_API_GATEWAY: f"aws_{account_name}_{region_n}_apigw_",
                     COORDINATOR_COST: f"aws_{account_name}_cost_service_",
                 }
@@ -724,6 +746,7 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_API_GATEWAY, "apis"),
+            (COORDINATOR_VPC, "vpcs"),
         ]:
             if key in self._coordinators and self._coordinators[key].data:
                 total += len(self._coordinators[key].data.get(data_key, []))
@@ -865,18 +888,24 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_KINESIS, "streams"),
                 (COORDINATOR_BEANSTALK, "environments"),
                 (COORDINATOR_API_GATEWAY, "apis"),
+                (COORDINATOR_VPC, "vpcs"),
+            (COORDINATOR_VPC, "vpcs"),
             (COORDINATOR_API_GATEWAY, "apis"),
+            (COORDINATOR_VPC, "vpcs"),
                 (COORDINATOR_ROUTE53, "zones"),
                 (COORDINATOR_CLOUDFRONT, "distributions"),
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_API_GATEWAY, "apis"),
+            (COORDINATOR_VPC, "vpcs"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_API_GATEWAY, "apis"),
+            (COORDINATOR_VPC, "vpcs"),
             (COORDINATOR_EFS, "file_systems"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_API_GATEWAY, "apis"),
+            (COORDINATOR_VPC, "vpcs"),
             ]:
                 if key in region_coordinators and region_coordinators[key].data:
                     total += len(region_coordinators[key].data.get(data_key, []))
@@ -898,6 +927,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "kinesis_streams": 0,
             "beanstalk_environments": 0,
             "api_gateways": 0,
+            "vpcs": 0,
             "route53_zones": 0,
             "cloudfront_distributions": 0,
         }
@@ -1030,6 +1060,12 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 if apis:
                     region_has_resources = True
                 totals["api_gateways"] += len(apis)
+
+            if COORDINATOR_VPC in region_coordinators and region_coordinators[COORDINATOR_VPC].data:
+                vpcs = region_coordinators[COORDINATOR_VPC].data.get("vpcs", [])
+                if vpcs:
+                    region_has_resources = True
+                totals["vpcs"] += len(vpcs)
 
             if COORDINATOR_ROUTE53 in region_coordinators and region_coordinators[COORDINATOR_ROUTE53].data:
                 zones = region_coordinators[COORDINATOR_ROUTE53].data.get("zones", [])
@@ -2986,3 +3022,100 @@ class AwsCloudFrontDistributionSensor(CoordinatorEntity, SensorEntity):
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}
+
+
+# ============================================================================
+# SENSORS - VPC
+# ============================================================================
+
+
+class AwsVPCCountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for VPC count."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:lan"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str, region: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        region_normalized = region.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_vpc_count"
+        self._attr_name = "VPCs"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of VPCs."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("vpcs", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        return {"last_updated": dt_util.now()}
+
+
+class AwsVPCSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual VPC with subnet details in attributes."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:lan"
+
+    def __init__(self, coordinator, account_name: str, region: str, vpc_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        self._vpc_id = vpc_id
+        region_normalized = region.replace("-", "_")
+        vpc_normalized = vpc_id.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_vpc_{vpc_normalized}"
+        self._attr_name = f"VPC {vpc_id}"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    def _get_vpc(self) -> dict | None:
+        """Return the VPC data dict."""
+        if self.coordinator.data:
+            for vpc in self.coordinator.data.get("vpcs", []):
+                if vpc.get("vpc_id") == self._vpc_id:
+                    return vpc
+        return None
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the VPC state."""
+        vpc = self._get_vpc()
+        return vpc.get("state") if vpc else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return full VPC details including subnet list."""
+        vpc = self._get_vpc()
+        if not vpc:
+            return {"last_updated": dt_util.now()}
+        return {
+            "vpc_id": vpc.get("vpc_id"),
+            "name": vpc.get("name"),
+            "state": vpc.get("state"),
+            "cidr_block": vpc.get("cidr_block"),
+            "is_default": vpc.get("is_default"),
+            "tenancy": vpc.get("tenancy"),
+            "dhcp_options_id": vpc.get("dhcp_options_id"),
+            "internet_gateway": vpc.get("internet_gateway"),
+            "nat_gateways": vpc.get("nat_gateways"),
+            "nat_gateway_count": vpc.get("nat_gateway_count"),
+            "peering_connection_count": vpc.get("peering_connection_count"),
+            "vpn_connection_count": vpc.get("vpn_connection_count"),
+            "subnet_count": vpc.get("subnet_count"),
+            "public_subnet_count": vpc.get("public_subnet_count"),
+            "private_subnet_count": vpc.get("private_subnet_count"),
+            "subnets": vpc.get("subnets", []),
+            "subnets_truncated": vpc.get("subnets_truncated", False),
+            "last_updated": dt_util.now(),
+        }

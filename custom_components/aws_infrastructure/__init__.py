@@ -43,6 +43,7 @@ from .const import (
     COORDINATOR_ROUTE53,
     COORDINATOR_API_GATEWAY,
     COORDINATOR_CLOUDFRONT,
+    COORDINATOR_VPC,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_COST_REFRESH_INTERVAL,
     DOMAIN,
@@ -74,6 +75,7 @@ from .coordinator import (
     AwsRoute53Coordinator,
     AwsApiGatewayCoordinator,
     AwsCloudFrontCoordinator,
+    AwsVPCCoordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -222,6 +224,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # API Gateway (v1 REST + v2 HTTP/WebSocket)
         coordinators[COORDINATOR_API_GATEWAY] = AwsApiGatewayCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # VPC
+        coordinators[COORDINATOR_VPC] = AwsVPCCoordinator(
             hass, aws_client, account_name, refresh_interval
         )
 

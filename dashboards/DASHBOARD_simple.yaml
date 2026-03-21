@@ -81,6 +81,9 @@ views:
           {% set cloudfront_count = state_attr('sensor.aws_live_global_summary',
           'cloudfront_distributions') | int(0) %}
 
+          {% set vpc_count = state_attr('sensor.aws_live_global_summary',
+          'vpcs') | int(0) %}
+
           {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
           'cloudwatch_alarms') | int(0) %}
 
@@ -128,6 +131,8 @@ views:
 
 
           ### 🌐 Networking & Messaging
+
+          - **VPCs:** {{ vpc_count }}
 
           - **Route 53 Hosted Zones:** {{ route53_count }}
 
@@ -379,6 +384,8 @@ views:
           | 🔢 Elastic IPs | {{ state.attributes.elastic_ips | default(0) }} ({{
           state.attributes.elastic_ips_unattached | default(0) }} unattached) |
 
+          | 🏗️ VPCs | {{ state.attributes.vpcs | default(0) }} |
+
           | 🔌 API Gateways | {{ state.attributes.api_gateways | default(0) }} |
 
           | 🌊 Kinesis Streams | {{ state.attributes.kinesis_streams | default(0) }} |
@@ -427,10 +434,10 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 22 AWS Services:**  
+          **Monitoring 23 AWS Services:**  
 
           EC2, RDS, Lambda, ECS, EKS, Beanstalk, DynamoDB, ElastiCache, S3, EBS, EFS,
-          Route 53, CloudFront, API Gateway, ALB/NLB Load Balancers, Classic Load Balancers,
+          VPC, Route 53, CloudFront, API Gateway, ALB/NLB Load Balancers, Classic Load Balancers,
           Auto Scaling, Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
 
 

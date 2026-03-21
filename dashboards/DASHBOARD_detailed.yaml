@@ -73,6 +73,8 @@ views:
 
           |----------|-------|
 
+          | 🏗️ VPCs | {{ state_attr('sensor.aws_live_global_summary', 'vpcs') | default(0) }} |
+
           | 🌐 Route 53 Hosted Zones | {{ state_attr('sensor.aws_live_global_summary', 'route53_zones') | default(0) }} |
 
           | 🔌 API Gateways | {{ state_attr('sensor.aws_live_global_summary', 'api_gateways') | default(0) }} |
@@ -1152,6 +1154,91 @@ views:
           -%}
 
           _No CloudWatch alarms found_
+
+          {% endif %}
+  - title: VPC
+    path: aws-vpc
+    icon: mdi:lan
+    cards:
+      - type: markdown
+        content: >
+          # 🏗️ VPCs
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'vpcs') | default(0) | int(0) %}
+          **{{ n }} {{ 'VPC' if n == 1 else 'VPCs' }}**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_vpc_vpc_' in
+          state.entity_id -%}
+
+          {%- set vpc_id = state.attributes.vpc_id | default('Unknown') -%}
+          {%- set vpc_name = state.attributes.name | default(vpc_id) -%}
+          {%- set vpc_state = state.state -%}
+          {%- set icon = '🟢' if vpc_state == 'available' else '⚫' %}
+          {%- set default_tag = ' (default)' if state.attributes.is_default else '' %}
+
+
+          ### {{ icon }} {{ vpc_name }}{{ default_tag }}
+
+          - **VPC ID**: {{ vpc_id }}
+
+          - **CIDR**: {{ state.attributes.cidr_block | default('N/A') }}
+
+          - **State**: {{ vpc_state }}
+
+          - **Tenancy**: {{ state.attributes.tenancy | default('N/A') }}
+
+          - **Internet Gateway**: {{ state.attributes.internet_gateway | default('None') }}
+
+          - **NAT Gateways**: {{ state.attributes.nat_gateway_count | default(0) }}
+
+          - **Peering Connections**: {{ state.attributes.peering_connection_count | default(0) }}
+
+          - **VPN Connections**: {{ state.attributes.vpn_connection_count | default(0) }}
+
+          - **Subnets**: {{ state.attributes.subnet_count | default(0) }} ({{ state.attributes.public_subnet_count | default(0) }} public, {{ state.attributes.private_subnet_count | default(0) }} private)
+
+          {%- set subnets = state.attributes.subnets | default([]) %}
+
+          {%- if subnets | length > 0 %}
+
+
+          | Subnet | Name | CIDR | AZ | IPs | Public |
+
+          |--------|------|------|----|-----|--------|
+
+          {%- for subnet in subnets %}
+
+          | {{ subnet.subnet_id }} | {{ subnet.name | default('—') }} | {{ subnet.cidr_block }} | {{ subnet.availability_zone }} | {{ subnet.available_ips }} | {{ '✅' if subnet.public else '🔒' }} |
+
+          {%- endfor %}
+
+          {%- if state.attributes.subnets_truncated %}
+
+          _List truncated — showing first 40 subnets_
+
+          {%- endif %}
+
+          {%- endif %}
+
+
+          ---
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_vpc_vpc_') | list | length == 0 -%}
+
+          _No VPCs found_
 
           {% endif %}
   - title: CloudFront

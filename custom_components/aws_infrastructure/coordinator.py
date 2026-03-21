@@ -1271,3 +1271,132 @@ class AwsCloudFrontCoordinator(AwsBaseCoordinator):
         except Exception as err:
             _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching CloudFront", self.account_name, self.region, err)
             return {"distributions": []}
+
+
+class AwsVPCCoordinator(AwsBaseCoordinator):
+    """Coordinator for VPC data including subnets, gateways and peering."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"VPC ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch VPC data with subnets and gateway info."""
+        try:
+            ec2_client = self.aws_client.get_ec2_client()
+
+            # Fetch all VPCs
+            vpcs_response = ec2_client.describe_vpcs()
+            vpc_list = vpcs_response.get('Vpcs', [])
+
+            # Fetch subnets (all at once, then group by VPC)
+            subnets_response = ec2_client.describe_subnets()
+            subnets_by_vpc: dict = {}
+            for subnet in subnets_response.get('Subnets', []):
+                vpc_id = subnet.get('VpcId')
+                if vpc_id not in subnets_by_vpc:
+                    subnets_by_vpc[vpc_id] = []
+                name = next(
+                    (t['Value'] for t in subnet.get('Tags', []) if t['Key'] == 'Name'), None
+                )
+                subnets_by_vpc[vpc_id].append({
+                    'subnet_id': subnet.get('SubnetId'),
+                    'name': name,
+                    'cidr_block': subnet.get('CidrBlock'),
+                    'availability_zone': subnet.get('AvailabilityZone'),
+                    'available_ips': subnet.get('AvailableIpAddressCount'),
+                    'public': subnet.get('MapPublicIpOnLaunch', False),
+                    'state': subnet.get('State'),
+                })
+
+            # Fetch internet gateways (grouped by VPC)
+            igw_response = ec2_client.describe_internet_gateways()
+            igw_by_vpc: dict = {}
+            for igw in igw_response.get('InternetGateways', []):
+                for attachment in igw.get('Attachments', []):
+                    vpc_id = attachment.get('VpcId')
+                    if vpc_id:
+                        igw_by_vpc[vpc_id] = igw.get('InternetGatewayId')
+
+            # Fetch NAT gateways (grouped by VPC)
+            nat_response = ec2_client.describe_nat_gateways(
+                Filters=[{'Name': 'state', 'Values': ['available', 'pending']}]
+            )
+            nat_by_vpc: dict = {}
+            for nat in nat_response.get('NatGateways', []):
+                vpc_id = nat.get('VpcId')
+                if vpc_id not in nat_by_vpc:
+                    nat_by_vpc[vpc_id] = []
+                nat_by_vpc[vpc_id].append(nat.get('NatGatewayId'))
+
+            # Fetch VPC peering connections (grouped by VPC)
+            peering_response = ec2_client.describe_vpc_peering_connections(
+                Filters=[{'Name': 'status-code', 'Values': ['active', 'pending-acceptance']}]
+            )
+            peering_by_vpc: dict = {}
+            for peering in peering_response.get('VpcPeeringConnections', []):
+                for vpc_id in [
+                    peering.get('RequesterVpcInfo', {}).get('VpcId'),
+                    peering.get('AccepterVpcInfo', {}).get('VpcId'),
+                ]:
+                    if vpc_id:
+                        peering_by_vpc[vpc_id] = peering_by_vpc.get(vpc_id, 0) + 1
+
+            # Fetch VPN connections (grouped by VPC via attached gateway)
+            vpn_response = ec2_client.describe_vpn_connections(
+                Filters=[{'Name': 'state', 'Values': ['available', 'pending']}]
+            )
+            vpn_by_vpc: dict = {}
+            for vpn in vpn_response.get('VpnConnections', []):
+                vpc_id = vpn.get('VpcId')
+                if vpc_id:
+                    vpn_by_vpc[vpc_id] = vpn_by_vpc.get(vpc_id, 0) + 1
+
+            # Assemble VPC objects
+            vpcs = []
+            for vpc in vpc_list:
+                vpc_id = vpc.get('VpcId')
+                name = next(
+                    (t['Value'] for t in vpc.get('Tags', []) if t['Key'] == 'Name'), None
+                )
+                subnets = subnets_by_vpc.get(vpc_id, [])
+                public_subnets = [s for s in subnets if s['public']]
+                private_subnets = [s for s in subnets if not s['public']]
+
+                # Truncate subnet list if it would exceed HA attribute limits
+                MAX_SUBNETS = 40
+                truncated = len(subnets) > MAX_SUBNETS
+                subnet_list = subnets[:MAX_SUBNETS]
+
+                vpcs.append({
+                    'vpc_id': vpc_id,
+                    'name': name or vpc_id,
+                    'state': vpc.get('State'),
+                    'cidr_block': vpc.get('CidrBlock'),
+                    'is_default': vpc.get('IsDefault', False),
+                    'tenancy': vpc.get('InstanceTenancy'),
+                    'dhcp_options_id': vpc.get('DhcpOptionsId'),
+                    'internet_gateway': igw_by_vpc.get(vpc_id),
+                    'nat_gateways': nat_by_vpc.get(vpc_id, []),
+                    'nat_gateway_count': len(nat_by_vpc.get(vpc_id, [])),
+                    'peering_connection_count': peering_by_vpc.get(vpc_id, 0),
+                    'vpn_connection_count': vpn_by_vpc.get(vpc_id, 0),
+                    'subnet_count': len(subnets),
+                    'public_subnet_count': len(public_subnets),
+                    'private_subnet_count': len(private_subnets),
+                    'subnets': subnet_list,
+                    'subnets_truncated': truncated,
+                })
+
+            return {"vpcs": vpcs}
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching VPC", self.account_name, self.region, err)
+            return {"vpcs": []}
