@@ -1400,3 +1400,118 @@ class AwsVPCCoordinator(AwsBaseCoordinator):
         except Exception as err:
             _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching VPC", self.account_name, self.region, err)
             return {"vpcs": []}
+
+
+class AwsACMCoordinator(AwsBaseCoordinator):
+    """Coordinator for ACM certificate data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"ACM ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch ACM certificate data."""
+        try:
+            acm_client = self.aws_client.get_acm_client()
+
+            certificates = []
+            paginator = acm_client.get_paginator('list_certificates')
+            for page in paginator.paginate():
+                for cert_summary in page.get('CertificateSummaryList', []):
+                    arn = cert_summary.get('CertificateArn')
+                    try:
+                        detail = acm_client.describe_certificate(CertificateArn=arn)
+                        cert = detail.get('Certificate', {})
+                        not_after = cert.get('NotAfter')
+                        not_before = cert.get('NotBefore')
+                        days_until_expiry = None
+                        if not_after:
+                            from datetime import datetime, timezone
+                            now = datetime.now(timezone.utc)
+                            if hasattr(not_after, 'tzinfo') and not_after.tzinfo:
+                                days_until_expiry = (not_after - now).days
+                            else:
+                                days_until_expiry = (not_after.replace(tzinfo=timezone.utc) - now).days
+
+                        certificates.append({
+                            'arn': arn,
+                            'domain_name': cert.get('DomainName'),
+                            'subject_alternative_names': cert.get('SubjectAlternativeNames', []),
+                            'status': cert.get('Status'),
+                            'type': cert.get('Type'),
+                            'issuer': cert.get('Issuer'),
+                            'key_algorithm': cert.get('KeyAlgorithm'),
+                            'not_before': str(not_before) if not_before else None,
+                            'not_after': str(not_after) if not_after else None,
+                            'days_until_expiry': days_until_expiry,
+                            'renewal_eligibility': cert.get('RenewalEligibility'),
+                            'in_use_by': cert.get('InUseBy', []),
+                        })
+                    except Exception as err:
+                        _LOGGER.warning(
+                            "ACM [account=%s region=%s]: could not describe cert %s: %s",
+                            self.account_name, self.region, arn, err,
+                        )
+
+            return {"certificates": certificates}
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching ACM", self.account_name, self.region, err)
+            return {"certificates": []}
+
+
+class AwsECRCoordinator(AwsBaseCoordinator):
+    """Coordinator for ECR repository data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"ECR ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch ECR repository data."""
+        try:
+            ecr_client = self.aws_client.get_ecr_client()
+
+            repositories = []
+            paginator = ecr_client.get_paginator('describe_repositories')
+            for page in paginator.paginate():
+                for repo in page.get('repositories', []):
+                    repo_name = repo.get('repositoryName')
+                    image_count = 0
+                    try:
+                        img_paginator = ecr_client.get_paginator('describe_images')
+                        for img_page in img_paginator.paginate(repositoryName=repo_name):
+                            image_count += len(img_page.get('imageDetails', []))
+                    except Exception:
+                        pass
+
+                    repositories.append({
+                        'name': repo_name,
+                        'arn': repo.get('repositoryArn'),
+                        'uri': repo.get('repositoryUri'),
+                        'image_count': image_count,
+                        'image_tag_mutability': repo.get('imageTagMutability'),
+                        'scan_on_push': repo.get('imageScanningConfiguration', {}).get('scanOnPush', False),
+                        'encryption_type': repo.get('encryptionConfiguration', {}).get('encryptionType'),
+                        'created_at': str(repo.get('createdAt', '')),
+                    })
+
+            return {"repositories": repositories}
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching ECR", self.account_name, self.region, err)
+            return {"repositories": []}

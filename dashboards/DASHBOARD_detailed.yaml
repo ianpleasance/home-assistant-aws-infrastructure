@@ -40,6 +40,8 @@ views:
           | 📈 Auto Scaling Groups | {{ state_attr('sensor.aws_live_global_summary', 'auto_scaling_groups') }} |
 
           | 🌿 Beanstalk Environments | {{ state_attr('sensor.aws_live_global_summary', 'beanstalk_environments') | default(0) }} |
+
+          | 🐳 ECR Repositories | {{ state_attr('sensor.aws_live_global_summary', 'ecr_repositories') | default(0) }} |
       - type: markdown
         content: >
           ## 🗄️ Data & Storage
@@ -99,6 +101,16 @@ views:
 
           | 📬 SQS Queues | {{ state_attr('sensor.aws_live_global_summary',
           'sqs_queues') }} |
+      - type: markdown
+        content: >
+          ## 🔐 Security & Certificates
+
+
+          | Resource | Count |
+
+          |----------|-------|
+
+          | 🔐 ACM Certificates | {{ state_attr('sensor.aws_live_global_summary', 'acm_certificates') | default(0) }}{% if state_attr('sensor.aws_live_global_summary', 'acm_expiring_30d') | default(0) > 0 %} ⚠️ {{ state_attr('sensor.aws_live_global_summary', 'acm_expiring_30d') }} expiring{% endif %} |
       - type: markdown
         content: >
           ## 📊 Monitoring
@@ -1154,6 +1166,248 @@ views:
           -%}
 
           _No CloudWatch alarms found_
+
+          {% endif %}
+  - title: ACM
+    path: aws-acm
+    icon: mdi:certificate
+    cards:
+      - type: markdown
+        content: >
+          # 🔐 ACM Certificates
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'acm_certificates') | default(0) | int(0) %}
+          {% set expiring = state_attr('sensor.aws_live_global_summary', 'acm_expiring_30d') | default(0) | int(0) %}
+          **{{ n }} {{ 'certificate' if n == 1 else 'certificates' }}**{% if expiring > 0 %} — ⚠️ **{{ expiring }} expiring within 30 days**{% endif %}
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_acm_' in
+          state.entity_id and '_acm_certificates' not in state.entity_id -%}
+
+          {%- set domain = state.attributes.domain_name | default('Unknown') -%}
+          {%- set days = state.state | int(0) -%}
+          {%- set status = state.attributes.status | default('') -%}
+          {%- set icon = '🔴' if days < 0 else '🟠' if days <= 7 else '🟡' if days <= 30 else '🟢' %}
+
+
+          ### {{ icon }} {{ domain }}
+
+          - **Status**: {{ status }}
+
+          - **Days Until Expiry**: {{ days }}{% if days < 0 %} ⚠️ EXPIRED{% elif days <= 30 %} ⚠️ expiring soon{% endif %}
+
+          - **Type**: {{ state.attributes.type | default('N/A') }}
+
+          - **Issuer**: {{ state.attributes.issuer | default('N/A') }}
+
+          - **Key Algorithm**: {{ state.attributes.key_algorithm | default('N/A') }}
+
+          - **Not Before**: {{ state.attributes.not_before | default('N/A') }}
+
+          - **Not After**: {{ state.attributes.not_after | default('N/A') }}
+
+          - **Renewal**: {{ state.attributes.renewal_eligibility | default('N/A') }}
+
+          {%- set in_use = state.attributes.in_use_by | default([]) %}
+
+          {%- if in_use | length > 0 %}
+
+          - **In Use By**: {{ in_use | join(', ') }}
+
+          {%- endif %}
+
+          {%- set sans = state.attributes.subject_alternative_names | default([]) %}
+
+          {%- if sans | length > 1 %}
+
+          - **SANs**: {{ sans | join(', ') }}
+
+          {%- endif %}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_acm_') |
+          rejectattr('entity_id', 'search', '_acm_certificates') | list | length == 0 -%}
+
+          _No ACM certificates found_
+
+          {% endif %}
+  - title: ECR
+    path: aws-ecr
+    icon: mdi:docker
+    cards:
+      - type: markdown
+        content: >
+          # 🐳 ECR Repositories
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'ecr_repositories') | default(0) | int(0) %}
+          **{{ n }} {{ 'repository' if n == 1 else 'repositories' }}**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_ecr_' in
+          state.entity_id and '_ecr_repositories' not in state.entity_id -%}
+
+          {%- set repo_name = state.attributes.name | default('Unknown') -%}
+          {%- set image_count = state.state | int(0) %}
+
+
+          ### 🐳 {{ repo_name }}
+
+          - **Images**: {{ image_count }}
+
+          - **URI**: `{{ state.attributes.uri | default('N/A') }}`
+
+          - **Tag Mutability**: {{ state.attributes.image_tag_mutability | default('N/A') }}
+
+          - **Scan on Push**: {{ '✅' if state.attributes.scan_on_push else '❌' }}
+
+          - **Encryption**: {{ state.attributes.encryption_type | default('N/A') }}
+
+          - **Created**: {{ state.attributes.created_at | default('N/A') }}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_ecr_') |
+          rejectattr('entity_id', 'search', '_ecr_repositories') | list | length == 0 -%}
+
+          _No ECR repositories found_
+
+          {% endif %}
+  - title: ACM
+    path: aws-acm
+    icon: mdi:certificate
+    cards:
+      - type: markdown
+        content: >
+          # 🔐 ACM Certificates
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'acm_certificates') | default(0) | int(0) %}
+          {% set expiring = state_attr('sensor.aws_live_global_summary', 'acm_expiring_30d') | default(0) | int(0) %}
+          **{{ n }} {{ 'certificate' if n == 1 else 'certificates' }}**{% if expiring > 0 %} — ⚠️ **{{ expiring }} expiring within 30 days**{% endif %}
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_acm_' in
+          state.entity_id and '_acm_certificates' not in state.entity_id -%}
+
+          {%- set domain = state.attributes.domain_name | default('Unknown') -%}
+          {%- set days = state.state | int(-1) -%}
+          {%- set status = state.attributes.status | default('') -%}
+          {%- set icon = '🔴' if days >= 0 and days <= 7 else '🟡' if days >= 0 and days <= 30 else '🟢' if days > 30 else '⚫' %}
+
+
+          ### {{ icon }} {{ domain }}
+
+          - **Status**: {{ status }}
+
+          - **Days Until Expiry**: {{ state.state }}
+
+          - **Expires**: {{ state.attributes.not_after | default('N/A') }}
+
+          - **Type**: {{ state.attributes.type | default('N/A') }}
+
+          - **Key Algorithm**: {{ state.attributes.key_algorithm | default('N/A') }}
+
+          - **Issuer**: {{ state.attributes.issuer | default('N/A') }}
+
+          - **Renewal Eligibility**: {{ state.attributes.renewal_eligibility | default('N/A') }}
+
+          - **In Use By**: {{ state.attributes.in_use_count | default(0) }} resource(s)
+
+          {%- set sans = state.attributes.subject_alternative_names | default([]) %}
+
+          {%- if sans | length > 1 %}
+
+          - **SANs**: {{ sans | join(', ') }}
+
+          {%- endif %}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_acm_') |
+          rejectattr('entity_id', 'search', '_acm_certificates') | list | length == 0 -%}
+
+          _No ACM certificates found_
+
+          {% endif %}
+  - title: ECR
+    path: aws-ecr
+    icon: mdi:docker
+    cards:
+      - type: markdown
+        content: >
+          # 🐳 ECR Repositories
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'ecr_repositories') | default(0) | int(0) %}
+          **{{ n }} {{ 'repository' if n == 1 else 'repositories' }}**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_ecr_' in
+          state.entity_id and '_ecr_repositories' not in state.entity_id -%}
+
+          {%- set repo_name = state.attributes.name | default('Unknown') -%}
+          {%- set image_count = state.state | int(0) %}
+
+
+          ### 🐳 {{ repo_name }}
+
+          - **Images**: {{ image_count }}
+
+          - **URI**: `{{ state.attributes.uri | default('N/A') }}`
+
+          - **Tag Mutability**: {{ state.attributes.image_tag_mutability | default('N/A') }}
+
+          - **Scan on Push**: {{ '✅' if state.attributes.scan_on_push else '❌' }}
+
+          - **Encryption**: {{ state.attributes.encryption_type | default('N/A') }}
+
+          - **Created**: {{ state.attributes.created_at | default('N/A') }}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_ecr_') |
+          rejectattr('entity_id', 'search', '_ecr_repositories') | list | length == 0 -%}
+
+          _No ECR repositories found_
 
           {% endif %}
   - title: VPC

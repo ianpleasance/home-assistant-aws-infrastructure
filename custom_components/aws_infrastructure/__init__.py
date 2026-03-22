@@ -44,6 +44,8 @@ from .const import (
     COORDINATOR_API_GATEWAY,
     COORDINATOR_CLOUDFRONT,
     COORDINATOR_VPC,
+    COORDINATOR_ACM,
+    COORDINATOR_ECR,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_COST_REFRESH_INTERVAL,
     DOMAIN,
@@ -76,6 +78,8 @@ from .coordinator import (
     AwsApiGatewayCoordinator,
     AwsCloudFrontCoordinator,
     AwsVPCCoordinator,
+    AwsACMCoordinator,
+    AwsECRCoordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -229,6 +233,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # VPC
         coordinators[COORDINATOR_VPC] = AwsVPCCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # ACM (Certificate Manager)
+        coordinators[COORDINATOR_ACM] = AwsACMCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # ECR (Elastic Container Registry)
+        coordinators[COORDINATOR_ECR] = AwsECRCoordinator(
             hass, aws_client, account_name, refresh_interval
         )
 

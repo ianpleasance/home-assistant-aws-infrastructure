@@ -79,6 +79,8 @@ COORDINATOR_ROUTE53 = "route53"
 COORDINATOR_API_GATEWAY = "api_gateway"
 COORDINATOR_CLOUDFRONT = "cloudfront"
 COORDINATOR_VPC = "vpc"
+COORDINATOR_ACM = "acm"
+COORDINATOR_ECR = "ecr"
 
 # Attribution
 ATTRIBUTION = "Data provided by Amazon Web Services"

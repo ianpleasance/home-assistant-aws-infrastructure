@@ -84,6 +84,24 @@ views:
           {% set vpc_count = state_attr('sensor.aws_live_global_summary',
           'vpcs') | int(0) %}
 
+          {% set acm_count = state_attr('sensor.aws_live_global_summary',
+          'acm_certificates') | int(0) %}
+
+          {% set acm_expiring = state_attr('sensor.aws_live_global_summary',
+          'acm_expiring_30d') | int(0) %}
+
+          {% set ecr_count = state_attr('sensor.aws_live_global_summary',
+          'ecr_repositories') | int(0) %}
+
+          {% set acm_count = state_attr('sensor.aws_live_global_summary',
+          'acm_certificates') | int(0) %}
+
+          {% set acm_expiring = state_attr('sensor.aws_live_global_summary',
+          'acm_expiring_30d') | int(0) %}
+
+          {% set ecr_count = state_attr('sensor.aws_live_global_summary',
+          'ecr_repositories') | int(0) %}
+
           {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
           'cloudwatch_alarms') | int(0) %}
 
@@ -127,6 +145,10 @@ views:
 
           - **EFS File Systems:** {{ efs_count }}
 
+          - **ACM Certificates:** {{ acm_count }}{% if acm_expiring > 0 %} ⚠️ {{ acm_expiring }} expiring in 30d{% endif %}
+
+          - **ECR Repositories:** {{ ecr_count }}
+
           - **EBS Volumes:** {{ ebs_count }} ({{ ebs_unattached }} unattached)
 
 
@@ -151,6 +173,11 @@ views:
           - **SNS Topics:** {{ sns_count }}
 
           - **SQS Queues:** {{ sqs_count }}
+
+
+          ### 🔐 Security & Certificates
+
+          - **ACM Certificates:** {{ acm_count }}{% if acm_expiring > 0 %} ⚠️ {{ acm_expiring }} expiring in 30 days{% endif %}
 
 
           ### 📊 Monitoring
@@ -354,6 +381,16 @@ views:
 
           |----------|-------|
 
+          | 🔐 ACM Certificates | {{ state.attributes.acm_certificates | default(0) }}{% if state.attributes.acm_expiring_30d | default(0) > 0 %} ⚠️{% endif %} |
+
+          | 🐳 ECR Repositories | {{ state.attributes.ecr_repositories | default(0) }} |
+
+
+
+          | Resource | Count |
+
+          |----------|-------|
+
           | 🗄️ RDS Databases | {{ state.attributes.rds_instances | default(0)
           }} |
 
@@ -366,6 +403,8 @@ views:
           | 🪣 S3 Buckets | {{ state.attributes.s3_buckets | default(0) }} |
 
           | 🗂️ EFS File Systems | {{ state.attributes.efs_file_systems | default(0) }} |
+
+          | 🔐 ACM Certificates | {{ state.attributes.acm_certificates | default(0) }} |
 
           | 💿 EBS Volumes | {{ state.attributes.ebs_volumes | default(0) }} ({{
           state.attributes.ebs_unattached | default(0) }} unattached) |
@@ -434,10 +473,10 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 23 AWS Services:**  
+          **Monitoring 25 AWS Services:**  
 
-          EC2, RDS, Lambda, ECS, EKS, Beanstalk, DynamoDB, ElastiCache, S3, EBS, EFS,
-          VPC, Route 53, CloudFront, API Gateway, ALB/NLB Load Balancers, Classic Load Balancers,
+          EC2, RDS, Lambda, ECS, EKS, Beanstalk, DynamoDB, ElastiCache, S3, EBS, EFS, ECR,
+          VPC, ACM, Route 53, CloudFront, API Gateway, ALB/NLB Load Balancers, Classic Load Balancers,
           Auto Scaling, Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
 
 

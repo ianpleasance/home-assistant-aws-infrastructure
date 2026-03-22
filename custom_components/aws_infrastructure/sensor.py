@@ -45,6 +45,8 @@ from .const import (
     COORDINATOR_API_GATEWAY,
     COORDINATOR_CLOUDFRONT,
     COORDINATOR_VPC,
+    COORDINATOR_ACM,
+    COORDINATOR_ECR,
     DOMAIN,
 )
 
@@ -423,6 +425,74 @@ async def async_setup_entry(
                         registered_ids.add(uid)
                         new_entities.append(AwsVPCSensor(coordinator, account_name, region, vpc["vpc_id"]))
 
+        # ACM
+        elif coordinator_key == COORDINATOR_ACM:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_acm_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsACMCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for cert in coordinator.data.get("certificates", []):
+                    # Use last segment of ARN as identifier
+                    cert_id = cert["arn"].split("/")[-1]
+                    c_n = cert_id.replace("-", "_")
+                    uid = f"aws_{account_name}_{region_n}_acm_{c_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsACMCertificateSensor(coordinator, account_name, region, cert["arn"]))
+
+        # ECR
+        elif coordinator_key == COORDINATOR_ECR:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_ecr_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsECRCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for repo in coordinator.data.get("repositories", []):
+                    r_n = repo["name"].replace("-", "_").replace(".", "_").replace("/", "_")
+                    uid = f"aws_{account_name}_{region_n}_ecr_{r_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsECRRepositorySensor(coordinator, account_name, region, repo["name"]))
+
+        # ACM
+        elif coordinator_key == COORDINATOR_ACM:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_acm_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsACMCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for cert in coordinator.data.get("certificates", []):
+                    # Use last segment of ARN as identifier
+                    cert_id = cert["arn"].split("/")[-1]
+                    c_n = cert_id.replace("-", "_")
+                    uid = f"aws_{account_name}_{region_n}_acm_{c_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsACMCertificateSensor(coordinator, account_name, region, cert["arn"]))
+
+        # ECR
+        elif coordinator_key == COORDINATOR_ECR:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_ecr_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsECRCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for repo in coordinator.data.get("repositories", []):
+                    r_n = repo["name"].replace("-", "_").replace(".", "_").replace("/", "_")
+                    uid = f"aws_{account_name}_{region_n}_ecr_{r_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsECRRepositorySensor(coordinator, account_name, region, repo["name"]))
+
         # CloudFront (global — only present in us-east-1 coordinators)
         elif coordinator_key == COORDINATOR_CLOUDFRONT:
             if create_individual:
@@ -622,6 +692,24 @@ async def async_setup_entry(
                             for v in data.get("vpcs", []):
                                 v_n = v["vpc_id"].replace("-", "_")
                                 current_ids.add(f"aws_{account_name}_{region_n}_vpc_{v_n}")
+                        elif key == COORDINATOR_ACM:
+                            for c in data.get("certificates", []):
+                                cert_id = c["arn"].split("/")[-1]
+                                c_n = cert_id.replace("-", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_acm_{c_n}")
+                        elif key == COORDINATOR_ECR:
+                            for r in data.get("repositories", []):
+                                r_n = r["name"].replace("-", "_").replace(".", "_").replace("/", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_ecr_{r_n}")
+                        elif key == COORDINATOR_ACM:
+                            for c in data.get("certificates", []):
+                                cert_id = c["arn"].split("/")[-1]
+                                c_n = cert_id.replace("-", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_acm_{c_n}")
+                        elif key == COORDINATOR_ECR:
+                            for r in data.get("repositories", []):
+                                r_n = r["name"].replace("-", "_").replace(".", "_").replace("/", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_ecr_{r_n}")
                         elif key == COORDINATOR_API_GATEWAY:
                             for a in data.get("apis", []):
                                 a_n = a["id"].replace("-", "_")
@@ -679,6 +767,10 @@ async def async_setup_entry(
                     COORDINATOR_ROUTE53: f"aws_{account_name}_route53_",
                     COORDINATOR_CLOUDFRONT: f"aws_{account_name}_cloudfront_",
                     COORDINATOR_VPC: f"aws_{account_name}_{region_n}_vpc_",
+                    COORDINATOR_ACM: f"aws_{account_name}_{region_n}_acm_",
+                    COORDINATOR_ECR: f"aws_{account_name}_{region_n}_ecr_",
+                    COORDINATOR_ACM: f"aws_{account_name}_{region_n}_acm_",
+                    COORDINATOR_ECR: f"aws_{account_name}_{region_n}_ecr_",
                     COORDINATOR_API_GATEWAY: f"aws_{account_name}_{region_n}_apigw_",
                     COORDINATOR_COST: f"aws_{account_name}_cost_service_",
                 }
@@ -747,6 +839,10 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_VPC, "vpcs"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
         ]:
             if key in self._coordinators and self._coordinators[key].data:
                 total += len(self._coordinators[key].data.get(data_key, []))
@@ -889,23 +985,51 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_BEANSTALK, "environments"),
                 (COORDINATOR_API_GATEWAY, "apis"),
                 (COORDINATOR_VPC, "vpcs"),
+                (COORDINATOR_ACM, "certificates"),
+                (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
+                (COORDINATOR_ACM, "certificates"),
+                (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_VPC, "vpcs"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_VPC, "vpcs"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
                 (COORDINATOR_ROUTE53, "zones"),
                 (COORDINATOR_CLOUDFRONT, "distributions"),
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_VPC, "vpcs"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_VPC, "vpcs"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_EFS, "file_systems"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_VPC, "vpcs"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_ACM, "certificates"),
+            (COORDINATOR_ECR, "repositories"),
             ]:
                 if key in region_coordinators and region_coordinators[key].data:
                     total += len(region_coordinators[key].data.get(data_key, []))
@@ -928,6 +1052,12 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "beanstalk_environments": 0,
             "api_gateways": 0,
             "vpcs": 0,
+            "acm_certificates": 0,
+            "acm_expiring_30d": 0,
+            "ecr_repositories": 0,
+            "acm_certificates": 0,
+            "acm_expiring_30d": 0,
+            "ecr_repositories": 0,
             "route53_zones": 0,
             "cloudfront_distributions": 0,
         }
@@ -1066,6 +1196,35 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 if vpcs:
                     region_has_resources = True
                 totals["vpcs"] += len(vpcs)
+
+            if COORDINATOR_ACM in region_coordinators and region_coordinators[COORDINATOR_ACM].data:
+                certs = region_coordinators[COORDINATOR_ACM].data.get("certificates", [])
+                if certs:
+                    region_has_resources = True
+                totals["acm_certificates"] += len(certs)
+                totals["acm_expiring_30d"] += sum(
+                    1 for c in certs
+                    if c.get("days_until_expiry") is not None and 0 <= c["days_until_expiry"] <= 30
+                )
+
+            if COORDINATOR_ECR in region_coordinators and region_coordinators[COORDINATOR_ECR].data:
+                repos = region_coordinators[COORDINATOR_ECR].data.get("repositories", [])
+                if repos:
+                    region_has_resources = True
+                totals["ecr_repositories"] += len(repos)
+
+            if COORDINATOR_ACM in region_coordinators and region_coordinators[COORDINATOR_ACM].data:
+                certs = region_coordinators[COORDINATOR_ACM].data.get("certificates", [])
+                if certs:
+                    region_has_resources = True
+                totals["acm_certificates"] += len(certs)
+                totals["acm_expiring_30d"] += sum(1 for c in certs if c.get("days_until_expiry") is not None and 0 <= c["days_until_expiry"] <= 30)
+
+            if COORDINATOR_ECR in region_coordinators and region_coordinators[COORDINATOR_ECR].data:
+                repos = region_coordinators[COORDINATOR_ECR].data.get("repositories", [])
+                if repos:
+                    region_has_resources = True
+                totals["ecr_repositories"] += len(repos)
 
             if COORDINATOR_ROUTE53 in region_coordinators and region_coordinators[COORDINATOR_ROUTE53].data:
                 zones = region_coordinators[COORDINATOR_ROUTE53].data.get("zones", [])
@@ -3119,3 +3278,195 @@ class AwsVPCSensor(CoordinatorEntity, SensorEntity):
             "subnets_truncated": vpc.get("subnets_truncated", False),
             "last_updated": dt_util.now(),
         }
+
+
+# ============================================================================
+# SENSORS - ACM (Certificate Manager)
+# ============================================================================
+
+
+class AwsACMCountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for ACM certificate count."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:certificate"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str, region: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        region_normalized = region.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_acm_count"
+        self._attr_name = "ACM Certificates"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of certificates."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("certificates", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return expiry summary."""
+        attrs: dict[str, Any] = {"last_updated": dt_util.now()}
+        if self.coordinator.data:
+            certs = self.coordinator.data.get("certificates", [])
+            attrs["expiring_30d"] = sum(1 for c in certs if c.get("days_until_expiry") is not None and 0 <= c["days_until_expiry"] <= 30)
+            attrs["expiring_7d"] = sum(1 for c in certs if c.get("days_until_expiry") is not None and 0 <= c["days_until_expiry"] <= 7)
+            attrs["expired"] = sum(1 for c in certs if c.get("days_until_expiry") is not None and c["days_until_expiry"] < 0)
+        return attrs
+
+
+class AwsACMCertificateSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual ACM certificate."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:certificate"
+
+    def __init__(self, coordinator, account_name: str, region: str, cert_arn: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        self._cert_arn = cert_arn
+        region_normalized = region.replace("-", "_")
+        cert_id = cert_arn.split("/")[-1]
+        cert_normalized = cert_id.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_acm_{cert_normalized}"
+        self._attr_name = f"ACM {cert_id}"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    def _get_cert(self) -> dict | None:
+        """Return the certificate data dict."""
+        if self.coordinator.data:
+            for cert in self.coordinator.data.get("certificates", []):
+                if cert.get("arn") == self._cert_arn:
+                    return cert
+        return None
+
+    @property
+    def native_value(self) -> int | None:
+        """Return days until expiry (negative = already expired)."""
+        cert = self._get_cert()
+        return cert.get("days_until_expiry") if cert else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return full certificate details."""
+        cert = self._get_cert()
+        if not cert:
+            return {"last_updated": dt_util.now()}
+        return {
+            "arn": cert.get("arn"),
+            "domain_name": cert.get("domain_name"),
+            "subject_alternative_names": cert.get("subject_alternative_names"),
+            "status": cert.get("status"),
+            "type": cert.get("type"),
+            "issuer": cert.get("issuer"),
+            "key_algorithm": cert.get("key_algorithm"),
+            "not_before": cert.get("not_before"),
+            "not_after": cert.get("not_after"),
+            "days_until_expiry": cert.get("days_until_expiry"),
+            "renewal_eligibility": cert.get("renewal_eligibility"),
+            "in_use_by": cert.get("in_use_by"),
+            "last_updated": dt_util.now(),
+        }
+
+
+# ============================================================================
+# SENSORS - ECR (Elastic Container Registry)
+# ============================================================================
+
+
+class AwsECRCountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for ECR repository count."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:docker"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str, region: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        region_normalized = region.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_ecr_count"
+        self._attr_name = "ECR Repositories"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of repositories."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("repositories", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        return {"last_updated": dt_util.now()}
+
+
+class AwsECRRepositorySensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual ECR repository."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:docker"
+
+    def __init__(self, coordinator, account_name: str, region: str, repo_name: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        self._repo_name = repo_name
+        region_normalized = region.replace("-", "_")
+        repo_normalized = repo_name.replace("-", "_").replace(".", "_").replace("/", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_ecr_{repo_normalized}"
+        self._attr_name = f"ECR {repo_name}"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    def _get_repo(self) -> dict | None:
+        """Return the repository data dict."""
+        if self.coordinator.data:
+            for repo in self.coordinator.data.get("repositories", []):
+                if repo.get("name") == self._repo_name:
+                    return repo
+        return None
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the image count."""
+        repo = self._get_repo()
+        return repo.get("image_count") if repo else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return full repository details."""
+        repo = self._get_repo()
+        if not repo:
+            return {"last_updated": dt_util.now()}
+        return {
+            "name": repo.get("name"),
+            "arn": repo.get("arn"),
+            "uri": repo.get("uri"),
+            "image_count": repo.get("image_count"),
+            "image_tag_mutability": repo.get("image_tag_mutability"),
+            "scan_on_push": repo.get("scan_on_push"),
+            "encryption_type": repo.get("encryption_type"),
+            "created_at": repo.get("created_at"),
+            "last_updated": dt_util.now(),
+        }
+
+
+# ============================================================================
+# SENSORS - ACM (Certificate Manager)
+# ============================================================================

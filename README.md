@@ -7,7 +7,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 
 ## Features
 
-### 📊 **23 AWS Services Monitored**
+### 📊 **25 AWS Services Monitored**
 
 #### 💻 Compute
 - **EC2 Instances** — Track running/stopped instances with state, type, launch time, and tags
@@ -30,12 +30,18 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 - **API Gateway** — REST, HTTP, and WebSocket API monitoring with type, endpoint, and creation date
 - **Route 53** — Global DNS hosting with public/private zone monitoring, record counts, and comments
 - **ALB / NLB Load Balancers** — Application and Network load balancers with DNS, scheme, state, and VPC
+- **ACM (Certificate Manager)** — Monitor certificates with days until expiry, status, issuer, key algorithm, renewal eligibility, and SAN list. Expiry counts surfaced in summary sensors for easy alerting
+- **ECR (Elastic Container Registry)** — Repository monitoring with image counts, URI, tag mutability, scan-on-push, and encryption
 - **Classic Load Balancers** — Legacy ELB with registered instances, listeners, health check config, and VPC
 - **EFS File Systems** — Elastic File System monitoring with state, size, mount targets, performance mode, and encryption
 - **Elastic IPs** — Track allocated IPs and identify unattached (costly) IPs
 - **SNS Topics** — Monitor notification topics and subscription counts
 - **SQS Queues** — Track message queues with available/in-flight/delayed message counts
 - **Kinesis Streams** — Monitor data streams with status, mode, shard count, retention period, and consumer count
+
+#### 🔐 Security
+- **ACM (Certificate Manager)** — Monitor SSL/TLS certificates with days-until-expiry, status, issuer, SANs, renewal eligibility, and in-use resources. Expiry alerts at 30/7 day thresholds
+- **ECR (Elastic Container Registry)** — Monitor container image repositories with image count, tag mutability, scan-on-push status, and encryption type
 
 #### 📊 Monitoring
 - **CloudWatch Alarms** — Monitor alarm states (OK/ALARM/INSUFFICIENT_DATA) with metric, namespace, and reason
@@ -103,6 +109,8 @@ Create a dedicated IAM user with read-only permissions. The minimum required pol
             "Effect": "Allow",
             "Action": [
                 "apigateway:GET",
+                "acm:DescribeCertificate",
+                "acm:ListCertificates",
                 "autoscaling:DescribeAutoScalingGroups",
                 "ce:GetCostAndUsage",
                 "cloudfront:ListDistributions",
@@ -116,6 +124,8 @@ Create a dedicated IAM user with read-only permissions. The minimum required pol
                 "ec2:DescribeVpcs",
                 "ec2:DescribeVpnConnections",
                 "ec2:DescribeAddresses",
+                "ecr:DescribeImages",
+                "ecr:DescribeRepositories",
                 "elasticbeanstalk:DescribeEnvironments",
                 "ec2:DescribeInstances",
                 "ec2:DescribeRegions",
@@ -246,6 +256,14 @@ Contributions are welcome! Fork the repository, create a feature branch, make yo
 Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## Changelog
+
+### v1.6.2 (2026-03-21)
+- ✨ Added ACM certificate monitoring with days-until-expiry, expiry warnings at 30/7 day thresholds, SANs, issuer, and in-use resources
+- ✨ Added ECR repository monitoring with image count, tag mutability, scan-on-push, and encryption
+
+### v1.6.2 (2026-03-20)
+- ✨ Added ACM certificate monitoring with days-until-expiry, status, issuer, SANs, and renewal eligibility — expiry counts in summary sensors for alerting
+- ✨ Added ECR repository monitoring with image counts, URI, tag mutability, scan-on-push, and encryption
 
 ### v1.6.1 (2026-03-20)
 - ✨ Added VPC monitoring with CIDR, gateways, peering, VPN connections, and full per-VPC subnet details

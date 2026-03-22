@@ -93,6 +93,14 @@ class AwsClient:
         """Get CloudFront client (global service, uses us-east-1)."""
         return self._client("cloudfront", region_name="us-east-1")
 
+    def get_acm_client(self):
+        """Get ACM (Certificate Manager) client."""
+        return self._client("acm")
+
+    def get_ecr_client(self):
+        """Get ECR (Elastic Container Registry) client."""
+        return self._client("ecr")
+
     def get_autoscaling_client(self):
         """Get Auto Scaling client."""
         return self._client("autoscaling")
