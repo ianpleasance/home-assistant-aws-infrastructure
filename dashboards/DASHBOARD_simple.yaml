@@ -109,6 +109,8 @@ views:
 
           {% set iam_unused_roles = state_attr('sensor.aws_live_global_summary', 'iam_roles_unused_90d') | int(0) %}
 
+          {% set redshift_count = state_attr('sensor.aws_live_global_summary', 'redshift_clusters') | int(0) %}
+
           {% set acm_count = state_attr('sensor.aws_live_global_summary',
           'acm_certificates') | int(0) %}
 
@@ -133,6 +135,8 @@ views:
           {% set iam_roles = state_attr('sensor.aws_live_global_summary', 'iam_roles') | int(0) %}
 
           {% set iam_unused_roles = state_attr('sensor.aws_live_global_summary', 'iam_roles_unused_90d') | int(0) %}
+
+          {% set redshift_count = state_attr('sensor.aws_live_global_summary', 'redshift_clusters') | int(0) %}
 
           {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
           'cloudwatch_alarms') | int(0) %}
@@ -180,6 +184,8 @@ views:
           - **ACM Certificates:** {{ acm_count }}{% if acm_expiring > 0 %} ⚠️ {{ acm_expiring }} expiring in 30d{% endif %}
 
           - **ECR Repositories:** {{ ecr_count }}
+
+          - **Redshift Clusters:** {{ redshift_count }}
 
           - **EBS Volumes:** {{ ebs_count }} ({{ ebs_unattached }} unattached)
 
@@ -444,6 +450,8 @@ views:
 
           | 🗂️ EFS File Systems | {{ state.attributes.efs_file_systems | default(0) }} |
 
+          | 🔴 Redshift Clusters | {{ state.attributes.redshift_clusters | default(0) }} |
+
           | 🔐 ACM Certificates | {{ state.attributes.acm_certificates | default(0) }} |
 
           | 💿 EBS Volumes | {{ state.attributes.ebs_volumes | default(0) }} ({{
@@ -513,9 +521,9 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 27 AWS Services:**  
+          **Monitoring 28 AWS Services:**  
 
-          EC2, RDS, Lambda, ECS, EKS, Beanstalk, DynamoDB, ElastiCache, S3, EBS, EFS, ECR,
+          EC2, RDS, Redshift, Lambda, ECS, EKS, Beanstalk, DynamoDB, ElastiCache, S3, EBS, EFS, ECR,
           IAM, VPC, ACM, CloudTrail, Route 53, CloudFront, API Gateway, ALB/NLB Load Balancers,
           Classic Load Balancers, Auto Scaling, Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
 

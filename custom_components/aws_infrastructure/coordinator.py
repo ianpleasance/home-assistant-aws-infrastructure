@@ -1826,3 +1826,52 @@ class AwsIAMCoordinator(AwsBaseCoordinator):
         except Exception as err:
             _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching IAM", self.account_name, self.region, err)
             return {"users": [], "roles": [], "account_summary": {}, "password_policy": {}}
+
+
+class AwsRedshiftCoordinator(AwsBaseCoordinator):
+    """Coordinator for Redshift cluster data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"Redshift ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch Redshift cluster data."""
+        try:
+            rs_client = self.aws_client.get_redshift_client()
+
+            clusters = []
+            paginator = rs_client.get_paginator('describe_clusters')
+            for page in paginator.paginate():
+                for cluster in page.get('Clusters', []):
+                    endpoint = cluster.get('Endpoint', {})
+                    clusters.append({
+                        'identifier': cluster.get('ClusterIdentifier'),
+                        'status': cluster.get('ClusterStatus'),
+                        'node_type': cluster.get('NodeType'),
+                        'number_of_nodes': cluster.get('NumberOfNodes', 1),
+                        'db_name': cluster.get('DBName'),
+                        'endpoint': endpoint.get('Address'),
+                        'port': endpoint.get('Port'),
+                        'vpc_id': cluster.get('VpcId'),
+                        'availability_zone': cluster.get('AvailabilityZone'),
+                        'encrypted': cluster.get('Encrypted', False),
+                        'publicly_accessible': cluster.get('PubliclyAccessible', False),
+                        'cluster_version': cluster.get('ClusterVersion'),
+                        'engine_version': cluster.get('EngineFullVersion'),
+                        'master_username': cluster.get('MasterUsername'),
+                        'created_time': str(cluster.get('ClusterCreateTime', '')),
+                    })
+
+            return {"clusters": clusters}
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching Redshift", self.account_name, self.region, err)
+            return {"clusters": []}

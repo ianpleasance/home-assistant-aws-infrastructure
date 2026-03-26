@@ -1,156 +1,41 @@
 # AWS Infrastructure Monitor
 
-Monitor your entire AWS infrastructure from Home Assistant. Track 15 AWS services, costs, and resources across multiple regions.
+Monitor your AWS infrastructure from Home Assistant — only the services you actually use, with a minimum IAM policy generated automatically during setup.
 
-## 🚀 Features
+## 🚀 27 AWS Services
 
-### 27 AWS Services Monitored
-- **Compute**: EC2, Lambda, ECS, EKS, ECR, Auto Scaling Groups, Elastic Beanstalk
-- **Data & Storage**: RDS, DynamoDB, ElastiCache, S3, EBS Volumes, EFS, ACM Certificates, ECR
-- **Security**: IAM (users, roles, password policy, root account), ACM Certificates (with expiry tracking), CloudTrail
-- **Networking**: VPC, Route 53, CloudFront, API Gateway, ALB/NLB Load Balancers, Classic Load Balancers, Elastic IPs, Kinesis, SNS, SQS
-- **Monitoring**: CloudWatch Alarms
+| Category | Services |
+|----------|---------|
+| **Compute** | EC2, Lambda, Auto Scaling, ECS, EKS, Beanstalk |
+| **Databases & Storage** | RDS, DynamoDB, ElastiCache, S3, EBS, EFS, ECR |
+| **Networking** | VPC, ALB/NLB, Classic LB, Elastic IPs, API Gateway, CloudFront, Route 53 |
+| **Messaging** | SNS, SQS, Kinesis |
+| **Security** | IAM, ACM Certificates, CloudTrail |
+| **Monitoring & Cost** | CloudWatch Alarms, Cost Explorer |
 
-### 💰 Cost Tracking
-- Daily and month-to-date AWS costs
-- Top 10 services by spend with percentage breakdown
-- Configurable refresh to minimise API costs (default: $0.60/month)
+## ⚙️ Setup
 
-### 🌍 Multi-Region Support
-- Monitor all AWS regions or select specific ones
-- Global summary sensor aggregating all regions
-- Regional summaries per monitored region
+1. Add integration via **Settings → Devices & Services → + Add Integration**
+2. Enter credentials and select regions
+3. **Select which services to monitor** — use ★ Select All or pick individually
+4. **Copy the generated IAM policy** — minimum permissions for your selection shown automatically
 
-### 📈 Dynamic Resource Tracking
-- Sensors created automatically when new resources appear — no restart needed
-- Sensors removed automatically when resources are deleted
+## 🔒 Least-Privilege IAM
 
-### 🔒 Resilient & Observable
-- Per-service timeouts prevent hung coordinators
-- IAM permission errors warned once, then suppressed — no log spam
-- Credential errors raise a persistent HA notification
-- Throttling distinguished from hard errors in logs
+The integration generates the minimum IAM policy for your selected services. No unnecessary permissions. Change your service selection any time via **Configure** — entities are cleaned up automatically.
 
-## ⚙️ Quick Start
+## 💰 Cost Explorer Note
 
-1. Create AWS IAM user with required permissions (see [README](https://github.com/ianpleasance/home-assistant-aws-infrastructure#configuration))
-2. Add integration via **Settings → Devices & Services → + Add Integration**
-3. Search for "AWS Infrastructure Monitor", enter credentials and select regions
-4. Configure refresh intervals (resources: 5 min default, costs: 24 h default)
+AWS charges **$0.01 per Cost Explorer API call**. Default 24h refresh = ~$0.60/month. Only enable if you want cost tracking.
 
-## 🔧 Minimum IAM Policy
+## 📝 What's New in v1.6.7
 
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "HomeAssistantAWSMonitoring",
-            "Effect": "Allow",
-            "Action": [
-                "autoscaling:DescribeAutoScalingGroups",
-                "ce:GetCostAndUsage",
-                "cloudwatch:DescribeAlarms",
-                "dynamodb:DescribeTable",
-                "dynamodb:ListTables",
-                "ec2:DescribeAddresses",
-                "ec2:DescribeInstances",
-                "ec2:DescribeRegions",
-                "ec2:DescribeVolumes",
-                "ecs:DescribeClusters",
-                "ecs:ListClusters",
-                "eks:DescribeCluster",
-                "eks:ListClusters",
-                "elasticache:DescribeCacheClusters",
-                "elasticloadbalancing:DescribeLoadBalancers",
-                "lambda:ListFunctions",
-                "rds:DescribeDBInstances",
-                "s3:GetBucketLocation",
-                "s3:ListAllMyBuckets",
-                "sns:GetTopicAttributes",
-                "sns:ListTopics",
-                "sqs:GetQueueAttributes",
-                "sqs:ListQueues",
-                "sts:GetCallerIdentity"
-            ],
-            "Resource": "*"
-        }
-    ]
-}
-```
-
-## 💰 Cost Optimisation
-
-AWS Cost Explorer charges $0.01 per API call.
-
-Default: **24-hour refresh = ~$0.60/month** ✅
-
-⚠️ 5-minute refresh = ~$172/month — not recommended!
-
-## 🌍 Supported Languages
-
-English • French • German • Italian • Spanish • Dutch • Swedish • Norwegian • Danish • Polish • Portuguese • Finnish • Japanese
-
-## 📝 What's New in v1.5.0
-
-- 🔒 Proper error classification: credentials, permissions, throttling, timeouts handled differently
-- 🔔 Persistent HA notification on credential failure
-- 📈 Dynamic sensor registration — no restart needed when resources change
-- 🧹 Automatic stale sensor cleanup when resources are deleted
-- ⚡ Concurrent startup refresh — faster, more resilient
-- 📋 Clean minimal IAM policy with no duplicates
-
-## 📝 What's New in v1.5.4
-
-- ✨ Classic Load Balancer (ELB v1) monitoring
-
-## 📝 What's New in v1.5.5
-
-- ✨ EFS (Elastic File System) monitoring
-
-## 📝 What's New in v1.5.6
-
-- ✨ Kinesis stream monitoring
-
-## 📝 What's New in v1.5.7
-
-- ✨ Elastic Beanstalk environment monitoring
-
-## 📝 What's New in v1.5.8
-
-- ✨ Route 53 hosted zone monitoring (global service)
-
-## 📝 What's New in v1.5.9
-
-- ✨ API Gateway monitoring (v1 REST + v2 HTTP/WebSocket)
-
-## 📝 What's New in v1.6.0
-
-- ✨ CloudFront distribution monitoring (global service)
-- 🎉 22 planned AWS services complete
-
-## 📝 What's New in v1.6.1
-
-- ✨ VPC monitoring with subnet details
-
-## 📝 What's New in v1.6.2
-
-- ✨ ACM certificate monitoring with expiry alerting
-- ✨ ECR repository monitoring
-
-## 📝 What's New in v1.6.3
-
-- ✨ CloudTrail audit trail monitoring with logging status and error detection
-
-## 📝 What's New in v1.6.5
-
-- ✨ IAM monitoring: user hygiene, roles, password policy, root account security
+- ✨ Select which services to monitor during setup
+- ✨ Minimum IAM policy auto-generated for your selection
+- ✨ Add/remove services any time via Configure
+- 🔒 Least-privilege by default
 
 ## 🔗 Links
 
 - [Full Documentation](https://github.com/ianpleasance/home-assistant-aws-infrastructure)
 - [Report Issues](https://github.com/ianpleasance/home-assistant-aws-infrastructure/issues)
-
----
-
-**⭐ Star the repo if you find this useful!**

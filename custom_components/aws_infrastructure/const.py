@@ -16,7 +16,6 @@ CONF_COST_REFRESH_INTERVAL = "cost_refresh_interval"
 CONF_CREATE_INDIVIDUAL_COUNT_SENSORS = "create_individual_count_sensors"
 CONF_SKIP_INITIAL_REFRESH = "skip_initial_refresh"
 
-
 # Region mode options
 REGION_MODE_ALL = "all"
 REGION_MODE_SELECT = "select"
@@ -67,7 +66,7 @@ COORDINATOR_EKS = "eks"
 COORDINATOR_EBS = "ebs"
 COORDINATOR_SNS = "sns"
 COORDINATOR_SQS = "sqs"
-COORDINATOR_ASG = "asg"  
+COORDINATOR_ASG = "asg"
 COORDINATOR_S3 = "s3"
 COORDINATOR_CLOUDWATCH_ALARMS = "cloudwatch_alarms"
 COORDINATOR_ELASTIC_IPS = "elastic_ips"
@@ -83,6 +82,7 @@ COORDINATOR_ACM = "acm"
 COORDINATOR_ECR = "ecr"
 COORDINATOR_CLOUDTRAIL = "cloudtrail"
 COORDINATOR_IAM = "iam"
+COORDINATOR_REDSHIFT = "redshift"
 
 # Attribution
 ATTRIBUTION = "Data provided by Amazon Web Services"
@@ -121,13 +121,10 @@ SERVICE_SLUG_MAP = {
 
 def slugify_service_name(service_name: str) -> str:
     """Convert AWS service name to slug."""
-    # Check exact matches first
     if service_name in SERVICE_SLUG_MAP:
         return SERVICE_SLUG_MAP[service_name]
-    
-    # Fallback: create slug from name
     slug = service_name.lower()
     slug = slug.replace("amazon ", "").replace("aws ", "")
-    slug = slug.split(" - ")[0]  # Take first part before dash
+    slug = slug.split(" - ")[0]
     slug = "".join(c for c in slug if c.isalnum())
-    return slug[:20]  # Limit length
+    return slug[:20]

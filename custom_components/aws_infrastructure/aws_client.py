@@ -105,6 +105,10 @@ class AwsClient:
         """Get CloudTrail client."""
         return self._client("cloudtrail")
 
+    def get_redshift_client(self):
+        """Get Redshift client."""
+        return self._client("redshift")
+
     def get_iam_client(self):
         """Get IAM client (global service, uses us-east-1)."""
         return self._client("iam", region_name="us-east-1")

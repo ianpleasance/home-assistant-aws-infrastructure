@@ -48,6 +48,7 @@ from .const import (
     COORDINATOR_ECR,
     COORDINATOR_CLOUDTRAIL,
     COORDINATOR_IAM,
+    COORDINATOR_REDSHIFT,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_COST_REFRESH_INTERVAL,
     DOMAIN,
@@ -84,6 +85,7 @@ from .coordinator import (
     AwsECRCoordinator,
     AwsCloudTrailCoordinator,
     AwsIAMCoordinator,
+    AwsRedshiftCoordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -149,115 +151,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 hass, aws_client, account_name, refresh_interval
             )
 
-        coordinators[COORDINATOR_EC2] = AwsEc2Coordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        coordinators[COORDINATOR_RDS] = AwsRdsCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        coordinators[COORDINATOR_LAMBDA] = AwsLambdaCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        coordinators[COORDINATOR_LOADBALANCER] = AwsLoadBalancerCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        coordinators[COORDINATOR_ASG] = AwsAutoScalingCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        # DynamoDB
-        coordinators[COORDINATOR_DYNAMODB] = AwsDynamoDBCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        
-        # ElastiCache
-        coordinators[COORDINATOR_ELASTICACHE] = AwsElastiCacheCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        
-        # ECS
-        coordinators[COORDINATOR_ECS] = AwsECSCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        
-        # EKS
-        coordinators[COORDINATOR_EKS] = AwsEKSCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        
-        # EBS Volumes
-        coordinators[COORDINATOR_EBS] = AwsEBSCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        
-        # SNS
-        coordinators[COORDINATOR_SNS] = AwsSNSCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        
-        # SQS
-        coordinators[COORDINATOR_SQS] = AwsSQSCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        
-        # S3
-        coordinators[COORDINATOR_S3] = AwsS3Coordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        
-        # CloudWatch Alarms
-        coordinators[COORDINATOR_CLOUDWATCH_ALARMS] = AwsCloudWatchAlarmsCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-        
-        # Elastic IPs
-        coordinators[COORDINATOR_ELASTIC_IPS] = AwsElasticIPsCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
+        coordinators[COORDINATOR_EC2] = AwsEc2Coordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_RDS] = AwsRdsCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_LAMBDA] = AwsLambdaCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_LOADBALANCER] = AwsLoadBalancerCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_ASG] = AwsAutoScalingCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_DYNAMODB] = AwsDynamoDBCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_ELASTICACHE] = AwsElastiCacheCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_ECS] = AwsECSCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_EKS] = AwsEKSCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_EBS] = AwsEBSCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_SNS] = AwsSNSCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_SQS] = AwsSQSCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_S3] = AwsS3Coordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_CLOUDWATCH_ALARMS] = AwsCloudWatchAlarmsCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_ELASTIC_IPS] = AwsElasticIPsCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_CLASSIC_LB] = AwsClassicLBCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_EFS] = AwsEFSCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_KINESIS] = AwsKinesisCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_BEANSTALK] = AwsBeanstalkCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_API_GATEWAY] = AwsApiGatewayCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_VPC] = AwsVPCCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_ACM] = AwsACMCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_ECR] = AwsECRCoordinator(hass, aws_client, account_name, refresh_interval)
+        coordinators[COORDINATOR_CLOUDTRAIL] = AwsCloudTrailCoordinator(hass, aws_client, account_name, refresh_interval)
 
-        # Classic Load Balancers
-        coordinators[COORDINATOR_CLASSIC_LB] = AwsClassicLBCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-
-        # EFS
-        coordinators[COORDINATOR_EFS] = AwsEFSCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-
-        # Kinesis
-        coordinators[COORDINATOR_KINESIS] = AwsKinesisCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-
-        # Elastic Beanstalk
-        coordinators[COORDINATOR_BEANSTALK] = AwsBeanstalkCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-
-        # API Gateway (v1 REST + v2 HTTP/WebSocket)
-        coordinators[COORDINATOR_API_GATEWAY] = AwsApiGatewayCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-
-        # VPC
-        coordinators[COORDINATOR_VPC] = AwsVPCCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-
-        # ACM (Certificate Manager)
-        coordinators[COORDINATOR_ACM] = AwsACMCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-
-        # ECR (Elastic Container Registry)
-        coordinators[COORDINATOR_ECR] = AwsECRCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
-
-        # CloudTrail
-        coordinators[COORDINATOR_CLOUDTRAIL] = AwsCloudTrailCoordinator(
-            hass, aws_client, account_name, refresh_interval
-        )
+        # Redshift
+        coordinators[COORDINATOR_REDSHIFT] = AwsRedshiftCoordinator(hass, aws_client, account_name, refresh_interval)
 
         # skip_initial_refresh only applies when HA is restarting with an existing
         # entry — on a fresh setup or reconfigure we always do a full blocking refresh
@@ -269,15 +189,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
         if not skip_initial_refresh:
-            # Refresh all coordinators for this region concurrently rather than
-            # sequentially — a single slow/hung service no longer blocks all others.
+            # Refresh all coordinators for this region concurrently.
+            # Use async_refresh() instead of async_config_entry_first_refresh()
+            # so a single failing coordinator (e.g. Redshift not enabled in a region,
+            # or missing IAM permission) never cancels the entire entry setup.
             async def _refresh_one(key, coord):
                 _LOGGER.debug(
                     "Starting first refresh for %s [account=%s region=%s]",
                     key, account_name, region,
                 )
                 try:
-                    await coord.async_config_entry_first_refresh()
+                    await coord.async_refresh()
                     _LOGGER.debug(
                         "Completed first refresh for %s [account=%s region=%s]",
                         key, account_name, region,
@@ -289,7 +211,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     )
 
             await asyncio.gather(
-                *[_refresh_one(k, c) for k, c in coordinators.items()]
+                *[_refresh_one(k, c) for k, c in coordinators.items()],
+                return_exceptions=True,
             )
 
         all_coordinators[region] = coordinators
@@ -316,56 +239,40 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle options update."""
-    # Get old regions from options (stored before update)
     old_region_mode = entry.options.get("_old_region_mode", REGION_MODE_ALL)
     old_regions = entry.options.get("_old_regions", [])
-    
-    # Get new regions from updated entry data
-    new_regions = entry.options.get(CONF_REGIONS, entry.data.get(CONF_REGIONS, []))
-    new_region_mode = entry.options.get(CONF_REGION_MODE, entry.data.get(CONF_REGION_MODE, REGION_MODE_ALL))
-    
-    # Determine which regions to keep
+
+    new_region_mode = entry.data.get(CONF_REGION_MODE, REGION_MODE_ALL)
+    new_regions = entry.data.get(CONF_REGIONS, [])
+
     if old_region_mode == REGION_MODE_ALL:
         old_active_regions = set(AWS_REGIONS)
     else:
         old_active_regions = set(old_regions)
-    
+
     if new_region_mode == REGION_MODE_ALL:
         new_active_regions = set(AWS_REGIONS)
     else:
         new_active_regions = set(new_regions)
-    
-    # Find removed regions
+
     removed_regions = old_active_regions - new_active_regions
-    
-    # Clean up entities from removed regions
+
     if removed_regions:
         from homeassistant.helpers import entity_registry as er
         entity_reg = er.async_get(hass)
-        account_name = entry.data[CONF_ACCOUNT_NAME].lower()
-        
         _LOGGER.info("Removing entities for deselected regions: %s", removed_regions)
-        
-        # Find entities that belong to removed regions
-        entities_to_remove = []
-        for entity_entry in entity_reg.entities.values():
+        to_remove = []
+        for entity_entry in list(entity_reg.entities.values()):
             if entity_entry.config_entry_id == entry.entry_id:
-                # Check if entity belongs to a removed region
                 for region in removed_regions:
                     region_normalized = region.replace("-", "_")
-                    # Match pattern: aws_{account}_{region}_
                     if f"_{region_normalized}_" in entity_entry.entity_id:
-                        entities_to_remove.append(entity_entry.entity_id)
+                        to_remove.append(entity_entry.entity_id)
                         break
-        
-        # Remove entities
-        for entity_id in entities_to_remove:
+        for entity_id in to_remove:
             entity_reg.async_remove(entity_id)
-            _LOGGER.info("Removed entity %s", entity_id)
-        
-        _LOGGER.info("Cleanup complete: removed %d entities", len(entities_to_remove))
-    
-    # Reload the integration to apply changes
+        _LOGGER.info("Removed %d entities for deselected regions", len(to_remove))
+
     await hass.config_entries.async_reload(entry.entry_id)
 
 

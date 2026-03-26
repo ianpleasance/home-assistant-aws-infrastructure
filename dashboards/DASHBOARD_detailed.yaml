@@ -42,6 +42,8 @@ views:
           | 🌿 Beanstalk Environments | {{ state_attr('sensor.aws_live_global_summary', 'beanstalk_environments') | default(0) }} |
 
           | 🐳 ECR Repositories | {{ state_attr('sensor.aws_live_global_summary', 'ecr_repositories') | default(0) }} |
+
+          | 🔴 Redshift Clusters | {{ state_attr('sensor.aws_live_global_summary', 'redshift_clusters') | default(0) }} |
       - type: markdown
         content: >
           ## 🗄️ Data & Storage
@@ -271,6 +273,68 @@ views:
           0 -%}
 
           _No Lambda functions found_
+
+          {% endif %}
+  - title: Redshift
+    path: aws-redshift
+    icon: mdi:database
+    cards:
+      - type: markdown
+        content: >
+          # 🔴 Redshift Clusters
+
+
+          {% set n = state_attr('sensor.aws_live_global_summary', 'redshift_clusters') | default(0) | int(0) %}
+          **{{ n }} {{ 'cluster' if n == 1 else 'clusters' }}**
+
+
+          ---
+
+
+          {% for state in states.sensor -%}
+
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_redshift_' in
+          state.entity_id and '_redshift_clusters' not in state.entity_id -%}
+
+          {%- set cluster_id = state.attributes.identifier | default('Unknown') -%}
+          {%- set status = state.state -%}
+          {%- set icon = '🟢' if status == 'available' else '🟡' if status == 'paused' else '🔴' if status in ('deleting', 'failed') else '⚫' %}
+
+
+          ### {{ icon }} {{ cluster_id }}
+
+          - **Status**: {{ status }}
+
+          - **Node Type**: {{ state.attributes.node_type | default('N/A') }}
+
+          - **Nodes**: {{ state.attributes.number_of_nodes | default(1) }}
+
+          - **Database**: {{ state.attributes.db_name | default('N/A') }}
+
+          - **Endpoint**: {{ state.attributes.endpoint | default('N/A') }}:{{ state.attributes.port | default('') }}
+
+          - **VPC**: {{ state.attributes.vpc_id | default('N/A') }}
+
+          - **AZ**: {{ state.attributes.availability_zone | default('N/A') }}
+
+          - **Encrypted**: {{ '✅' if state.attributes.encrypted else '❌' }}
+
+          - **Public**: {{ '✅' if state.attributes.publicly_accessible else '❌' }}
+
+          - **Version**: {{ state.attributes.engine_version | default(state.attributes.cluster_version) | default('N/A') }}
+
+          - **Created**: {{ state.attributes.created_time | default('N/A') }}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if states.sensor | selectattr('entity_id', 'search', '_redshift_') |
+          rejectattr('entity_id', 'search', '_redshift_clusters') | list | length == 0 -%}
+
+          _No Redshift clusters found_
 
           {% endif %}
   - title: RDS
@@ -1257,15 +1321,15 @@ views:
           # 👤 IAM Overview
 
 
-          {% set summary = state_attr('sensor.aws_live_iam_summary', 'total_users') | default(0) | int(0) %}
-          {% set no_mfa = state_attr('sensor.aws_live_iam_summary', 'users_no_mfa') | default(0) | int(0) %}
-          {% set old_pw = state_attr('sensor.aws_live_iam_summary', 'users_old_password_90d') | default(0) | int(0) %}
-          {% set not_logged = state_attr('sensor.aws_live_iam_summary', 'users_not_logged_in_90d') | default(0) | int(0) %}
-          {% set old_keys = state_attr('sensor.aws_live_iam_summary', 'users_old_keys_90d') | default(0) | int(0) %}
-          {% set roles = state_attr('sensor.aws_live_iam_summary', 'total_roles') | default(0) | int(0) %}
-          {% set unused_roles = state_attr('sensor.aws_live_iam_summary', 'roles_unused_90d') | default(0) | int(0) %}
-          {% set root_mfa = state_attr('sensor.aws_live_iam_summary', 'root_mfa_enabled') %}
-          {% set root_keys = state_attr('sensor.aws_live_iam_summary', 'root_access_keys') | default(0) | int(0) %}
+          {% set summary = state_attr('sensor.aws_live_global_iam_summary', 'total_users') | default(0) | int(0) %}
+          {% set no_mfa = state_attr('sensor.aws_live_global_iam_summary', 'users_no_mfa') | default(0) | int(0) %}
+          {% set old_pw = state_attr('sensor.aws_live_global_iam_summary', 'users_old_password_90d') | default(0) | int(0) %}
+          {% set not_logged = state_attr('sensor.aws_live_global_iam_summary', 'users_not_logged_in_90d') | default(0) | int(0) %}
+          {% set old_keys = state_attr('sensor.aws_live_global_iam_summary', 'users_old_keys_90d') | default(0) | int(0) %}
+          {% set roles = state_attr('sensor.aws_live_global_iam_summary', 'total_roles') | default(0) | int(0) %}
+          {% set unused_roles = state_attr('sensor.aws_live_global_iam_summary', 'roles_unused_90d') | default(0) | int(0) %}
+          {% set root_mfa = state_attr('sensor.aws_live_global_iam_summary', 'root_mfa_enabled') %}
+          {% set root_keys = state_attr('sensor.aws_live_global_iam_summary', 'root_access_keys') | default(0) | int(0) %}
 
 
           | Metric | Value |
@@ -1276,7 +1340,7 @@ views:
 
           | 🔑 Total Roles | {{ roles }} |
 
-          | 🔐 MFA Devices In Use | {{ state_attr('sensor.aws_live_iam_summary', 'mfa_devices_in_use') | default(0) }} |
+          | 🔐 MFA Devices In Use | {{ state_attr('sensor.aws_live_global_iam_summary', 'mfa_devices_in_use') | default(0) }} |
 
           | 🛡️ Root MFA | {{ '✅' if root_mfa else '❌ WARNING' }} |
 
@@ -1299,26 +1363,26 @@ views:
 
           ### 🔐 Password Policy
 
-          {% set pp = state_attr('sensor.aws_live_iam_password_policy', 'min_length') %}
+          {% set pp = state_attr('sensor.aws_live_global_iam_password_policy', 'min_length') %}
           {% if pp %}
 
           | Setting | Value |
 
           |---------|-------|
 
-          | Min Length | {{ state_attr('sensor.aws_live_iam_password_policy', 'min_length') }} |
+          | Min Length | {{ state_attr('sensor.aws_live_global_iam_password_policy', 'min_length') }} |
 
-          | Uppercase | {{ '✅' if state_attr('sensor.aws_live_iam_password_policy', 'require_uppercase') else '❌' }} |
+          | Uppercase | {{ '✅' if state_attr('sensor.aws_live_global_iam_password_policy', 'require_uppercase') else '❌' }} |
 
-          | Lowercase | {{ '✅' if state_attr('sensor.aws_live_iam_password_policy', 'require_lowercase') else '❌' }} |
+          | Lowercase | {{ '✅' if state_attr('sensor.aws_live_global_iam_password_policy', 'require_lowercase') else '❌' }} |
 
-          | Numbers | {{ '✅' if state_attr('sensor.aws_live_iam_password_policy', 'require_numbers') else '❌' }} |
+          | Numbers | {{ '✅' if state_attr('sensor.aws_live_global_iam_password_policy', 'require_numbers') else '❌' }} |
 
-          | Symbols | {{ '✅' if state_attr('sensor.aws_live_iam_password_policy', 'require_symbols') else '❌' }} |
+          | Symbols | {{ '✅' if state_attr('sensor.aws_live_global_iam_password_policy', 'require_symbols') else '❌' }} |
 
-          | Max Age | {{ state_attr('sensor.aws_live_iam_password_policy', 'max_password_age') | default('No expiry') }} days |
+          | Max Age | {{ state_attr('sensor.aws_live_global_iam_password_policy', 'max_password_age') | default('No expiry') }} days |
 
-          | Reuse Prevention | {{ state_attr('sensor.aws_live_iam_password_policy', 'password_reuse_prevention') | default('None') }} |
+          | Reuse Prevention | {{ state_attr('sensor.aws_live_global_iam_password_policy', 'password_reuse_prevention') | default('None') }} |
 
           {% else %}
 
@@ -1332,7 +1396,7 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_iam_user_' in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_iam_user_' in state.entity_id and 'global' in state.entity_id -%}
 
           {%- set username = state.attributes.username | default('Unknown') -%}
           {%- set days = state.state | int(-1) -%}
@@ -1371,7 +1435,7 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_iam_user_') | list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search', '_global_iam_user_') | list | length == 0 -%}
 
           _No IAM users found_
 
@@ -1383,7 +1447,7 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_iam_role_' in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_iam_role_' in state.entity_id and 'global' in state.entity_id -%}
 
           {%- set role_name = state.attributes.name | default('Unknown') -%}
           {%- set days = state.state | int(-1) -%}
@@ -1413,7 +1477,7 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_iam_role_') | list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search', '_global_iam_role_') | list | length == 0 -%}
 
           _No customer-managed IAM roles found_
 
@@ -1612,176 +1676,6 @@ views:
           rejectattr('entity_id', 'search', '_acm_certificates') | list | length == 0 -%}
 
           _No ACM certificates found_
-
-          {% endif %}
-  - title: IAM
-    path: aws-iam
-    icon: mdi:account-lock
-    cards:
-      - type: markdown
-        content: >
-          # 👤 IAM Overview
-
-
-          {% set summary = state_attr('sensor.aws_live_iam_summary', 'total_users') | default(0) | int(0) %}
-          {% set no_mfa = state_attr('sensor.aws_live_iam_summary', 'users_no_mfa') | default(0) | int(0) %}
-          {% set old_pw = state_attr('sensor.aws_live_iam_summary', 'users_old_password_90d') | default(0) | int(0) %}
-          {% set not_logged = state_attr('sensor.aws_live_iam_summary', 'users_not_logged_in_90d') | default(0) | int(0) %}
-          {% set old_keys = state_attr('sensor.aws_live_iam_summary', 'users_old_keys_90d') | default(0) | int(0) %}
-          {% set roles = state_attr('sensor.aws_live_iam_summary', 'total_roles') | default(0) | int(0) %}
-          {% set unused_roles = state_attr('sensor.aws_live_iam_summary', 'roles_unused_90d') | default(0) | int(0) %}
-          {% set root_mfa = state_attr('sensor.aws_live_iam_summary', 'root_mfa_enabled') %}
-          {% set root_keys = state_attr('sensor.aws_live_iam_summary', 'root_access_keys') | default(0) | int(0) %}
-
-
-          | Metric | Value |
-
-          |--------|-------|
-
-          | 👤 Total Users | {{ summary }} |
-
-          | 🔑 Total Roles | {{ roles }} |
-
-          | 🔐 MFA Devices In Use | {{ state_attr('sensor.aws_live_iam_summary', 'mfa_devices_in_use') | default(0) }} |
-
-          | 🛡️ Root MFA | {{ '✅' if root_mfa else '❌ WARNING' }} |
-
-          | 🔑 Root Access Keys | {{ '❌ WARNING — keys exist' if root_keys > 0 else '✅ None' }} |
-
-
-          {% if no_mfa > 0 or old_pw > 0 or not_logged > 0 or old_keys > 0 or unused_roles > 0 %}
-
-          ### ⚠️ Security Findings
-
-          {% if no_mfa > 0 %}- **{{ no_mfa }} user(s) with console access but no MFA**
-          {% endif %}{% if old_pw > 0 %}- **{{ old_pw }} user(s) with password unchanged >90 days**
-          {% endif %}{% if not_logged > 0 %}- **{{ not_logged }} user(s) not logged in >90 days**
-          {% endif %}{% if old_keys > 0 %}- **{{ old_keys }} user(s) with access keys >90 days old**
-          {% endif %}{% if unused_roles > 0 %}- **{{ unused_roles }} role(s) unused >90 days**
-          {% endif %}
-
-          {% endif %}
-
-
-          ### 🔐 Password Policy
-
-          {% set pp = state_attr('sensor.aws_live_iam_password_policy', 'min_length') %}
-          {% if pp %}
-
-          | Setting | Value |
-
-          |---------|-------|
-
-          | Min Length | {{ state_attr('sensor.aws_live_iam_password_policy', 'min_length') }} |
-
-          | Uppercase | {{ '✅' if state_attr('sensor.aws_live_iam_password_policy', 'require_uppercase') else '❌' }} |
-
-          | Lowercase | {{ '✅' if state_attr('sensor.aws_live_iam_password_policy', 'require_lowercase') else '❌' }} |
-
-          | Numbers | {{ '✅' if state_attr('sensor.aws_live_iam_password_policy', 'require_numbers') else '❌' }} |
-
-          | Symbols | {{ '✅' if state_attr('sensor.aws_live_iam_password_policy', 'require_symbols') else '❌' }} |
-
-          | Max Age | {{ state_attr('sensor.aws_live_iam_password_policy', 'max_password_age') | default('No expiry') }} days |
-
-          | Reuse Prevention | {{ state_attr('sensor.aws_live_iam_password_policy', 'password_reuse_prevention') | default('None') }} |
-
-          {% else %}
-
-          ⚠️ No password policy configured — using AWS defaults
-
-          {% endif %}
-      - type: markdown
-        content: >
-          ## 👤 IAM Users
-
-
-          {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_iam_user_' in state.entity_id -%}
-
-          {%- set username = state.attributes.username | default('Unknown') -%}
-          {%- set days = state.state | int(-1) -%}
-          {%- set no_mfa = state.attributes.password_enabled and not state.attributes.mfa_active -%}
-          {%- set old_key = state.attributes.oldest_key_age_days is not none and state.attributes.oldest_key_age_days > 90 -%}
-          {%- set icon = '⚠️' if (no_mfa or old_key or (days > 90)) else '✅' %}
-
-
-          ### {{ icon }} {{ username }}
-
-          - **Console Access**: {{ '✅' if state.attributes.password_enabled else '❌ API only' }}
-
-          - **MFA**: {{ '✅' if state.attributes.mfa_active else ('❌ WARNING' if state.attributes.password_enabled else '—') }}
-
-          - **Last Login**: {% if state.state == 'None' or state.state == 'unknown' %}Never{% else %}{{ days }} days ago{% endif %}
-
-          - **Password Age**: {{ state.attributes.password_last_changed_days | default('N/A') }} days
-
-          - **Active Keys**: {{ state.attributes.active_key_count | default(0) }}
-
-          {%- if state.attributes.key1_active %}
-
-          - **Key 1 Age**: {{ state.attributes.key1_age_days | default('N/A') }} days (last used: {{ state.attributes.key1_last_used_days | default('never') }} days ago)
-
-          {%- endif %}
-
-          {%- if state.attributes.key2_active %}
-
-          - **Key 2 Age**: {{ state.attributes.key2_age_days | default('N/A') }} days (last used: {{ state.attributes.key2_last_used_days | default('never') }} days ago)
-
-          {%- endif %}
-
-
-          {% endif -%}
-
-          {%- endfor %}
-
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_iam_user_') | list | length == 0 -%}
-
-          _No IAM users found_
-
-          {% endif %}
-      - type: markdown
-        content: >
-          ## 🔑 IAM Roles (Customer-Managed)
-
-
-          {% for state in states.sensor -%}
-
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_iam_role_' in state.entity_id -%}
-
-          {%- set role_name = state.attributes.name | default('Unknown') -%}
-          {%- set days = state.state | int(-1) -%}
-          {%- set unused = days > 90 -%}
-          {%- set icon = '⚠️' if unused else '✅' %}
-
-
-          ### {{ icon }} {{ role_name }}
-
-          - **Last Used**: {% if state.state == 'None' or state.state == 'unknown' %}Never{% else %}{{ days }} days ago{% if state.attributes.last_used_region %} ({{ state.attributes.last_used_region }}){% endif %}{% endif %}
-
-          - **Created**: {{ state.attributes.created_days_ago | default('N/A') }} days ago
-
-          - **Max Session**: {{ state.attributes.max_session_duration | default('N/A') }}s
-
-          - **Permissions Boundary**: {{ '✅' if state.attributes.has_permissions_boundary else '—' }}
-
-          {%- if state.attributes.description %}
-
-          - **Description**: {{ state.attributes.description }}
-
-          {%- endif %}
-
-
-          {% endif -%}
-
-          {%- endfor %}
-
-
-          {% if states.sensor | selectattr('entity_id', 'search', '_iam_role_') | list | length == 0 -%}
-
-          _No customer-managed IAM roles found_
 
           {% endif %}
   - title: CloudTrail

@@ -49,6 +49,7 @@ from .const import (
     COORDINATOR_ECR,
     COORDINATOR_CLOUDTRAIL,
     COORDINATOR_IAM,
+    COORDINATOR_REDSHIFT,
     DOMAIN,
 )
 
@@ -539,6 +540,22 @@ async def async_setup_entry(
                         registered_ids.add(uid)
                         new_entities.append(AwsIAMRoleSensor(coordinator, account_name, role["name"]))
 
+        # Redshift
+        elif coordinator_key == COORDINATOR_REDSHIFT:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_redshift_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsRedshiftCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for cluster in coordinator.data.get("clusters", []):
+                    c_n = cluster["identifier"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_redshift_{c_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsRedshiftClusterSensor(coordinator, account_name, region, cluster["identifier"]))
+
         # CloudFront (global — only present in us-east-1 coordinators)
         elif coordinator_key == COORDINATOR_CLOUDFRONT:
             if create_individual:
@@ -769,6 +786,10 @@ async def async_setup_entry(
                             for r in data.get("roles", []):
                                 r_n = r["name"].replace("-", "_").replace(".", "_")
                                 current_ids.add(f"aws_{account_name}_iam_role_{r_n}")
+                        elif key == COORDINATOR_REDSHIFT:
+                            for c in data.get("clusters", []):
+                                c_n = c["identifier"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_redshift_{c_n}")
                         elif key == COORDINATOR_API_GATEWAY:
                             for a in data.get("apis", []):
                                 a_n = a["id"].replace("-", "_")
@@ -830,10 +851,12 @@ async def async_setup_entry(
                     COORDINATOR_ECR: f"aws_{account_name}_{region_n}_ecr_",
                     COORDINATOR_CLOUDTRAIL: f"aws_{account_name}_{region_n}_cloudtrail_",
                     COORDINATOR_IAM: f"aws_{account_name}_iam_",
+                    COORDINATOR_REDSHIFT: f"aws_{account_name}_{region_n}_redshift_",
                     COORDINATOR_ACM: f"aws_{account_name}_{region_n}_acm_",
                     COORDINATOR_ECR: f"aws_{account_name}_{region_n}_ecr_",
                     COORDINATOR_CLOUDTRAIL: f"aws_{account_name}_{region_n}_cloudtrail_",
                     COORDINATOR_IAM: f"aws_{account_name}_iam_",
+                    COORDINATOR_REDSHIFT: f"aws_{account_name}_{region_n}_redshift_",
                     COORDINATOR_API_GATEWAY: f"aws_{account_name}_{region_n}_apigw_",
                     COORDINATOR_COST: f"aws_{account_name}_cost_service_",
                 }
@@ -905,9 +928,11 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
         ]:
             if key in self._coordinators and self._coordinators[key].data:
                 total += len(self._coordinators[key].data.get(data_key, []))
@@ -1053,32 +1078,44 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_ACM, "certificates"),
                 (COORDINATOR_ECR, "repositories"),
                 (COORDINATOR_CLOUDTRAIL, "trails"),
+                (COORDINATOR_REDSHIFT, "clusters"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
                 (COORDINATOR_ACM, "certificates"),
                 (COORDINATOR_ECR, "repositories"),
                 (COORDINATOR_CLOUDTRAIL, "trails"),
+                (COORDINATOR_REDSHIFT, "clusters"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_VPC, "vpcs"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_VPC, "vpcs"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
                 (COORDINATOR_ROUTE53, "zones"),
                 (COORDINATOR_CLOUDFRONT, "distributions"),
             (COORDINATOR_BEANSTALK, "environments"),
@@ -1087,9 +1124,11 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_API_GATEWAY, "apis"),
@@ -1097,9 +1136,11 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_EFS, "file_systems"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
@@ -1108,9 +1149,11 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
             (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_REDSHIFT, "clusters"),
             ]:
                 if key in region_coordinators and region_coordinators[key].data:
                     total += len(region_coordinators[key].data.get(data_key, []))
@@ -1138,6 +1181,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "ecr_repositories": 0,
             "cloudtrail_trails": 0,
             "cloudtrail_logging": 0,
+            "redshift_clusters": 0,
             "iam_users": 0,
             "iam_users_no_mfa": 0,
             "iam_users_old_password": 0,
@@ -1149,6 +1193,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "ecr_repositories": 0,
             "cloudtrail_trails": 0,
             "cloudtrail_logging": 0,
+            "redshift_clusters": 0,
             "iam_users": 0,
             "iam_users_no_mfa": 0,
             "iam_users_old_password": 0,
@@ -1317,6 +1362,12 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 totals["cloudtrail_trails"] += len(trails)
                 totals["cloudtrail_logging"] += sum(1 for t in trails if t.get("is_logging"))
 
+            if COORDINATOR_REDSHIFT in region_coordinators and region_coordinators[COORDINATOR_REDSHIFT].data:
+                clusters = region_coordinators[COORDINATOR_REDSHIFT].data.get("clusters", [])
+                if clusters:
+                    region_has_resources = True
+                totals["redshift_clusters"] += len(clusters)
+
             if COORDINATOR_IAM in region_coordinators and region_coordinators[COORDINATOR_IAM].data:
                 iam_data = region_coordinators[COORDINATOR_IAM].data
                 users = iam_data.get("users", [])
@@ -1347,6 +1398,8 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                     region_has_resources = True
                 totals["cloudtrail_trails"] += len(trails)
                 totals["cloudtrail_logging"] += sum(1 for t in trails if t.get("is_logging"))
+
+
 
 
 
@@ -3889,5 +3942,100 @@ class AwsIAMRoleSensor(CoordinatorEntity, SensorEntity):
             "created_days_ago": role.get("created_days_ago"),
             "max_session_duration": role.get("max_session_duration"),
             "has_permissions_boundary": role.get("has_permissions_boundary"),
+            "last_updated": dt_util.now(),
+        }
+
+
+# ============================================================================
+# SENSORS - Redshift
+# ============================================================================
+
+
+class AwsRedshiftCountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for Redshift cluster count."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:database"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str, region: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        region_normalized = region.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_redshift_count"
+        self._attr_name = "Redshift Clusters"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of Redshift clusters."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("clusters", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        return {"last_updated": dt_util.now()}
+
+
+class AwsRedshiftClusterSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual Redshift cluster."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:database"
+
+    def __init__(self, coordinator, account_name: str, region: str, cluster_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        self._cluster_id = cluster_id
+        region_normalized = region.replace("-", "_")
+        cluster_normalized = cluster_id.replace("-", "_").replace(".", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_redshift_{cluster_normalized}"
+        self._attr_name = f"Redshift {cluster_id}"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    def _get_cluster(self) -> dict | None:
+        """Return the cluster data dict."""
+        if self.coordinator.data:
+            for cluster in self.coordinator.data.get("clusters", []):
+                if cluster.get("identifier") == self._cluster_id:
+                    return cluster
+        return None
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the cluster status."""
+        cluster = self._get_cluster()
+        return cluster.get("status") if cluster else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return full cluster details."""
+        cluster = self._get_cluster()
+        if not cluster:
+            return {"last_updated": dt_util.now()}
+        return {
+            "identifier": cluster.get("identifier"),
+            "status": cluster.get("status"),
+            "node_type": cluster.get("node_type"),
+            "number_of_nodes": cluster.get("number_of_nodes"),
+            "db_name": cluster.get("db_name"),
+            "endpoint": cluster.get("endpoint"),
+            "port": cluster.get("port"),
+            "vpc_id": cluster.get("vpc_id"),
+            "availability_zone": cluster.get("availability_zone"),
+            "encrypted": cluster.get("encrypted"),
+            "publicly_accessible": cluster.get("publicly_accessible"),
+            "cluster_version": cluster.get("cluster_version"),
+            "engine_version": cluster.get("engine_version"),
+            "master_username": cluster.get("master_username"),
+            "created_time": cluster.get("created_time"),
             "last_updated": dt_util.now(),
         }
