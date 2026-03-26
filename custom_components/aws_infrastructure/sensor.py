@@ -1710,6 +1710,17 @@ class AwsRdsInstanceSensor(CoordinatorEntity, SensorEntity):
                         "engine_version": instance.get("engine_version"),
                         "status": instance.get("status"),
                         "allocated_storage": instance.get("allocated_storage"),
+                        "storage_type": instance.get("storage_type"),
+                        "multi_az": instance.get("multi_az"),
+                        "publicly_accessible": instance.get("publicly_accessible"),
+                        "deletion_protection": instance.get("deletion_protection"),
+                        "backup_retention_days": instance.get("backup_retention_days"),
+                        "performance_insights": instance.get("performance_insights"),
+                        "endpoint": instance.get("endpoint"),
+                        "port": instance.get("port"),
+                        "vpc_id": instance.get("vpc_id"),
+                        "availability_zone": instance.get("availability_zone"),
+                        "ca_certificate": instance.get("ca_certificate"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}
@@ -1792,6 +1803,13 @@ class AwsLambdaFunctionSensor(CoordinatorEntity, SensorEntity):
                         "timeout": function.get("timeout"),
                         "code_size": function.get("code_size"),
                         "last_modified": function.get("last_modified"),
+                        "description": function.get("description"),
+                        "handler": function.get("handler"),
+                        "role": function.get("role"),
+                        "package_type": function.get("package_type"),
+                        "architectures": function.get("architectures"),
+                        "ephemeral_storage_mb": function.get("ephemeral_storage_mb"),
+                        "layers_count": function.get("layers_count"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}
@@ -1894,6 +1912,12 @@ class AwsAsgSensor(CoordinatorEntity, SensorEntity):
                         "max_size": asg.get("max_size"),
                         "instances": asg.get("instances"),
                         "health_check_type": asg.get("health_check_type"),
+                        "availability_zones": asg.get("availability_zones"),
+                        "launch_template": asg.get("launch_template"),
+                        "launch_template_version": asg.get("launch_template_version"),
+                        "suspended_processes": asg.get("suspended_processes"),
+                        "termination_policies": asg.get("termination_policies"),
+                        "created_time": asg.get("created_time"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}
@@ -1975,6 +1999,14 @@ class AwsDynamoDBTableSensor(CoordinatorEntity, SensorEntity):
                         "item_count": table.get("item_count"),
                         "size_bytes": table.get("size_bytes"),
                         "created": table.get("creation_date"),
+                        "billing_mode": table.get("billing_mode"),
+                        "read_capacity_units": table.get("read_capacity_units"),
+                        "write_capacity_units": table.get("write_capacity_units"),
+                        "stream_enabled": table.get("stream_enabled"),
+                        "encryption_type": table.get("encryption_type"),
+                        "global_indexes": table.get("global_indexes"),
+                        "local_indexes": table.get("local_indexes"),
+                        "table_class": table.get("table_class"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}
@@ -2057,6 +2089,13 @@ class AwsElastiCacheClusterSensor(CoordinatorEntity, SensorEntity):
                         "engine_version": cluster.get("engine_version"),
                         "node_type": cluster.get("node_type"),
                         "num_nodes": cluster.get("num_nodes"),
+                        "preferred_az": cluster.get("preferred_az"),
+                        "parameter_group": cluster.get("parameter_group"),
+                        "snapshot_retention_days": cluster.get("snapshot_retention_days"),
+                        "at_rest_encryption": cluster.get("at_rest_encryption"),
+                        "in_transit_encryption": cluster.get("in_transit_encryption"),
+                        "replication_group_id": cluster.get("replication_group_id"),
+                        "auto_minor_version_upgrade": cluster.get("auto_minor_version_upgrade"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}
@@ -2479,6 +2518,12 @@ class AwsSQSQueueSensor(CoordinatorEntity, SensorEntity):
                         "messages_in_flight": queue.get("messages_in_flight"),
                         "messages_delayed": queue.get("messages_delayed"),
                         "created": queue.get("created"),
+                        "visibility_timeout_seconds": queue.get("visibility_timeout_seconds"),
+                        "message_retention_seconds": queue.get("message_retention_seconds"),
+                        "max_message_size_bytes": queue.get("max_message_size_bytes"),
+                        "delay_seconds": queue.get("delay_seconds"),
+                        "fifo": queue.get("fifo"),
+                        "kms_key": queue.get("kms_key"),
                         "last_updated": dt_util.now(),
                     }
         return {"last_updated": dt_util.now()}
@@ -4014,4 +4059,3 @@ class AwsRedshiftClusterSensor(CoordinatorEntity, SensorEntity):
             "created_time": cluster.get("created_time"),
             "last_updated": dt_util.now(),
         }
-

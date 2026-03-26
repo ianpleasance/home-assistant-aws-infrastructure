@@ -287,6 +287,17 @@ class AwsEc2Coordinator(AwsBaseCoordinator):
                         "instance_type": instance.get("InstanceType"),
                         "state": instance.get("State", {}).get("Name"),
                         "launch_time": str(instance.get("LaunchTime", "")),
+                        "public_ip": instance.get("PublicIpAddress"),
+                        "private_ip": instance.get("PrivateIpAddress"),
+                        "public_dns": instance.get("PublicDnsName"),
+                        "vpc_id": instance.get("VpcId"),
+                        "subnet_id": instance.get("SubnetId"),
+                        "security_groups": [sg.get("GroupName") for sg in instance.get("SecurityGroups", [])],
+                        "key_name": instance.get("KeyName"),
+                        "platform": instance.get("Platform", "linux"),
+                        "architecture": instance.get("Architecture"),
+                        "iam_profile": instance.get("IamInstanceProfile", {}).get("Arn", "").split("/")[-1] or None,
+                        "monitoring": instance.get("Monitoring", {}).get("State"),
                         "tags": tags,
                     })
             
@@ -319,14 +330,26 @@ class AwsRdsCoordinator(AwsBaseCoordinator):
             
             instances = []
             for db in response.get("DBInstances", []):
-                instances.append({
-                    "db_instance_identifier": db.get("DBInstanceIdentifier"),
-                    "db_instance_class": db.get("DBInstanceClass"),
-                    "engine": db.get("Engine"),
-                    "engine_version": db.get("EngineVersion"),
-                    "status": db.get("DBInstanceStatus"),
-                    "allocated_storage": db.get("AllocatedStorage"),
-                })
+                    endpoint = db.get("Endpoint", {})
+                    instances.append({
+                        "db_instance_identifier": db.get("DBInstanceIdentifier"),
+                        "db_instance_class": db.get("DBInstanceClass"),
+                        "engine": db.get("Engine"),
+                        "engine_version": db.get("EngineVersion"),
+                        "status": db.get("DBInstanceStatus"),
+                        "allocated_storage": db.get("AllocatedStorage"),
+                        "storage_type": db.get("StorageType"),
+                        "multi_az": db.get("MultiAZ", False),
+                        "publicly_accessible": db.get("PubliclyAccessible", False),
+                        "deletion_protection": db.get("DeletionProtection", False),
+                        "backup_retention_days": db.get("BackupRetentionPeriod", 0),
+                        "performance_insights": db.get("PerformanceInsightsEnabled", False),
+                        "endpoint": endpoint.get("Address"),
+                        "port": endpoint.get("Port"),
+                        "vpc_id": db.get("DBSubnetGroup", {}).get("VpcId"),
+                        "availability_zone": db.get("AvailabilityZone"),
+                        "ca_certificate": db.get("CACertificateIdentifier"),
+                    })
             
             return {"instances": instances}
         except Exception as err:
@@ -365,6 +388,13 @@ class AwsLambdaCoordinator(AwsBaseCoordinator):
                         "timeout": func.get("Timeout"),
                         "code_size": func.get("CodeSize"),
                         "last_modified": func.get("LastModified"),
+                        "description": func.get("Description", ""),
+                        "handler": func.get("Handler"),
+                        "role": func.get("Role", "").split("/")[-1],
+                        "package_type": func.get("PackageType", "Zip"),
+                        "architectures": func.get("Architectures", ["x86_64"]),
+                        "ephemeral_storage_mb": func.get("EphemeralStorage", {}).get("Size", 512),
+                        "layers_count": len(func.get("Layers", [])),
                     })
             
             return {"functions": functions}
@@ -436,6 +466,9 @@ class AwsAutoScalingCoordinator(AwsBaseCoordinator):
             paginator = asg_client.get_paginator('describe_auto_scaling_groups')
             for page in paginator.paginate():
                 for asg in page.get("AutoScalingGroups", []):
+                    lt = asg.get("LaunchTemplate", {})
+                    lc = asg.get("LaunchConfigurationName", "")
+                    suspended = [p.get("ProcessName") for p in asg.get("SuspendedProcesses", [])]
                     auto_scaling_groups.append({
                         "name": asg.get("AutoScalingGroupName"),
                         "desired_capacity": asg.get("DesiredCapacity"),
@@ -443,6 +476,13 @@ class AwsAutoScalingCoordinator(AwsBaseCoordinator):
                         "max_size": asg.get("MaxSize"),
                         "instances": len(asg.get("Instances", [])),
                         "health_check_type": asg.get("HealthCheckType"),
+                        "availability_zones": asg.get("AvailabilityZones", []),
+                        "launch_template": lt.get("LaunchTemplateName") or lc or None,
+                        "launch_template_version": lt.get("Version"),
+                        "suspended_processes": suspended,
+                        "vpc_zone_identifier": asg.get("VPCZoneIdentifier", ""),
+                        "termination_policies": asg.get("TerminationPolicies", []),
+                        "created_time": str(asg.get("CreatedTime", "")),
                     })
             
             return {"auto_scaling_groups": auto_scaling_groups}
@@ -483,12 +523,22 @@ class AwsDynamoDBCoordinator(AwsBaseCoordinator):
                 try:
                     response = dynamodb_client.describe_table(TableName=table_name)
                     table = response['Table']
+                    billing = table.get('BillingModeSummary', {})
+                    ptp = table.get('ProvisionedThroughput', {})
                     table_details.append({
                         'name': table_name,
                         'status': table.get('TableStatus'),
                         'item_count': table.get('ItemCount', 0),
                         'size_bytes': table.get('TableSizeBytes', 0),
                         'creation_date': str(table.get('CreationDateTime', '')),
+                        'billing_mode': billing.get('BillingMode', 'PROVISIONED'),
+                        'read_capacity_units': ptp.get('ReadCapacityUnits', 0),
+                        'write_capacity_units': ptp.get('WriteCapacityUnits', 0),
+                        'stream_enabled': table.get('StreamSpecification', {}).get('StreamEnabled', False),
+                        'encryption_type': table.get('SSEDescription', {}).get('Status', 'DISABLED'),
+                        'global_indexes': len(table.get('GlobalSecondaryIndexes', [])),
+                        'local_indexes': len(table.get('LocalSecondaryIndexes', [])),
+                        'table_class': table.get('TableClassSummary', {}).get('TableClass', 'STANDARD'),
                     })
                 except Exception as err:
                     _LOGGER.warning(f"Error describing DynamoDB table {table_name}: {err}")
@@ -531,6 +581,13 @@ class AwsElastiCacheCoordinator(AwsBaseCoordinator):
                         'engine_version': cluster.get('EngineVersion'),
                         'node_type': cluster.get('CacheNodeType'),
                         'num_nodes': cluster.get('NumCacheNodes', 0),
+                        'preferred_az': cluster.get('PreferredAvailabilityZone'),
+                        'parameter_group': cluster.get('CacheParameterGroup', {}).get('CacheParameterGroupName'),
+                        'snapshot_retention_days': cluster.get('SnapshotRetentionLimit', 0),
+                        'at_rest_encryption': cluster.get('AtRestEncryptionEnabled', False),
+                        'in_transit_encryption': cluster.get('TransitEncryptionEnabled', False),
+                        'replication_group_id': cluster.get('ReplicationGroupId'),
+                        'auto_minor_version_upgrade': cluster.get('AutoMinorVersionUpgrade', False),
                     })
             
             return {"clusters": clusters}
@@ -771,6 +828,12 @@ class AwsSQSCoordinator(AwsBaseCoordinator):
                             'messages_in_flight': int(attributes.get('ApproximateNumberOfMessagesNotVisible', 0)),
                             'messages_delayed': int(attributes.get('ApproximateNumberOfMessagesDelayed', 0)),
                             'created': attributes.get('CreatedTimestamp'),
+                            'visibility_timeout_seconds': int(attributes.get('VisibilityTimeout', 30)),
+                            'message_retention_seconds': int(attributes.get('MessageRetentionPeriod', 345600)),
+                            'max_message_size_bytes': int(attributes.get('MaximumMessageSize', 262144)),
+                            'delay_seconds': int(attributes.get('DelaySeconds', 0)),
+                            'fifo': queue_name.endswith('.fifo'),
+                            'kms_key': attributes.get('KmsMasterKeyId', ''),
                         })
                     except Exception as err:
                         _LOGGER.warning(f"Error getting SQS queue attributes for {queue_name}: {err}")

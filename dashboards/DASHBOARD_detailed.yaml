@@ -207,6 +207,20 @@ views:
 
           - **Launched**: {{ state.attributes.launch_time | default('N/A') }}
 
+          - **Public IP**: {{ state.attributes.public_ip | default('None') }}
+
+          - **Private IP**: {{ state.attributes.private_ip | default('N/A') }}
+
+          - **VPC**: {{ state.attributes.vpc_id | default('N/A') }}
+
+          - **Key**: {{ state.attributes.key_name | default('None') }}
+
+          - **Platform**: {{ state.attributes.platform | default('linux') }} / {{ state.attributes.architecture | default('N/A') }}
+
+          - **Security Groups**: {{ state.attributes.security_groups | default([]) | join(', ') }}
+
+          - **IAM Profile**: {{ state.attributes.iam_profile | default('None') }}
+
           {% if tags | length > 1 -%}
 
           - **Tags**: {% for key, value in tags.items() -%}{%- if key != 'Name'
@@ -394,7 +408,19 @@ views:
 
           - **Class**: {{ state.attributes.db_instance_class | default('N/A') }}
 
-          - **Storage**: {{ state.attributes.allocated_storage | default('N/A') }} GB
+          - **Storage**: {{ state.attributes.allocated_storage | default('N/A') }} GB ({{ state.attributes.storage_type | default('N/A') }})
+
+          - **Endpoint**: {{ state.attributes.endpoint | default('N/A') }}:{{ state.attributes.port | default('') }}
+
+          - **Multi-AZ**: {{ '✅' if state.attributes.multi_az else '❌' }}
+
+          - **Public**: {{ '✅' if state.attributes.publicly_accessible else '❌' }}
+
+          - **Deletion Protection**: {{ '✅' if state.attributes.deletion_protection else '❌' }}
+
+          - **Backup Retention**: {{ state.attributes.backup_retention_days | default(0) }} days
+
+          - **Performance Insights**: {{ '✅' if state.attributes.performance_insights else '❌' }}
 
 
           {% endif -%}
@@ -456,6 +482,22 @@ views:
 
           - **Created**: {{ state.attributes.created | default('N/A') }}
 
+          - **Billing**: {{ state.attributes.billing_mode | default('PROVISIONED') }}
+
+          {%- if state.attributes.billing_mode | default('PROVISIONED') == 'PROVISIONED' %}
+
+          - **RCU / WCU**: {{ state.attributes.read_capacity_units | default(0) }} / {{ state.attributes.write_capacity_units | default(0) }}
+
+          {%- endif %}
+
+          - **Streams**: {{ '✅' if state.attributes.stream_enabled else '❌' }}
+
+          - **Encryption**: {{ state.attributes.encryption_type | default('DISABLED') }}
+
+          - **GSI / LSI**: {{ state.attributes.global_indexes | default(0) }} / {{ state.attributes.local_indexes | default(0) }}
+
+          - **Class**: {{ state.attributes.table_class | default('STANDARD') }}
+
 
           {% endif -%}
 
@@ -516,6 +558,16 @@ views:
           - **Node Type**: {{ state.attributes.node_type | default('N/A') }}
 
           - **Nodes**: {{ state.attributes.num_nodes | default('N/A') }}
+
+          - **AZ**: {{ state.attributes.preferred_az | default('N/A') }}
+
+          - **At-Rest Encryption**: {{ '✅' if state.attributes.at_rest_encryption else '❌' }}
+
+          - **In-Transit Encryption**: {{ '✅' if state.attributes.in_transit_encryption else '❌' }}
+
+          - **Snapshot Retention**: {{ state.attributes.snapshot_retention_days | default(0) }} days
+
+          - **Parameter Group**: {{ state.attributes.parameter_group | default('N/A') }}
 
 
           {% endif -%}
@@ -935,6 +987,16 @@ views:
 
           - **Delayed**: {{ state.attributes.messages_delayed | default('N/A') }}
 
+          - **Type**: {{ 'FIFO' if state.attributes.fifo else 'Standard' }}
+
+          - **Visibility Timeout**: {{ state.attributes.visibility_timeout_seconds | default(30) }}s
+
+          - **Retention**: {{ ((state.attributes.message_retention_seconds | default(345600)) / 86400) | round(1) }} days
+
+          - **Max Message Size**: {{ ((state.attributes.max_message_size_bytes | default(262144)) / 1024) | round(0) | int }} KB
+
+          - **Encrypted**: {{ '✅' if state.attributes.kms_key | default('') else '❌' }}
+
           - **URL**: {{ state.attributes.url | default('N/A') }}
 
 
@@ -1170,6 +1232,18 @@ views:
 
           - **Health Check**: {{ state.attributes.health_check_type | default('N/A') }}
 
+          - **Launch Template**: {{ state.attributes.launch_template | default('N/A') }}{% if state.attributes.launch_template_version | default('') %} ({{ state.attributes.launch_template_version }}){% endif %}
+
+          - **AZs**: {{ state.attributes.availability_zones | default([]) | join(', ') }}
+
+          - **Termination Policy**: {{ state.attributes.termination_policies | default([]) | join(', ') }}
+
+          {%- if state.attributes.suspended_processes | default([]) | length > 0 %}
+
+          - **Suspended**: {{ state.attributes.suspended_processes | join(', ') }}
+
+          {% endif %}
+
 
           {% endif -%}
 
@@ -1267,7 +1341,7 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_acm_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and 'global' not in state.entity_id and '_acm_certificates' not in state.entity_id -%}
+          state.entity_id and state.state != 'unavailable' and 'global' not in state.entity_id and '_acm_certificates' not in state.entity_id -%}
 
           {%- set domain = state.attributes.domain_name | default('Unknown') -%}
           {%- set days = state.state | int(0) -%}
@@ -1762,6 +1836,16 @@ views:
           {%- endif %}
 
           - **Last Modified**: {{ state.attributes.last_modified | default('N/A') }}
+
+          - **Architecture**: {{ state.attributes.architectures | default(['x86_64']) | join(', ') }}
+
+          - **Package Type**: {{ state.attributes.package_type | default('Zip') }}
+
+          - **Ephemeral Storage**: {{ state.attributes.ephemeral_storage_mb | default(512) }} MB
+
+          - **Layers**: {{ state.attributes.layers_count | default(0) }}
+
+          - **Handler**: {{ state.attributes.handler | default('N/A') }}
 
 
           {% endif -%}
