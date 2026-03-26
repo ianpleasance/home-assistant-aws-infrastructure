@@ -462,40 +462,6 @@ async def async_setup_entry(
                         registered_ids.add(uid)
                         new_entities.append(AwsECRRepositorySensor(coordinator, account_name, region, repo["name"]))
 
-        # ACM
-        elif coordinator_key == COORDINATOR_ACM:
-            region_n = region.replace("-", "_")
-            if create_individual:
-                uid = f"aws_{account_name}_{region_n}_acm_count"
-                if uid not in registered_ids:
-                    registered_ids.add(uid)
-                    new_entities.append(AwsACMCountSensor(coordinator, account_name, region))
-            if coordinator.data:
-                for cert in coordinator.data.get("certificates", []):
-                    # Use last segment of ARN as identifier
-                    cert_id = cert["arn"].split("/")[-1]
-                    c_n = cert_id.replace("-", "_")
-                    uid = f"aws_{account_name}_{region_n}_acm_{c_n}"
-                    if uid not in registered_ids:
-                        registered_ids.add(uid)
-                        new_entities.append(AwsACMCertificateSensor(coordinator, account_name, region, cert["arn"]))
-
-        # ECR
-        elif coordinator_key == COORDINATOR_ECR:
-            region_n = region.replace("-", "_")
-            if create_individual:
-                uid = f"aws_{account_name}_{region_n}_ecr_count"
-                if uid not in registered_ids:
-                    registered_ids.add(uid)
-                    new_entities.append(AwsECRCountSensor(coordinator, account_name, region))
-            if coordinator.data:
-                for repo in coordinator.data.get("repositories", []):
-                    r_n = repo["name"].replace("-", "_").replace(".", "_").replace("/", "_")
-                    uid = f"aws_{account_name}_{region_n}_ecr_{r_n}"
-                    if uid not in registered_ids:
-                        registered_ids.add(uid)
-                        new_entities.append(AwsECRRepositorySensor(coordinator, account_name, region, repo["name"]))
-
         # CloudTrail
         elif coordinator_key == COORDINATOR_CLOUDTRAIL:
             region_n = region.replace("-", "_")
@@ -764,15 +730,6 @@ async def async_setup_entry(
                             for r in data.get("repositories", []):
                                 r_n = r["name"].replace("-", "_").replace(".", "_").replace("/", "_")
                                 current_ids.add(f"aws_{account_name}_{region_n}_ecr_{r_n}")
-                        elif key == COORDINATOR_ACM:
-                            for c in data.get("certificates", []):
-                                cert_id = c["arn"].split("/")[-1]
-                                c_n = cert_id.replace("-", "_")
-                                current_ids.add(f"aws_{account_name}_{region_n}_acm_{c_n}")
-                        elif key == COORDINATOR_ECR:
-                            for r in data.get("repositories", []):
-                                r_n = r["name"].replace("-", "_").replace(".", "_").replace("/", "_")
-                                current_ids.add(f"aws_{account_name}_{region_n}_ecr_{r_n}")
                         elif key == COORDINATOR_CLOUDTRAIL:
                             for t in data.get("trails", []):
                                 t_n = t["name"].replace("-", "_").replace(".", "_")
@@ -820,9 +777,15 @@ async def async_setup_entry(
 
                 return _listener
 
-            # Populate owned set with ids currently registered for this coordinator
+            # Populate owned set from entity registry — this catches sensors
+            # from previous HA sessions that aren't in registered_ids yet
             region_n = region.replace("-", "_")
-            for uid in list(registered_ids):
+            entity_reg_seed = async_get_entity_registry(hass)
+            for entity_entry in list(entity_reg_seed.entities.values()):
+                if entity_entry.config_entry_id == entry.entry_id:
+                    owned_by_coord.add(entity_entry.unique_id)
+
+            for uid in list(registered_ids) | owned_by_coord:
                 # Match ids that belong to this coordinator by checking known patterns
                 coord_prefix_map = {
                     COORDINATOR_EC2: f"aws_{account_name}_{region_n}_ec2_i_",
@@ -847,11 +810,6 @@ async def async_setup_entry(
                     COORDINATOR_ROUTE53: f"aws_{account_name}_route53_",
                     COORDINATOR_CLOUDFRONT: f"aws_{account_name}_cloudfront_",
                     COORDINATOR_VPC: f"aws_{account_name}_{region_n}_vpc_",
-                    COORDINATOR_ACM: f"aws_{account_name}_{region_n}_acm_",
-                    COORDINATOR_ECR: f"aws_{account_name}_{region_n}_ecr_",
-                    COORDINATOR_CLOUDTRAIL: f"aws_{account_name}_{region_n}_cloudtrail_",
-                    COORDINATOR_IAM: f"aws_{account_name}_iam_",
-                    COORDINATOR_REDSHIFT: f"aws_{account_name}_{region_n}_redshift_",
                     COORDINATOR_ACM: f"aws_{account_name}_{region_n}_acm_",
                     COORDINATOR_ECR: f"aws_{account_name}_{region_n}_ecr_",
                     COORDINATOR_CLOUDTRAIL: f"aws_{account_name}_{region_n}_cloudtrail_",
@@ -1378,30 +1336,6 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 totals["iam_users_old_keys"] += sum(1 for u in users if u.get("oldest_key_age_days") is not None and u["oldest_key_age_days"] > 90)
                 totals["iam_roles"] += len(roles)
                 totals["iam_roles_unused_90d"] += sum(1 for r in roles if r.get("last_used_days") is not None and r["last_used_days"] > 90)
-
-            if COORDINATOR_ACM in region_coordinators and region_coordinators[COORDINATOR_ACM].data:
-                certs = region_coordinators[COORDINATOR_ACM].data.get("certificates", [])
-                if certs:
-                    region_has_resources = True
-                totals["acm_certificates"] += len(certs)
-                totals["acm_expiring_30d"] += sum(1 for c in certs if c.get("days_until_expiry") is not None and 0 <= c["days_until_expiry"] <= 30)
-
-            if COORDINATOR_ECR in region_coordinators and region_coordinators[COORDINATOR_ECR].data:
-                repos = region_coordinators[COORDINATOR_ECR].data.get("repositories", [])
-                if repos:
-                    region_has_resources = True
-                totals["ecr_repositories"] += len(repos)
-
-            if COORDINATOR_CLOUDTRAIL in region_coordinators and region_coordinators[COORDINATOR_CLOUDTRAIL].data:
-                trails = region_coordinators[COORDINATOR_CLOUDTRAIL].data.get("trails", [])
-                if trails:
-                    region_has_resources = True
-                totals["cloudtrail_trails"] += len(trails)
-                totals["cloudtrail_logging"] += sum(1 for t in trails if t.get("is_logging"))
-
-
-
-
 
             if COORDINATOR_ROUTE53 in region_coordinators and region_coordinators[COORDINATOR_ROUTE53].data:
                 zones = region_coordinators[COORDINATOR_ROUTE53].data.get("zones", [])

@@ -96,20 +96,27 @@ views:
           {% set cloudtrail_count = state_attr('sensor.aws_live_global_summary',
           'cloudtrail_trails') | int(0) %}
 
-          {% set cloudtrail_logging = state_attr('sensor.aws_live_global_summary',
-          'cloudtrail_logging') | int(0) %}
+          {% set cloudtrail_logging =
+          state_attr('sensor.aws_live_global_summary', 'cloudtrail_logging') |
+          int(0) %}
 
-          {% set iam_users = state_attr('sensor.aws_live_global_summary', 'iam_users') | int(0) %}
+          {% set iam_users = state_attr('sensor.aws_live_global_summary',
+          'iam_users') | int(0) %}
 
-          {% set iam_no_mfa = state_attr('sensor.aws_live_global_summary', 'iam_users_no_mfa') | int(0) %}
+          {% set iam_no_mfa = state_attr('sensor.aws_live_global_summary',
+          'iam_users_no_mfa') | int(0) %}
 
-          {% set iam_old_keys = state_attr('sensor.aws_live_global_summary', 'iam_users_old_keys') | int(0) %}
+          {% set iam_old_keys = state_attr('sensor.aws_live_global_summary',
+          'iam_users_old_keys') | int(0) %}
 
-          {% set iam_roles = state_attr('sensor.aws_live_global_summary', 'iam_roles') | int(0) %}
+          {% set iam_roles = state_attr('sensor.aws_live_global_summary',
+          'iam_roles') | int(0) %}
 
-          {% set iam_unused_roles = state_attr('sensor.aws_live_global_summary', 'iam_roles_unused_90d') | int(0) %}
+          {% set iam_unused_roles = state_attr('sensor.aws_live_global_summary',
+          'iam_roles_unused_90d') | int(0) %}
 
-          {% set redshift_count = state_attr('sensor.aws_live_global_summary', 'redshift_clusters') | int(0) %}
+          {% set redshift_count = state_attr('sensor.aws_live_global_summary',
+          'redshift_clusters') | int(0) %}
 
           {% set acm_count = state_attr('sensor.aws_live_global_summary',
           'acm_certificates') | int(0) %}
@@ -123,20 +130,27 @@ views:
           {% set cloudtrail_count = state_attr('sensor.aws_live_global_summary',
           'cloudtrail_trails') | int(0) %}
 
-          {% set cloudtrail_logging = state_attr('sensor.aws_live_global_summary',
-          'cloudtrail_logging') | int(0) %}
+          {% set cloudtrail_logging =
+          state_attr('sensor.aws_live_global_summary', 'cloudtrail_logging') |
+          int(0) %}
 
-          {% set iam_users = state_attr('sensor.aws_live_global_summary', 'iam_users') | int(0) %}
+          {% set iam_users = state_attr('sensor.aws_live_global_summary',
+          'iam_users') | int(0) %}
 
-          {% set iam_no_mfa = state_attr('sensor.aws_live_global_summary', 'iam_users_no_mfa') | int(0) %}
+          {% set iam_no_mfa = state_attr('sensor.aws_live_global_summary',
+          'iam_users_no_mfa') | int(0) %}
 
-          {% set iam_old_keys = state_attr('sensor.aws_live_global_summary', 'iam_users_old_keys') | int(0) %}
+          {% set iam_old_keys = state_attr('sensor.aws_live_global_summary',
+          'iam_users_old_keys') | int(0) %}
 
-          {% set iam_roles = state_attr('sensor.aws_live_global_summary', 'iam_roles') | int(0) %}
+          {% set iam_roles = state_attr('sensor.aws_live_global_summary',
+          'iam_roles') | int(0) %}
 
-          {% set iam_unused_roles = state_attr('sensor.aws_live_global_summary', 'iam_roles_unused_90d') | int(0) %}
+          {% set iam_unused_roles = state_attr('sensor.aws_live_global_summary',
+          'iam_roles_unused_90d') | int(0) %}
 
-          {% set redshift_count = state_attr('sensor.aws_live_global_summary', 'redshift_clusters') | int(0) %}
+          {% set redshift_count = state_attr('sensor.aws_live_global_summary',
+          'redshift_clusters') | int(0) %}
 
           {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
           'cloudwatch_alarms') | int(0) %}
@@ -181,7 +195,8 @@ views:
 
           - **EFS File Systems:** {{ efs_count }}
 
-          - **ACM Certificates:** {{ acm_count }}{% if acm_expiring > 0 %} ⚠️ {{ acm_expiring }} expiring in 30d{% endif %}
+          - **ACM Certificates:** {{ acm_count }}{% if acm_expiring > 0 %} ⚠️ {{
+          acm_expiring }} expiring in 30d{% endif %}
 
           - **ECR Repositories:** {{ ecr_count }}
 
@@ -215,13 +230,19 @@ views:
 
           ### 🔐 Security & Certificates
 
-          - **ACM Certificates:** {{ acm_count }}{% if acm_expiring > 0 %} ⚠️ {{ acm_expiring }} expiring in 30 days{% endif %}
+          - **ACM Certificates:** {{ acm_count }}{% if acm_expiring > 0 %} ⚠️ {{
+          acm_expiring }} expiring in 30 days{% endif %}
 
-          - **CloudTrail Trails:** {{ cloudtrail_count }} ({{ cloudtrail_logging }} logging){% if cloudtrail_count > cloudtrail_logging %} ⚠️ {{ cloudtrail_count - cloudtrail_logging }} not logging{% endif %}
+          - **CloudTrail Trails:** {{ cloudtrail_count }} ({{ cloudtrail_logging
+          }} logging){% if cloudtrail_count > cloudtrail_logging %} ⚠️ {{
+          cloudtrail_count - cloudtrail_logging }} not logging{% endif %}
 
-          - **IAM Users:** {{ iam_users }}{% if iam_no_mfa > 0 %} ⚠️ {{ iam_no_mfa }} without MFA{% endif %}{% if iam_old_keys > 0 %} ⚠️ {{ iam_old_keys }} old keys{% endif %}
+          - **IAM Users:** {{ iam_users }}{% if iam_no_mfa > 0 %} ⚠️ {{
+          iam_no_mfa }} without MFA{% endif %}{% if iam_old_keys > 0 %} ⚠️ {{
+          iam_old_keys }} old keys{% endif %}
 
-          - **IAM Roles:** {{ iam_roles }}{% if iam_unused_roles > 0 %} ⚠️ {{ iam_unused_roles }} unused 90d{% endif %}
+          - **IAM Roles:** {{ iam_roles }}{% if iam_unused_roles > 0 %} ⚠️ {{
+          iam_unused_roles }} unused 90d{% endif %}
 
 
           ### 📊 Monitoring
@@ -425,11 +446,16 @@ views:
 
           |----------|-------|
 
-          | 🔐 ACM Certificates | {{ state.attributes.acm_certificates | default(0) }}{% if state.attributes.acm_expiring_30d | default(0) > 0 %} ⚠️{% endif %} |
+          | 🔐 ACM Certificates | {{ state.attributes.acm_certificates |
+          default(0) }}{% if state.attributes.acm_expiring_30d | default(0) > 0
+          %} ⚠️{% endif %} |
 
-          | 🐳 ECR Repositories | {{ state.attributes.ecr_repositories | default(0) }} |
+          | 🐳 ECR Repositories | {{ state.attributes.ecr_repositories |
+          default(0) }} |
 
-          | 🛡️ CloudTrail Trails | {{ state.attributes.cloudtrail_trails | default(0) }} ({{ state.attributes.cloudtrail_logging | default(0) }} logging) |
+          | 🛡️ CloudTrail Trails | {{ state.attributes.cloudtrail_trails |
+          default(0) }} ({{ state.attributes.cloudtrail_logging | default(0) }}
+          logging) |
 
 
 
@@ -448,11 +474,14 @@ views:
 
           | 🪣 S3 Buckets | {{ state.attributes.s3_buckets | default(0) }} |
 
-          | 🗂️ EFS File Systems | {{ state.attributes.efs_file_systems | default(0) }} |
+          | 🗂️ EFS File Systems | {{ state.attributes.efs_file_systems |
+          default(0) }} |
 
-          | 🔴 Redshift Clusters | {{ state.attributes.redshift_clusters | default(0) }} |
+          | 🔴 Redshift Clusters | {{ state.attributes.redshift_clusters |
+          default(0) }} |
 
-          | 🔐 ACM Certificates | {{ state.attributes.acm_certificates | default(0) }} |
+          | 🔐 ACM Certificates | {{ state.attributes.acm_certificates |
+          default(0) }} |
 
           | 💿 EBS Volumes | {{ state.attributes.ebs_volumes | default(0) }} ({{
           state.attributes.ebs_unattached | default(0) }} unattached) |
@@ -464,9 +493,11 @@ views:
 
           |----------|-------|
 
-          | 🌐 ALB/NLB Load Balancers | {{ state.attributes.load_balancers | default(0) }} |
+          | 🌐 ALB/NLB Load Balancers | {{ state.attributes.load_balancers |
+          default(0) }} |
 
-          | 🔁 Classic Load Balancers | {{ state.attributes.classic_load_balancers | default(0) }} |
+          | 🔁 Classic Load Balancers | {{
+          state.attributes.classic_load_balancers | default(0) }} |
 
           | 🔢 Elastic IPs | {{ state.attributes.elastic_ips | default(0) }} ({{
           state.attributes.elastic_ips_unattached | default(0) }} unattached) |
@@ -475,7 +506,8 @@ views:
 
           | 🔌 API Gateways | {{ state.attributes.api_gateways | default(0) }} |
 
-          | 🌊 Kinesis Streams | {{ state.attributes.kinesis_streams | default(0) }} |
+          | 🌊 Kinesis Streams | {{ state.attributes.kinesis_streams |
+          default(0) }} |
 
           | 🔔 SNS Topics | {{ state.attributes.sns_topics | default(0) }} |
 
@@ -523,9 +555,11 @@ views:
 
           **Monitoring 28 AWS Services:**  
 
-          EC2, RDS, Redshift, Lambda, ECS, EKS, Beanstalk, DynamoDB, ElastiCache, S3, EBS, EFS, ECR,
-          IAM, VPC, ACM, CloudTrail, Route 53, CloudFront, API Gateway, ALB/NLB Load Balancers,
-          Classic Load Balancers, Auto Scaling, Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
+          EC2, RDS, Redshift, Lambda, ECS, EKS, Beanstalk, DynamoDB,
+          ElastiCache, S3, EBS, EFS, ECR, IAM, VPC, ACM, CloudTrail, Route 53,
+          CloudFront, API Gateway, ALB/NLB Load Balancers, Classic Load
+          Balancers, Auto Scaling, Kinesis, SNS, SQS, CloudWatch Alarms, Elastic
+          IPs
 
 
           **Cost Data**: Updates daily (24hr delay for new accounts)  

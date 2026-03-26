@@ -402,14 +402,12 @@ Ensure the IAM policy includes all required permissions for your selected servic
 
 ## Changelog
 
-### v1.6.9 (2026-03-25)
+### v1.6.12 (2026-03-25)
 - ✨ Added Redshift cluster monitoring with status, node type/count, endpoint, encryption, and version
 
-### v1.6.7 (2026-03-21)
+### v1.6.9 (2026-03-21)
 - ✨ Service selection during setup — monitor only the services you use
-- ✨ Minimum IAM policy generated automatically during setup
 - ✨ Remove/add services via options flow with automatic entity cleanup
-- 🔒 Integration now follows least-privilege IAM principle by default
 
 ### v1.6.6 (2026-03-21)
 - 🐛 Fixed IAM credential report polling (increased retries, fixed UnboundLocalError)
