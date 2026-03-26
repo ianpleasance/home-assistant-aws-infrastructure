@@ -756,18 +756,60 @@ async def async_setup_entry(
                                 current_ids.add(f"aws_{account_name}_cost_service_{slug}")
 
                     # Find ids that were registered for this coordinator but
-                    # are no longer in the current data — these resources were deleted
-                    stale_ids = owned - current_ids
+                    # are no longer in the current data — these resources were deleted.
+                    # Check both the owned set AND scan the registry directly for
+                    # this coordinator's prefix, to catch sensors from prior sessions
+                    # that weren't captured in owned at startup.
+                    entity_reg = async_get_entity_registry(hass)
+                    coord_prefix_map_inner = {
+                        COORDINATOR_EC2: f"aws_{account_name}_{region_n}_ec2_i_",
+                        COORDINATOR_RDS: f"aws_{account_name}_{region_n}_rds_",
+                        COORDINATOR_LAMBDA: f"aws_{account_name}_{region_n}_lambda_",
+                        COORDINATOR_LOADBALANCER: f"aws_{account_name}_{region_n}_load_balancer_",
+                        COORDINATOR_ASG: f"aws_{account_name}_{region_n}_auto_scaling_group_",
+                        COORDINATOR_DYNAMODB: f"aws_{account_name}_{region_n}_dynamodb_",
+                        COORDINATOR_ELASTICACHE: f"aws_{account_name}_{region_n}_elasticache_",
+                        COORDINATOR_ECS: f"aws_{account_name}_{region_n}_ecs_",
+                        COORDINATOR_EKS: f"aws_{account_name}_{region_n}_eks_",
+                        COORDINATOR_EBS: f"aws_{account_name}_{region_n}_ebs_",
+                        COORDINATOR_SNS: f"aws_{account_name}_{region_n}_sns_",
+                        COORDINATOR_SQS: f"aws_{account_name}_{region_n}_sqs_",
+                        COORDINATOR_S3: f"aws_{account_name}_{region_n}_s3_",
+                        COORDINATOR_CLOUDWATCH_ALARMS: f"aws_{account_name}_{region_n}_alarm_",
+                        COORDINATOR_ELASTIC_IPS: f"aws_{account_name}_{region_n}_eip_",
+                        COORDINATOR_CLASSIC_LB: f"aws_{account_name}_{region_n}_classic_lb_",
+                        COORDINATOR_EFS: f"aws_{account_name}_{region_n}_efs_",
+                        COORDINATOR_KINESIS: f"aws_{account_name}_{region_n}_kinesis_",
+                        COORDINATOR_BEANSTALK: f"aws_{account_name}_{region_n}_beanstalk_",
+                        COORDINATOR_ROUTE53: f"aws_{account_name}_route53_",
+                        COORDINATOR_CLOUDFRONT: f"aws_{account_name}_cloudfront_",
+                        COORDINATOR_VPC: f"aws_{account_name}_{region_n}_vpc_",
+                        COORDINATOR_ACM: f"aws_{account_name}_{region_n}_acm_",
+                        COORDINATOR_ECR: f"aws_{account_name}_{region_n}_ecr_",
+                        COORDINATOR_CLOUDTRAIL: f"aws_{account_name}_{region_n}_cloudtrail_",
+                        COORDINATOR_IAM: f"aws_{account_name}_iam_",
+                        COORDINATOR_REDSHIFT: f"aws_{account_name}_{region_n}_redshift_",
+                        COORDINATOR_API_GATEWAY: f"aws_{account_name}_{region_n}_apigw_",
+                        COORDINATOR_COST: f"aws_{account_name}_cost_service_",
+                    }
+                    inner_prefix = coord_prefix_map_inner.get(key)
+                    all_owned: set[str] = set(owned)
+                    if inner_prefix:
+                        for ee in list(entity_reg.entities.values()):
+                            if (ee.config_entry_id == entry.entry_id
+                                    and ee.unique_id.startswith(inner_prefix)):
+                                all_owned.add(ee.unique_id)
+
+                    stale_ids = all_owned - current_ids
                     if stale_ids:
-                        entity_reg = async_get_entity_registry(hass)
                         for uid in stale_ids:
-                            entity_entry = entity_reg.async_get_entity_id("sensor", DOMAIN, uid)
-                            if entity_entry:
+                            entity_entry_id = entity_reg.async_get_entity_id("sensor", DOMAIN, uid)
+                            if entity_entry_id:
                                 _LOGGER.info(
                                     "Removing deleted resource entity %s [%s %s]",
                                     uid, key, reg,
                                 )
-                                entity_reg.async_remove(entity_entry)
+                                entity_reg.async_remove(entity_entry_id)
                                 registered_ids.discard(uid)
                                 owned.discard(uid)
 
@@ -777,50 +819,49 @@ async def async_setup_entry(
 
                 return _listener
 
-            # Populate owned set from entity registry — this catches sensors
-            # from previous HA sessions that aren't in registered_ids yet
+            # Build a per-coordinator owned set by matching entity registry entries
+            # against this coordinator's known prefix. This correctly handles sensors
+            # from previous HA sessions that weren't registered in this run.
             region_n = region.replace("-", "_")
+            coord_prefix_map = {
+                COORDINATOR_EC2: f"aws_{account_name}_{region_n}_ec2_i_",
+                COORDINATOR_RDS: f"aws_{account_name}_{region_n}_rds_",
+                COORDINATOR_LAMBDA: f"aws_{account_name}_{region_n}_lambda_",
+                COORDINATOR_LOADBALANCER: f"aws_{account_name}_{region_n}_load_balancer_",
+                COORDINATOR_ASG: f"aws_{account_name}_{region_n}_auto_scaling_group_",
+                COORDINATOR_DYNAMODB: f"aws_{account_name}_{region_n}_dynamodb_",
+                COORDINATOR_ELASTICACHE: f"aws_{account_name}_{region_n}_elasticache_",
+                COORDINATOR_ECS: f"aws_{account_name}_{region_n}_ecs_",
+                COORDINATOR_EKS: f"aws_{account_name}_{region_n}_eks_",
+                COORDINATOR_EBS: f"aws_{account_name}_{region_n}_ebs_",
+                COORDINATOR_SNS: f"aws_{account_name}_{region_n}_sns_",
+                COORDINATOR_SQS: f"aws_{account_name}_{region_n}_sqs_",
+                COORDINATOR_S3: f"aws_{account_name}_{region_n}_s3_",
+                COORDINATOR_CLOUDWATCH_ALARMS: f"aws_{account_name}_{region_n}_alarm_",
+                COORDINATOR_ELASTIC_IPS: f"aws_{account_name}_{region_n}_eip_",
+                COORDINATOR_CLASSIC_LB: f"aws_{account_name}_{region_n}_classic_lb_",
+                COORDINATOR_EFS: f"aws_{account_name}_{region_n}_efs_",
+                COORDINATOR_KINESIS: f"aws_{account_name}_{region_n}_kinesis_",
+                COORDINATOR_BEANSTALK: f"aws_{account_name}_{region_n}_beanstalk_",
+                COORDINATOR_ROUTE53: f"aws_{account_name}_route53_",
+                COORDINATOR_CLOUDFRONT: f"aws_{account_name}_cloudfront_",
+                COORDINATOR_VPC: f"aws_{account_name}_{region_n}_vpc_",
+                COORDINATOR_ACM: f"aws_{account_name}_{region_n}_acm_",
+                COORDINATOR_ECR: f"aws_{account_name}_{region_n}_ecr_",
+                COORDINATOR_CLOUDTRAIL: f"aws_{account_name}_{region_n}_cloudtrail_",
+                COORDINATOR_IAM: f"aws_{account_name}_iam_",
+                COORDINATOR_REDSHIFT: f"aws_{account_name}_{region_n}_redshift_",
+                COORDINATOR_API_GATEWAY: f"aws_{account_name}_{region_n}_apigw_",
+                COORDINATOR_COST: f"aws_{account_name}_cost_service_",
+            }
+
+            prefix = coord_prefix_map.get(coordinator_key)
             entity_reg_seed = async_get_entity_registry(hass)
             for entity_entry in list(entity_reg_seed.entities.values()):
-                if entity_entry.config_entry_id == entry.entry_id:
+                if (entity_entry.config_entry_id == entry.entry_id
+                        and prefix
+                        and entity_entry.unique_id.startswith(prefix)):
                     owned_by_coord.add(entity_entry.unique_id)
-
-            for uid in list(registered_ids) | owned_by_coord:
-                # Match ids that belong to this coordinator by checking known patterns
-                coord_prefix_map = {
-                    COORDINATOR_EC2: f"aws_{account_name}_{region_n}_ec2_i_",
-                    COORDINATOR_RDS: f"aws_{account_name}_{region_n}_rds_",
-                    COORDINATOR_LAMBDA: f"aws_{account_name}_{region_n}_lambda_",
-                    COORDINATOR_LOADBALANCER: f"aws_{account_name}_{region_n}_load_balancer_",
-                    COORDINATOR_ASG: f"aws_{account_name}_{region_n}_auto_scaling_group_",
-                    COORDINATOR_DYNAMODB: f"aws_{account_name}_{region_n}_dynamodb_",
-                    COORDINATOR_ELASTICACHE: f"aws_{account_name}_{region_n}_elasticache_",
-                    COORDINATOR_ECS: f"aws_{account_name}_{region_n}_ecs_",
-                    COORDINATOR_EKS: f"aws_{account_name}_{region_n}_eks_",
-                    COORDINATOR_EBS: f"aws_{account_name}_{region_n}_ebs_",
-                    COORDINATOR_SNS: f"aws_{account_name}_{region_n}_sns_",
-                    COORDINATOR_SQS: f"aws_{account_name}_{region_n}_sqs_",
-                    COORDINATOR_S3: f"aws_{account_name}_{region_n}_s3_",
-                    COORDINATOR_CLOUDWATCH_ALARMS: f"aws_{account_name}_{region_n}_alarm_",
-                    COORDINATOR_ELASTIC_IPS: f"aws_{account_name}_{region_n}_eip_",
-                    COORDINATOR_CLASSIC_LB: f"aws_{account_name}_{region_n}_classic_lb_",
-                    COORDINATOR_EFS: f"aws_{account_name}_{region_n}_efs_",
-                    COORDINATOR_KINESIS: f"aws_{account_name}_{region_n}_kinesis_",
-                    COORDINATOR_BEANSTALK: f"aws_{account_name}_{region_n}_beanstalk_",
-                    COORDINATOR_ROUTE53: f"aws_{account_name}_route53_",
-                    COORDINATOR_CLOUDFRONT: f"aws_{account_name}_cloudfront_",
-                    COORDINATOR_VPC: f"aws_{account_name}_{region_n}_vpc_",
-                    COORDINATOR_ACM: f"aws_{account_name}_{region_n}_acm_",
-                    COORDINATOR_ECR: f"aws_{account_name}_{region_n}_ecr_",
-                    COORDINATOR_CLOUDTRAIL: f"aws_{account_name}_{region_n}_cloudtrail_",
-                    COORDINATOR_IAM: f"aws_{account_name}_iam_",
-                    COORDINATOR_REDSHIFT: f"aws_{account_name}_{region_n}_redshift_",
-                    COORDINATOR_API_GATEWAY: f"aws_{account_name}_{region_n}_apigw_",
-                    COORDINATOR_COST: f"aws_{account_name}_cost_service_",
-                }
-                prefix = coord_prefix_map.get(coordinator_key)
-                if prefix and uid.startswith(prefix):
-                    owned_by_coord.add(uid)
 
             entry.async_on_unload(
                 coordinator.async_add_listener(make_listener(coordinator_key, coordinator, region, owned_by_coord))
@@ -3973,3 +4014,4 @@ class AwsRedshiftClusterSensor(CoordinatorEntity, SensorEntity):
             "created_time": cluster.get("created_time"),
             "last_updated": dt_util.now(),
         }
+
