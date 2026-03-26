@@ -4,10 +4,10 @@ Monitor your entire AWS infrastructure from Home Assistant. Track 15 AWS service
 
 ## 🚀 Features
 
-### 25 AWS Services Monitored
+### 27 AWS Services Monitored
 - **Compute**: EC2, Lambda, ECS, EKS, ECR, Auto Scaling Groups, Elastic Beanstalk
 - **Data & Storage**: RDS, DynamoDB, ElastiCache, S3, EBS Volumes, EFS, ACM Certificates, ECR
-- **Security**: ACM Certificates (with expiry tracking)
+- **Security**: IAM (users, roles, password policy, root account), ACM Certificates (with expiry tracking), CloudTrail
 - **Networking**: VPC, Route 53, CloudFront, API Gateway, ALB/NLB Load Balancers, Classic Load Balancers, Elastic IPs, Kinesis, SNS, SQS
 - **Monitoring**: CloudWatch Alarms
 
@@ -138,10 +138,13 @@ English • French • German • Italian • Spanish • Dutch • Swedish • 
 - ✨ ACM certificate monitoring with expiry alerting
 - ✨ ECR repository monitoring
 
-## 📝 What's New in v1.6.2
+## 📝 What's New in v1.6.3
 
-- ✨ ACM certificate monitoring with expiry tracking
-- ✨ ECR repository monitoring
+- ✨ CloudTrail audit trail monitoring with logging status and error detection
+
+## 📝 What's New in v1.6.5
+
+- ✨ IAM monitoring: user hygiene, roles, password policy, root account security
 
 ## 🔗 Links
 

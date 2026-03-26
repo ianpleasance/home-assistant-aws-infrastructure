@@ -101,6 +101,14 @@ class AwsClient:
         """Get ECR (Elastic Container Registry) client."""
         return self._client("ecr")
 
+    def get_cloudtrail_client(self):
+        """Get CloudTrail client."""
+        return self._client("cloudtrail")
+
+    def get_iam_client(self):
+        """Get IAM client (global service, uses us-east-1)."""
+        return self._client("iam", region_name="us-east-1")
+
     def get_autoscaling_client(self):
         """Get Auto Scaling client."""
         return self._client("autoscaling")

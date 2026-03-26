@@ -47,6 +47,8 @@ from .const import (
     COORDINATOR_VPC,
     COORDINATOR_ACM,
     COORDINATOR_ECR,
+    COORDINATOR_CLOUDTRAIL,
+    COORDINATOR_IAM,
     DOMAIN,
 )
 
@@ -493,6 +495,50 @@ async def async_setup_entry(
                         registered_ids.add(uid)
                         new_entities.append(AwsECRRepositorySensor(coordinator, account_name, region, repo["name"]))
 
+        # CloudTrail
+        elif coordinator_key == COORDINATOR_CLOUDTRAIL:
+            region_n = region.replace("-", "_")
+            if create_individual:
+                uid = f"aws_{account_name}_{region_n}_cloudtrail_count"
+                if uid not in registered_ids:
+                    registered_ids.add(uid)
+                    new_entities.append(AwsCloudTrailCountSensor(coordinator, account_name, region))
+            if coordinator.data:
+                for trail in coordinator.data.get("trails", []):
+                    t_n = trail["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_{region_n}_cloudtrail_{t_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsCloudTrailSensor(coordinator, account_name, region, trail["name"]))
+
+        # IAM (global — only present in us-east-1 coordinators)
+        elif coordinator_key == COORDINATOR_IAM:
+            # Account-level summary sensor
+            uid = f"aws_{account_name}_iam_summary"
+            if uid not in registered_ids:
+                registered_ids.add(uid)
+                new_entities.append(AwsIAMSummarySensor(coordinator, account_name))
+            # Password policy sensor
+            uid = f"aws_{account_name}_iam_password_policy"
+            if uid not in registered_ids:
+                registered_ids.add(uid)
+                new_entities.append(AwsIAMPasswordPolicySensor(coordinator, account_name))
+            # Per-user sensors
+            if coordinator.data:
+                for user in coordinator.data.get("users", []):
+                    u_n = user["username"].replace("-", "_").replace(".", "_").replace("@", "_")
+                    uid = f"aws_{account_name}_iam_user_{u_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsIAMUserSensor(coordinator, account_name, user["username"]))
+                # Per-role sensors (customer-managed only)
+                for role in coordinator.data.get("roles", []):
+                    r_n = role["name"].replace("-", "_").replace(".", "_")
+                    uid = f"aws_{account_name}_iam_role_{r_n}"
+                    if uid not in registered_ids:
+                        registered_ids.add(uid)
+                        new_entities.append(AwsIAMRoleSensor(coordinator, account_name, role["name"]))
+
         # CloudFront (global — only present in us-east-1 coordinators)
         elif coordinator_key == COORDINATOR_CLOUDFRONT:
             if create_individual:
@@ -710,6 +756,19 @@ async def async_setup_entry(
                             for r in data.get("repositories", []):
                                 r_n = r["name"].replace("-", "_").replace(".", "_").replace("/", "_")
                                 current_ids.add(f"aws_{account_name}_{region_n}_ecr_{r_n}")
+                        elif key == COORDINATOR_CLOUDTRAIL:
+                            for t in data.get("trails", []):
+                                t_n = t["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_{region_n}_cloudtrail_{t_n}")
+                        elif key == COORDINATOR_IAM:
+                            current_ids.add(f"aws_{account_name}_iam_summary")
+                            current_ids.add(f"aws_{account_name}_iam_password_policy")
+                            for u in data.get("users", []):
+                                u_n = u["username"].replace("-", "_").replace(".", "_").replace("@", "_")
+                                current_ids.add(f"aws_{account_name}_iam_user_{u_n}")
+                            for r in data.get("roles", []):
+                                r_n = r["name"].replace("-", "_").replace(".", "_")
+                                current_ids.add(f"aws_{account_name}_iam_role_{r_n}")
                         elif key == COORDINATOR_API_GATEWAY:
                             for a in data.get("apis", []):
                                 a_n = a["id"].replace("-", "_")
@@ -769,8 +828,12 @@ async def async_setup_entry(
                     COORDINATOR_VPC: f"aws_{account_name}_{region_n}_vpc_",
                     COORDINATOR_ACM: f"aws_{account_name}_{region_n}_acm_",
                     COORDINATOR_ECR: f"aws_{account_name}_{region_n}_ecr_",
+                    COORDINATOR_CLOUDTRAIL: f"aws_{account_name}_{region_n}_cloudtrail_",
+                    COORDINATOR_IAM: f"aws_{account_name}_iam_",
                     COORDINATOR_ACM: f"aws_{account_name}_{region_n}_acm_",
                     COORDINATOR_ECR: f"aws_{account_name}_{region_n}_ecr_",
+                    COORDINATOR_CLOUDTRAIL: f"aws_{account_name}_{region_n}_cloudtrail_",
+                    COORDINATOR_IAM: f"aws_{account_name}_iam_",
                     COORDINATOR_API_GATEWAY: f"aws_{account_name}_{region_n}_apigw_",
                     COORDINATOR_COST: f"aws_{account_name}_cost_service_",
                 }
@@ -841,8 +904,10 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_VPC, "vpcs"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
         ]:
             if key in self._coordinators and self._coordinators[key].data:
                 total += len(self._coordinators[key].data.get(data_key, []))
@@ -987,23 +1052,33 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_VPC, "vpcs"),
                 (COORDINATOR_ACM, "certificates"),
                 (COORDINATOR_ECR, "repositories"),
+                (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
                 (COORDINATOR_ACM, "certificates"),
                 (COORDINATOR_ECR, "repositories"),
+                (COORDINATOR_CLOUDTRAIL, "trails"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_VPC, "vpcs"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_VPC, "vpcs"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
                 (COORDINATOR_ROUTE53, "zones"),
                 (COORDINATOR_CLOUDFRONT, "distributions"),
             (COORDINATOR_BEANSTALK, "environments"),
@@ -1011,16 +1086,20 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_VPC, "vpcs"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
             (COORDINATOR_API_GATEWAY, "apis"),
             (COORDINATOR_VPC, "vpcs"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_EFS, "file_systems"),
             (COORDINATOR_KINESIS, "streams"),
             (COORDINATOR_BEANSTALK, "environments"),
@@ -1028,8 +1107,10 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_VPC, "vpcs"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             (COORDINATOR_ACM, "certificates"),
             (COORDINATOR_ECR, "repositories"),
+            (COORDINATOR_CLOUDTRAIL, "trails"),
             ]:
                 if key in region_coordinators and region_coordinators[key].data:
                     total += len(region_coordinators[key].data.get(data_key, []))
@@ -1055,9 +1136,25 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "acm_certificates": 0,
             "acm_expiring_30d": 0,
             "ecr_repositories": 0,
+            "cloudtrail_trails": 0,
+            "cloudtrail_logging": 0,
+            "iam_users": 0,
+            "iam_users_no_mfa": 0,
+            "iam_users_old_password": 0,
+            "iam_users_old_keys": 0,
+            "iam_roles": 0,
+            "iam_roles_unused_90d": 0,
             "acm_certificates": 0,
             "acm_expiring_30d": 0,
             "ecr_repositories": 0,
+            "cloudtrail_trails": 0,
+            "cloudtrail_logging": 0,
+            "iam_users": 0,
+            "iam_users_no_mfa": 0,
+            "iam_users_old_password": 0,
+            "iam_users_old_keys": 0,
+            "iam_roles": 0,
+            "iam_roles_unused_90d": 0,
             "route53_zones": 0,
             "cloudfront_distributions": 0,
         }
@@ -1213,6 +1310,24 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                     region_has_resources = True
                 totals["ecr_repositories"] += len(repos)
 
+            if COORDINATOR_CLOUDTRAIL in region_coordinators and region_coordinators[COORDINATOR_CLOUDTRAIL].data:
+                trails = region_coordinators[COORDINATOR_CLOUDTRAIL].data.get("trails", [])
+                if trails:
+                    region_has_resources = True
+                totals["cloudtrail_trails"] += len(trails)
+                totals["cloudtrail_logging"] += sum(1 for t in trails if t.get("is_logging"))
+
+            if COORDINATOR_IAM in region_coordinators and region_coordinators[COORDINATOR_IAM].data:
+                iam_data = region_coordinators[COORDINATOR_IAM].data
+                users = iam_data.get("users", [])
+                roles = iam_data.get("roles", [])
+                totals["iam_users"] += len(users)
+                totals["iam_users_no_mfa"] += sum(1 for u in users if u.get("password_enabled") and not u.get("mfa_active"))
+                totals["iam_users_old_password"] += sum(1 for u in users if u.get("password_last_changed_days") is not None and u["password_last_changed_days"] > 90)
+                totals["iam_users_old_keys"] += sum(1 for u in users if u.get("oldest_key_age_days") is not None and u["oldest_key_age_days"] > 90)
+                totals["iam_roles"] += len(roles)
+                totals["iam_roles_unused_90d"] += sum(1 for r in roles if r.get("last_used_days") is not None and r["last_used_days"] > 90)
+
             if COORDINATOR_ACM in region_coordinators and region_coordinators[COORDINATOR_ACM].data:
                 certs = region_coordinators[COORDINATOR_ACM].data.get("certificates", [])
                 if certs:
@@ -1225,6 +1340,15 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 if repos:
                     region_has_resources = True
                 totals["ecr_repositories"] += len(repos)
+
+            if COORDINATOR_CLOUDTRAIL in region_coordinators and region_coordinators[COORDINATOR_CLOUDTRAIL].data:
+                trails = region_coordinators[COORDINATOR_CLOUDTRAIL].data.get("trails", [])
+                if trails:
+                    region_has_resources = True
+                totals["cloudtrail_trails"] += len(trails)
+                totals["cloudtrail_logging"] += sum(1 for t in trails if t.get("is_logging"))
+
+
 
             if COORDINATOR_ROUTE53 in region_coordinators and region_coordinators[COORDINATOR_ROUTE53].data:
                 zones = region_coordinators[COORDINATOR_ROUTE53].data.get("zones", [])
@@ -3470,3 +3594,300 @@ class AwsECRRepositorySensor(CoordinatorEntity, SensorEntity):
 # ============================================================================
 # SENSORS - ACM (Certificate Manager)
 # ============================================================================
+
+
+
+# ============================================================================
+# SENSORS - CloudTrail
+# ============================================================================
+
+
+class AwsCloudTrailCountSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for CloudTrail trail count."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:shield-search"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str, region: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        region_normalized = region.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_cloudtrail_count"
+        self._attr_name = "CloudTrail Trails"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the count of trails."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("trails", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return logging summary."""
+        attrs: dict[str, Any] = {"last_updated": dt_util.now()}
+        if self.coordinator.data:
+            trails = self.coordinator.data.get("trails", [])
+            attrs["logging"] = sum(1 for t in trails if t.get("is_logging"))
+            attrs["not_logging"] = sum(1 for t in trails if not t.get("is_logging"))
+        return attrs
+
+
+class AwsCloudTrailSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual CloudTrail trail."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:shield-search"
+
+    def __init__(self, coordinator, account_name: str, region: str, trail_name: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        self._trail_name = trail_name
+        region_normalized = region.replace("-", "_")
+        trail_normalized = trail_name.replace("-", "_").replace(".", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_cloudtrail_{trail_normalized}"
+        self._attr_name = f"CloudTrail {trail_name}"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    def _get_trail(self) -> dict | None:
+        """Return the trail data dict."""
+        if self.coordinator.data:
+            for trail in self.coordinator.data.get("trails", []):
+                if trail.get("name") == self._trail_name:
+                    return trail
+        return None
+
+    @property
+    def native_value(self) -> str | None:
+        """Return logging state as string."""
+        trail = self._get_trail()
+        if trail is None:
+            return None
+        return "logging" if trail.get("is_logging") else "not_logging"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return full trail details."""
+        trail = self._get_trail()
+        if not trail:
+            return {"last_updated": dt_util.now()}
+        return {
+            "name": trail.get("name"),
+            "arn": trail.get("arn"),
+            "home_region": trail.get("home_region"),
+            "is_logging": trail.get("is_logging"),
+            "is_multi_region": trail.get("is_multi_region"),
+            "is_organization": trail.get("is_organization"),
+            "log_file_validation": trail.get("log_file_validation"),
+            "s3_bucket": trail.get("s3_bucket"),
+            "cloudwatch_logs_arn": trail.get("cloudwatch_logs_arn"),
+            "kms_key_id": trail.get("kms_key_id"),
+            "management_events": trail.get("management_events"),
+            "data_event_count": trail.get("data_event_count"),
+            "latest_delivery": trail.get("latest_delivery"),
+            "latest_error": trail.get("latest_error"),
+            "latest_digest": trail.get("latest_digest"),
+            "last_updated": dt_util.now(),
+        }
+
+
+# ============================================================================
+# SENSORS - IAM
+# ============================================================================
+
+
+class AwsIAMSummarySensor(CoordinatorEntity, SensorEntity):
+    """Sensor for IAM account-level summary (global)."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:account-lock"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._attr_unique_id = f"aws_{account_name}_iam_summary"
+        self._attr_name = "IAM Summary"
+        self._attr_device_info = _make_global_device_info(account_name)
+
+    @property
+    def native_value(self) -> int:
+        """Return total IAM user count."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("users", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return account-level IAM summary."""
+        attrs: dict[str, Any] = {"last_updated": dt_util.now()}
+        if not self.coordinator.data:
+            return attrs
+        users = self.coordinator.data.get("users", [])
+        roles = self.coordinator.data.get("roles", [])
+        summary = self.coordinator.data.get("account_summary", {})
+
+        attrs.update({
+            "total_users": len(users),
+            "users_no_mfa": sum(1 for u in users if u.get("password_enabled") and not u.get("mfa_active")),
+            "users_old_password_90d": sum(1 for u in users if u.get("password_last_changed_days") is not None and u["password_last_changed_days"] > 90),
+            "users_not_logged_in_90d": sum(1 for u in users if u.get("password_last_used_days") is not None and u["password_last_used_days"] > 90),
+            "users_old_keys_90d": sum(1 for u in users if u.get("oldest_key_age_days") is not None and u["oldest_key_age_days"] > 90),
+            "total_roles": len(roles),
+            "roles_unused_90d": sum(1 for r in roles if r.get("last_used_days") is not None and r["last_used_days"] > 90),
+            "root_mfa_enabled": summary.get("root_mfa_enabled"),
+            "root_access_keys": summary.get("access_keys_present", 0),
+            "mfa_devices_in_use": summary.get("mfa_devices_in_use"),
+            "total_groups": summary.get("groups"),
+            "total_policies": summary.get("policies"),
+        })
+        return attrs
+
+
+class AwsIAMPasswordPolicySensor(CoordinatorEntity, SensorEntity):
+    """Sensor for IAM account password policy (global)."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:lock-check"
+
+    def __init__(self, coordinator, account_name: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._attr_unique_id = f"aws_{account_name}_iam_password_policy"
+        self._attr_name = "IAM Password Policy"
+        self._attr_device_info = _make_global_device_info(account_name)
+
+    @property
+    def native_value(self) -> int | None:
+        """Return max password age (days), or None if no expiry."""
+        if self.coordinator.data:
+            pp = self.coordinator.data.get("password_policy", {})
+            return pp.get("max_password_age")
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return full password policy details."""
+        if self.coordinator.data:
+            pp = self.coordinator.data.get("password_policy", {})
+            return {**pp, "last_updated": dt_util.now()}
+        return {"last_updated": dt_util.now()}
+
+
+class AwsIAMUserSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual IAM user."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:account"
+
+    def __init__(self, coordinator, account_name: str, username: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._username = username
+        u_n = username.replace("-", "_").replace(".", "_").replace("@", "_")
+        self._attr_unique_id = f"aws_{account_name}_iam_user_{u_n}"
+        self._attr_name = f"IAM User {username}"
+        self._attr_device_info = _make_global_device_info(account_name)
+
+    def _get_user(self) -> dict | None:
+        """Return the user data dict."""
+        if self.coordinator.data:
+            for user in self.coordinator.data.get("users", []):
+                if user.get("username") == self._username:
+                    return user
+        return None
+
+    @property
+    def native_value(self) -> int | None:
+        """Return days since last console login (None if never logged in)."""
+        user = self._get_user()
+        return user.get("password_last_used_days") if user else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return full user details."""
+        user = self._get_user()
+        if not user:
+            return {"last_updated": dt_util.now()}
+        return {
+            "username": user.get("username"),
+            "arn": user.get("arn"),
+            "password_enabled": user.get("password_enabled"),
+            "mfa_active": user.get("mfa_active"),
+            "password_last_changed_days": user.get("password_last_changed_days"),
+            "password_last_used_days": user.get("password_last_used_days"),
+            "key1_active": user.get("key1_active"),
+            "key1_age_days": user.get("key1_age_days"),
+            "key1_last_used_days": user.get("key1_last_used_days"),
+            "key2_active": user.get("key2_active"),
+            "key2_age_days": user.get("key2_age_days"),
+            "key2_last_used_days": user.get("key2_last_used_days"),
+            "oldest_key_age_days": user.get("oldest_key_age_days"),
+            "active_key_count": user.get("active_key_count"),
+            "last_updated": dt_util.now(),
+        }
+
+
+class AwsIAMRoleSensor(CoordinatorEntity, SensorEntity):
+    """Sensor for an individual IAM customer-managed role."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:account-key"
+
+    def __init__(self, coordinator, account_name: str, role_name: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._role_name = role_name
+        r_n = role_name.replace("-", "_").replace(".", "_")
+        self._attr_unique_id = f"aws_{account_name}_iam_role_{r_n}"
+        self._attr_name = f"IAM Role {role_name}"
+        self._attr_device_info = _make_global_device_info(account_name)
+
+    def _get_role(self) -> dict | None:
+        """Return the role data dict."""
+        if self.coordinator.data:
+            for role in self.coordinator.data.get("roles", []):
+                if role.get("name") == self._role_name:
+                    return role
+        return None
+
+    @property
+    def native_value(self) -> int | None:
+        """Return days since last used (None if never used)."""
+        role = self._get_role()
+        return role.get("last_used_days") if role else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return full role details."""
+        role = self._get_role()
+        if not role:
+            return {"last_updated": dt_util.now()}
+        return {
+            "name": role.get("name"),
+            "arn": role.get("arn"),
+            "path": role.get("path"),
+            "description": role.get("description"),
+            "last_used_days": role.get("last_used_days"),
+            "last_used_region": role.get("last_used_region"),
+            "created_days_ago": role.get("created_days_ago"),
+            "max_session_duration": role.get("max_session_duration"),
+            "has_permissions_boundary": role.get("has_permissions_boundary"),
+            "last_updated": dt_util.now(),
+        }

@@ -1515,3 +1515,314 @@ class AwsECRCoordinator(AwsBaseCoordinator):
         except Exception as err:
             _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching ECR", self.account_name, self.region, err)
             return {"repositories": []}
+
+
+
+class AwsCloudTrailCoordinator(AwsBaseCoordinator):
+    """Coordinator for CloudTrail trail data."""
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            f"CloudTrail ({aws_client.region})",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch CloudTrail trail data."""
+        try:
+            ct_client = self.aws_client.get_cloudtrail_client()
+
+            # includeShadowTrails=False still returns trails homed in other
+            # regions when queried from a different region. Filter explicitly
+            # to only trails whose HomeRegion matches the current region so
+            # each trail is counted exactly once.
+            trails_response = ct_client.describe_trails(includeShadowTrails=False)
+            trails = []
+
+            for trail in trails_response.get('trailList', []):
+                # Skip trails not homed in this region
+                if trail.get('HomeRegion') != self.region:
+                    continue
+                trail_arn = trail.get('TrailARN')
+                name = trail.get('Name')
+
+                # Get trail status
+                is_logging = False
+                latest_delivery = None
+                latest_error = None
+                latest_digest = None
+                try:
+                    status = ct_client.get_trail_status(Name=trail_arn)
+                    is_logging = status.get('IsLogging', False)
+                    latest_delivery = str(status.get('LatestDeliveryTime', '') or '')
+                    latest_error = status.get('LatestDeliveryError') or ''
+                    latest_digest = str(status.get('LatestDigestDeliveryTime', '') or '')
+                except Exception:
+                    pass
+
+                # Get event selectors
+                management_events = False
+                data_event_count = 0
+                try:
+                    selectors = ct_client.get_event_selectors(TrailName=trail_arn)
+                    for selector in selectors.get('EventSelectors', []):
+                        if selector.get('ReadWriteType') in ('All', 'WriteOnly', 'ReadOnly'):
+                            management_events = True
+                        data_event_count += len(selector.get('DataResources', []))
+                except Exception:
+                    pass
+
+                trails.append({
+                    'name': name,
+                    'arn': trail_arn,
+                    'home_region': trail.get('HomeRegion'),
+                    'is_logging': is_logging,
+                    'is_multi_region': trail.get('IsMultiRegionTrail', False),
+                    'is_organization': trail.get('IsOrganizationTrail', False),
+                    'log_file_validation': trail.get('LogFileValidationEnabled', False),
+                    's3_bucket': trail.get('S3BucketName'),
+                    'cloudwatch_logs_arn': trail.get('CloudWatchLogsLogGroupArn'),
+                    'kms_key_id': trail.get('KMSKeyId'),
+                    'has_custom_event_selectors': trail.get('HasCustomEventSelectors', False),
+                    'management_events': management_events,
+                    'data_event_count': data_event_count,
+                    'latest_delivery': latest_delivery,
+                    'latest_error': latest_error,
+                    'latest_digest': latest_digest,
+                })
+
+            return {"trails": trails}
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching CloudTrail", self.account_name, self.region, err)
+            return {"trails": []}
+
+
+class AwsIAMCoordinator(AwsBaseCoordinator):
+    """Coordinator for IAM data (global service, fetched via us-east-1).
+    
+    Covers:
+    - Users via credential report (last login, password age, MFA, access key age/usage)
+    - Customer-managed roles (last used, trust policy, permissions boundary)
+    - Account summary (root account status, MFA, totals)
+    - Password policy
+    """
+
+    def __init__(
+        self, hass: HomeAssistant, aws_client, account_name: str, refresh_interval: int
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            aws_client,
+            account_name,
+            "IAM (global)",
+            refresh_interval,
+        )
+
+    def _fetch_data(self) -> dict:
+        """Fetch IAM data."""
+        try:
+            from datetime import datetime, timezone, timedelta
+            import csv
+            import io
+
+            iam_client = self.aws_client.get_iam_client()
+            now = datetime.now(timezone.utc)
+
+            # ----------------------------------------------------------------
+            # Users via credential report
+            # ----------------------------------------------------------------
+            users = []
+            try:
+                # Generate report — AWS may need a moment to prepare it
+                iam_client.generate_credential_report()
+                import time
+                report = None
+                for attempt in range(10):
+                    try:
+                        report = iam_client.get_credential_report()
+                        break
+                    except iam_client.exceptions.CredentialReportNotReadyException:
+                        time.sleep(2)
+
+                if report is None:
+                    _LOGGER.warning("IAM [account=%s]: credential report not ready after 20s", self.account_name)
+                else:
+                    content = report['Content'].decode('utf-8')
+                    reader = csv.DictReader(io.StringIO(content))
+
+                    def days_since(val):
+                        if not val or val in ('N/A', 'no_information', 'not_supported'):
+                            return None
+                        try:
+                            dt = datetime.fromisoformat(val.replace('Z', '+00:00'))
+                            if dt.tzinfo is None:
+                                dt = dt.replace(tzinfo=timezone.utc)
+                            return (now - dt).days
+                        except Exception:
+                            return None
+
+                    for row in reader:
+                        username = row.get('user', '')
+                        if username == '<root_account>':
+                            continue  # handled separately in account summary
+
+                        pw_last_changed = days_since(row.get('password_last_changed'))
+                        pw_last_used = days_since(row.get('password_last_used'))
+                        key1_last_rotated = days_since(row.get('access_key_1_last_rotated'))
+                        key2_last_rotated = days_since(row.get('access_key_2_last_rotated'))
+                        key1_last_used = days_since(row.get('access_key_1_last_used_date'))
+                        key2_last_used = days_since(row.get('access_key_2_last_used_date'))
+
+                        key1_active = row.get('access_key_1_active', 'false').lower() == 'true'
+                        key2_active = row.get('access_key_2_active', 'false').lower() == 'true'
+                        mfa_active = row.get('mfa_active', 'false').lower() == 'true'
+                        pw_enabled = row.get('password_enabled', 'false').lower() == 'true'
+
+                        active_key_ages = [a for a in [
+                            key1_last_rotated if key1_active else None,
+                            key2_last_rotated if key2_active else None,
+                        ] if a is not None]
+                        oldest_key_age = max(active_key_ages) if active_key_ages else None
+
+                        users.append({
+                            'username': username,
+                            'arn': row.get('arn'),
+                            'password_enabled': pw_enabled,
+                            'mfa_active': mfa_active,
+                            'password_last_changed_days': pw_last_changed,
+                            'password_last_used_days': pw_last_used,
+                            'key1_active': key1_active,
+                            'key1_age_days': key1_last_rotated,
+                            'key1_last_used_days': key1_last_used,
+                            'key2_active': key2_active,
+                            'key2_age_days': key2_last_rotated,
+                            'key2_last_used_days': key2_last_used,
+                            'oldest_key_age_days': oldest_key_age,
+                            'active_key_count': sum([key1_active, key2_active]),
+                        })
+            except Exception as err:
+                _LOGGER.warning("IAM [account=%s]: credential report error: %s", self.account_name, err)
+
+            # ----------------------------------------------------------------
+            # Customer-managed roles
+            # ----------------------------------------------------------------
+            roles = []
+            try:
+                paginator = iam_client.get_paginator('list_roles')
+                for page in paginator.paginate():
+                    for role in page.get('Roles', []):
+                        path = role.get('Path', '/')
+                        name = role.get('RoleName', '')
+
+                        # Skip service-linked and AWS-reserved roles by path
+                        if (path.startswith('/aws-service-role/')
+                                or path.startswith('/aws-reserved/')
+                                or path.startswith('/service-role/')):
+                            continue
+
+                        # Skip well-known AWS-created role name patterns
+                        # These are created automatically by AWS services and are
+                        # not customer-managed even if they have path "/"
+                        aws_name_prefixes = (
+                            'aws-',           # aws-elasticbeanstalk-*, aws-opsworks-*, etc.
+                            'AWS',            # AWSServiceRole*, AmazonEKS*, etc.
+                            'Amazon',         # AmazonEKSAutoClusterRole, etc.
+                        )
+                        if name.startswith(aws_name_prefixes):
+                            continue
+
+                        # Skip auto-created Lambda/CodeBuild execution roles
+                        # These follow patterns like: FunctionName-role-xxxxxxxx
+                        # or ServiceName-region-service-role
+                        import re
+                        if re.search(r'-role-[a-z0-9]{8,}$', name, re.IGNORECASE):
+                            continue
+                        if name.endswith('-service-role') and '-' in name:
+                            # e.g. codebuild-ProjectName-service-role
+                            continue
+
+                        last_used = role.get('RoleLastUsed', {})
+                        last_used_date = last_used.get('LastUsedDate')
+                        days_since_used = None
+                        if last_used_date:
+                            if hasattr(last_used_date, 'tzinfo') and last_used_date.tzinfo:
+                                days_since_used = (now - last_used_date).days
+                            else:
+                                days_since_used = (now - last_used_date.replace(tzinfo=timezone.utc)).days
+
+                        roles.append({
+                            'name': role.get('RoleName'),
+                            'arn': role.get('Arn'),
+                            'path': path,
+                            'created_days_ago': (now - role['CreateDate'].replace(tzinfo=timezone.utc) if role.get('CreateDate') and not role['CreateDate'].tzinfo else now - role['CreateDate']).days if role.get('CreateDate') else None,
+                            'last_used_days': days_since_used,
+                            'last_used_region': last_used.get('Region'),
+                            'description': role.get('Description', ''),
+                            'max_session_duration': role.get('MaxSessionDuration'),
+                            'has_permissions_boundary': 'PermissionsBoundary' in role,
+                        })
+            except Exception as err:
+                _LOGGER.warning("IAM [account=%s]: roles error: %s", self.account_name, err)
+
+            # ----------------------------------------------------------------
+            # Account summary
+            # ----------------------------------------------------------------
+            account_summary = {}
+            try:
+                summary = iam_client.get_account_summary()
+                s = summary.get('SummaryMap', {})
+                account_summary = {
+                    'users': s.get('Users', 0),
+                    'groups': s.get('Groups', 0),
+                    'roles': s.get('Roles', 0),
+                    'policies': s.get('Policies', 0),
+                    'mfa_devices': s.get('MFADevices', 0),
+                    'mfa_devices_in_use': s.get('MFADevicesInUse', 0),
+                    'root_mfa_enabled': s.get('AccountMFAEnabled', 0) == 1,
+                    'access_keys_present': s.get('AccountAccessKeysPresent', 0),
+                }
+            except Exception as err:
+                _LOGGER.warning("IAM [account=%s]: account summary error: %s", self.account_name, err)
+
+            # ----------------------------------------------------------------
+            # Password policy
+            # ----------------------------------------------------------------
+            password_policy = {}
+            try:
+                pp = iam_client.get_account_password_policy()
+                p = pp.get('PasswordPolicy', {})
+                password_policy = {
+                    'min_length': p.get('MinimumPasswordLength'),
+                    'require_uppercase': p.get('RequireUppercaseCharacters', False),
+                    'require_lowercase': p.get('RequireLowercaseCharacters', False),
+                    'require_numbers': p.get('RequireNumbers', False),
+                    'require_symbols': p.get('RequireSymbols', False),
+                    'allow_users_to_change': p.get('AllowUsersToChangePassword', False),
+                    'expire_passwords': p.get('ExpirePasswords', False),
+                    'max_password_age': p.get('MaxPasswordAge'),
+                    'password_reuse_prevention': p.get('PasswordReusePrevention'),
+                    'hard_expiry': p.get('HardExpiry', False),
+                }
+            except iam_client.exceptions.NoSuchEntityException:
+                # No password policy set — using AWS defaults
+                password_policy = {'configured': False}
+            except Exception as err:
+                _LOGGER.warning("IAM [account=%s]: password policy error: %s", self.account_name, err)
+
+            return {
+                "users": users,
+                "roles": roles,
+                "account_summary": account_summary,
+                "password_policy": password_policy,
+            }
+
+        except Exception as err:
+            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching IAM", self.account_name, self.region, err)
+            return {"users": [], "roles": [], "account_summary": {}, "password_policy": {}}

@@ -81,6 +81,8 @@ COORDINATOR_CLOUDFRONT = "cloudfront"
 COORDINATOR_VPC = "vpc"
 COORDINATOR_ACM = "acm"
 COORDINATOR_ECR = "ecr"
+COORDINATOR_CLOUDTRAIL = "cloudtrail"
+COORDINATOR_IAM = "iam"
 
 # Attribution
 ATTRIBUTION = "Data provided by Amazon Web Services"

@@ -93,6 +93,22 @@ views:
           {% set ecr_count = state_attr('sensor.aws_live_global_summary',
           'ecr_repositories') | int(0) %}
 
+          {% set cloudtrail_count = state_attr('sensor.aws_live_global_summary',
+          'cloudtrail_trails') | int(0) %}
+
+          {% set cloudtrail_logging = state_attr('sensor.aws_live_global_summary',
+          'cloudtrail_logging') | int(0) %}
+
+          {% set iam_users = state_attr('sensor.aws_live_global_summary', 'iam_users') | int(0) %}
+
+          {% set iam_no_mfa = state_attr('sensor.aws_live_global_summary', 'iam_users_no_mfa') | int(0) %}
+
+          {% set iam_old_keys = state_attr('sensor.aws_live_global_summary', 'iam_users_old_keys') | int(0) %}
+
+          {% set iam_roles = state_attr('sensor.aws_live_global_summary', 'iam_roles') | int(0) %}
+
+          {% set iam_unused_roles = state_attr('sensor.aws_live_global_summary', 'iam_roles_unused_90d') | int(0) %}
+
           {% set acm_count = state_attr('sensor.aws_live_global_summary',
           'acm_certificates') | int(0) %}
 
@@ -101,6 +117,22 @@ views:
 
           {% set ecr_count = state_attr('sensor.aws_live_global_summary',
           'ecr_repositories') | int(0) %}
+
+          {% set cloudtrail_count = state_attr('sensor.aws_live_global_summary',
+          'cloudtrail_trails') | int(0) %}
+
+          {% set cloudtrail_logging = state_attr('sensor.aws_live_global_summary',
+          'cloudtrail_logging') | int(0) %}
+
+          {% set iam_users = state_attr('sensor.aws_live_global_summary', 'iam_users') | int(0) %}
+
+          {% set iam_no_mfa = state_attr('sensor.aws_live_global_summary', 'iam_users_no_mfa') | int(0) %}
+
+          {% set iam_old_keys = state_attr('sensor.aws_live_global_summary', 'iam_users_old_keys') | int(0) %}
+
+          {% set iam_roles = state_attr('sensor.aws_live_global_summary', 'iam_roles') | int(0) %}
+
+          {% set iam_unused_roles = state_attr('sensor.aws_live_global_summary', 'iam_roles_unused_90d') | int(0) %}
 
           {% set cw_alarms = state_attr('sensor.aws_live_global_summary',
           'cloudwatch_alarms') | int(0) %}
@@ -178,6 +210,12 @@ views:
           ### 🔐 Security & Certificates
 
           - **ACM Certificates:** {{ acm_count }}{% if acm_expiring > 0 %} ⚠️ {{ acm_expiring }} expiring in 30 days{% endif %}
+
+          - **CloudTrail Trails:** {{ cloudtrail_count }} ({{ cloudtrail_logging }} logging){% if cloudtrail_count > cloudtrail_logging %} ⚠️ {{ cloudtrail_count - cloudtrail_logging }} not logging{% endif %}
+
+          - **IAM Users:** {{ iam_users }}{% if iam_no_mfa > 0 %} ⚠️ {{ iam_no_mfa }} without MFA{% endif %}{% if iam_old_keys > 0 %} ⚠️ {{ iam_old_keys }} old keys{% endif %}
+
+          - **IAM Roles:** {{ iam_roles }}{% if iam_unused_roles > 0 %} ⚠️ {{ iam_unused_roles }} unused 90d{% endif %}
 
 
           ### 📊 Monitoring
@@ -385,6 +423,8 @@ views:
 
           | 🐳 ECR Repositories | {{ state.attributes.ecr_repositories | default(0) }} |
 
+          | 🛡️ CloudTrail Trails | {{ state.attributes.cloudtrail_trails | default(0) }} ({{ state.attributes.cloudtrail_logging | default(0) }} logging) |
+
 
 
           | Resource | Count |
@@ -473,11 +513,11 @@ views:
           ### 💡 Dashboard Info
 
 
-          **Monitoring 25 AWS Services:**  
+          **Monitoring 27 AWS Services:**  
 
           EC2, RDS, Lambda, ECS, EKS, Beanstalk, DynamoDB, ElastiCache, S3, EBS, EFS, ECR,
-          VPC, ACM, Route 53, CloudFront, API Gateway, ALB/NLB Load Balancers, Classic Load Balancers,
-          Auto Scaling, Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
+          IAM, VPC, ACM, CloudTrail, Route 53, CloudFront, API Gateway, ALB/NLB Load Balancers,
+          Classic Load Balancers, Auto Scaling, Kinesis, SNS, SQS, CloudWatch Alarms, Elastic IPs
 
 
           **Cost Data**: Updates daily (24hr delay for new accounts)  

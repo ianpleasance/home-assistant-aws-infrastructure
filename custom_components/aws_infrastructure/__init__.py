@@ -46,6 +46,8 @@ from .const import (
     COORDINATOR_VPC,
     COORDINATOR_ACM,
     COORDINATOR_ECR,
+    COORDINATOR_CLOUDTRAIL,
+    COORDINATOR_IAM,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_COST_REFRESH_INTERVAL,
     DOMAIN,
@@ -80,6 +82,8 @@ from .coordinator import (
     AwsVPCCoordinator,
     AwsACMCoordinator,
     AwsECRCoordinator,
+    AwsCloudTrailCoordinator,
+    AwsIAMCoordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -138,6 +142,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
             # CloudFront is a global service — only fetch from us-east-1
             coordinators[COORDINATOR_CLOUDFRONT] = AwsCloudFrontCoordinator(
+                hass, aws_client, account_name, refresh_interval
+            )
+            # IAM is a global service — only fetch from us-east-1
+            coordinators[COORDINATOR_IAM] = AwsIAMCoordinator(
                 hass, aws_client, account_name, refresh_interval
             )
 
@@ -243,6 +251,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # ECR (Elastic Container Registry)
         coordinators[COORDINATOR_ECR] = AwsECRCoordinator(
+            hass, aws_client, account_name, refresh_interval
+        )
+
+        # CloudTrail
+        coordinators[COORDINATOR_CLOUDTRAIL] = AwsCloudTrailCoordinator(
             hass, aws_client, account_name, refresh_interval
         )
 

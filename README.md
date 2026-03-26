@@ -7,7 +7,7 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 
 ## Features
 
-### 📊 **25 AWS Services Monitored**
+### 📊 **27 AWS Services Monitored**
 
 #### 💻 Compute
 - **EC2 Instances** — Track running/stopped instances with state, type, launch time, and tags
@@ -30,6 +30,8 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 - **API Gateway** — REST, HTTP, and WebSocket API monitoring with type, endpoint, and creation date
 - **Route 53** — Global DNS hosting with public/private zone monitoring, record counts, and comments
 - **ALB / NLB Load Balancers** — Application and Network load balancers with DNS, scheme, state, and VPC
+- **IAM** — User security hygiene (MFA status, password age, last login, access key age), customer-managed role usage, account-level password policy, and root account security
+- **CloudTrail** — Audit trail monitoring with logging status, multi-region, log file validation, management/data event selectors, S3 bucket, CloudWatch Logs integration, and error reporting
 - **ACM (Certificate Manager)** — Monitor certificates with days until expiry, status, issuer, key algorithm, renewal eligibility, and SAN list. Expiry counts surfaced in summary sensors for easy alerting
 - **ECR (Elastic Container Registry)** — Repository monitoring with image counts, URI, tag mutability, scan-on-push, and encryption
 - **Classic Load Balancers** — Legacy ELB with registered instances, listeners, health check config, and VPC
@@ -40,6 +42,8 @@ A comprehensive Home Assistant integration for monitoring your AWS infrastructur
 - **Kinesis Streams** — Monitor data streams with status, mode, shard count, retention period, and consumer count
 
 #### 🔐 Security
+- **IAM** — User security hygiene (MFA status, password age, last login, access key age), customer-managed role usage, account-level password policy, and root account security
+- **CloudTrail** — Audit trail monitoring with logging status, multi-region, log file validation, management/data event selectors, S3 bucket, CloudWatch Logs integration, and error reporting
 - **ACM (Certificate Manager)** — Monitor SSL/TLS certificates with days-until-expiry, status, issuer, SANs, renewal eligibility, and in-use resources. Expiry alerts at 30/7 day thresholds
 - **ECR (Elastic Container Registry)** — Monitor container image repositories with image count, tag mutability, scan-on-push status, and encryption type
 
@@ -114,6 +118,9 @@ Create a dedicated IAM user with read-only permissions. The minimum required pol
                 "autoscaling:DescribeAutoScalingGroups",
                 "ce:GetCostAndUsage",
                 "cloudfront:ListDistributions",
+                "cloudtrail:DescribeTrails",
+                "cloudtrail:GetEventSelectors",
+                "cloudtrail:GetTrailStatus",
                 "cloudwatch:DescribeAlarms",
                 "dynamodb:DescribeTable",
                 "dynamodb:ListTables",
@@ -124,6 +131,11 @@ Create a dedicated IAM user with read-only permissions. The minimum required pol
                 "ec2:DescribeVpcs",
                 "ec2:DescribeVpnConnections",
                 "ec2:DescribeAddresses",
+                "iam:GenerateCredentialReport",
+                "iam:GetAccountPasswordPolicy",
+                "iam:GetAccountSummary",
+                "iam:GetCredentialReport",
+                "iam:ListRoles",
                 "ecr:DescribeImages",
                 "ecr:DescribeRepositories",
                 "elasticbeanstalk:DescribeEnvironments",
@@ -256,6 +268,9 @@ Contributions are welcome! Fork the repository, create a feature branch, make yo
 Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## Changelog
+
+### v1.6.3 (2026-03-21)
+- ✨ Added CloudTrail monitoring with logging status, multi-region, log file validation, S3 bucket, CloudWatch Logs, and error reporting
 
 ### v1.6.2 (2026-03-21)
 - ✨ Added ACM certificate monitoring with days-until-expiry, expiry warnings at 30/7 day thresholds, SANs, issuer, and in-use resources
