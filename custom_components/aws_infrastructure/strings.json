@@ -24,6 +24,17 @@
         "data": {
           "regions": "Regions to Monitor"
         }
+      },
+      "services": {
+        "title": "Select Services to Monitor",
+        "description": "Choose which AWS services to monitor. Only enable services you actually use. The next step will show the minimum IAM policy needed for your selection.",
+        "data": {
+          "services": "Services"
+        }
+      },
+      "iam_policy": {
+        "title": "IAM Policy",
+        "description": "Apply this minimum IAM policy to your AWS user before clicking Finish. It contains only the permissions needed for your selected services.\n\n```json\n{policy}\n```\n\nPolicy covers {service_count} service(s). See IAM_POLICY.md in the repository for the full per-service reference."
       }
     },
     "error": {
@@ -47,7 +58,7 @@
         },
         "data_description": {
           "refresh_interval_minutes": "How often to poll AWS APIs (5-60 minutes)",
-           "cost_refresh_interval": "How often to check AWS Cost Explorer (60-1440 minutes). Cost data updates once daily, checking more often wastes money ($0.01 per API call).",
+          "cost_refresh_interval": "How often to check AWS Cost Explorer (60-1440 minutes). Cost data updates once daily — checking more often wastes money ($0.01 per API call).",
           "region_mode": "Choose whether to monitor all regions or select specific ones",
           "create_individual_count_sensors": "Enables history graphs for resource counts (uses more sensors)",
           "skip_initial_refresh": "Speeds up Home Assistant startup (data appears after first refresh cycle)"
@@ -62,6 +73,17 @@
         "data_description": {
           "regions": "Select one or more AWS regions. Deselect all to monitor no regions."
         }
+      },
+      "select_services": {
+        "title": "Select Services to Monitor",
+        "description": "Choose which AWS services to monitor. Removing a service will delete its sensors. Adding a service may require updating your IAM policy.",
+        "data": {
+          "services": "Services"
+        }
+      },
+      "iam_additions": {
+        "title": "IAM Policy Update Required",
+        "description": "You have added services that require new IAM permissions. Add the following actions to your IAM policy before saving:\n\n```\n{actions}\n```\n\nIf you do not update the IAM policy, the new services will show permission errors in the logs."
       }
     }
   }

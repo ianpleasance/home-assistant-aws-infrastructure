@@ -50,7 +50,9 @@ from .const import (
     COORDINATOR_IAM,
     COORDINATOR_REDSHIFT,
     DEFAULT_REFRESH_INTERVAL,
+    DEFAULT_SERVICES,
     DEFAULT_COST_REFRESH_INTERVAL,
+    CONF_SERVICES,
     DOMAIN,
     REGION_MODE_ALL,
     SERVICE_REFRESH_ACCOUNT,
@@ -130,54 +132,53 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         coordinators = {}
 
+        # Only create coordinators for selected services
+        selected_services = set(
+            entry.data.get(CONF_SERVICES, list(DEFAULT_SERVICES))
+        )
+
+        def add(key, coordinator_instance):
+            """Only add coordinator if service is selected."""
+            if key in selected_services:
+                coordinators[key] = coordinator_instance
+
         if region == "us-east-1":
             cost_refresh_interval = entry.options.get(
                 CONF_COST_REFRESH_INTERVAL,
                 entry.data.get(CONF_COST_REFRESH_INTERVAL, DEFAULT_COST_REFRESH_INTERVAL),
             )
-            coordinators[COORDINATOR_COST] = AwsCostCoordinator(
-                hass, aws_client, account_name, cost_refresh_interval
-            )
-            # Route 53 is a global service — only fetch from us-east-1
-            coordinators[COORDINATOR_ROUTE53] = AwsRoute53Coordinator(
-                hass, aws_client, account_name, refresh_interval
-            )
-            # CloudFront is a global service — only fetch from us-east-1
-            coordinators[COORDINATOR_CLOUDFRONT] = AwsCloudFrontCoordinator(
-                hass, aws_client, account_name, refresh_interval
-            )
-            # IAM is a global service — only fetch from us-east-1
-            coordinators[COORDINATOR_IAM] = AwsIAMCoordinator(
-                hass, aws_client, account_name, refresh_interval
-            )
+            # Global services — only fetched from us-east-1
+            add(COORDINATOR_COST, AwsCostCoordinator(hass, aws_client, account_name, cost_refresh_interval))
+            add(COORDINATOR_ROUTE53, AwsRoute53Coordinator(hass, aws_client, account_name, refresh_interval))
+            add(COORDINATOR_CLOUDFRONT, AwsCloudFrontCoordinator(hass, aws_client, account_name, refresh_interval))
+            add(COORDINATOR_IAM, AwsIAMCoordinator(hass, aws_client, account_name, refresh_interval))
 
-        coordinators[COORDINATOR_EC2] = AwsEc2Coordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_RDS] = AwsRdsCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_LAMBDA] = AwsLambdaCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_LOADBALANCER] = AwsLoadBalancerCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_ASG] = AwsAutoScalingCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_DYNAMODB] = AwsDynamoDBCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_ELASTICACHE] = AwsElastiCacheCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_ECS] = AwsECSCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_EKS] = AwsEKSCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_EBS] = AwsEBSCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_SNS] = AwsSNSCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_SQS] = AwsSQSCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_S3] = AwsS3Coordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_CLOUDWATCH_ALARMS] = AwsCloudWatchAlarmsCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_ELASTIC_IPS] = AwsElasticIPsCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_CLASSIC_LB] = AwsClassicLBCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_EFS] = AwsEFSCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_KINESIS] = AwsKinesisCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_BEANSTALK] = AwsBeanstalkCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_API_GATEWAY] = AwsApiGatewayCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_VPC] = AwsVPCCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_ACM] = AwsACMCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_ECR] = AwsECRCoordinator(hass, aws_client, account_name, refresh_interval)
-        coordinators[COORDINATOR_CLOUDTRAIL] = AwsCloudTrailCoordinator(hass, aws_client, account_name, refresh_interval)
-
-        # Redshift
-        coordinators[COORDINATOR_REDSHIFT] = AwsRedshiftCoordinator(hass, aws_client, account_name, refresh_interval)
+        # Regional services
+        add(COORDINATOR_EC2, AwsEc2Coordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_RDS, AwsRdsCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_LAMBDA, AwsLambdaCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_LOADBALANCER, AwsLoadBalancerCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_ASG, AwsAutoScalingCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_DYNAMODB, AwsDynamoDBCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_ELASTICACHE, AwsElastiCacheCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_ECS, AwsECSCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_EKS, AwsEKSCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_EBS, AwsEBSCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_SNS, AwsSNSCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_SQS, AwsSQSCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_S3, AwsS3Coordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_CLOUDWATCH_ALARMS, AwsCloudWatchAlarmsCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_ELASTIC_IPS, AwsElasticIPsCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_CLASSIC_LB, AwsClassicLBCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_EFS, AwsEFSCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_KINESIS, AwsKinesisCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_BEANSTALK, AwsBeanstalkCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_API_GATEWAY, AwsApiGatewayCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_VPC, AwsVPCCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_ACM, AwsACMCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_ECR, AwsECRCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_CLOUDTRAIL, AwsCloudTrailCoordinator(hass, aws_client, account_name, refresh_interval))
+        add(COORDINATOR_REDSHIFT, AwsRedshiftCoordinator(hass, aws_client, account_name, refresh_interval))
 
         # skip_initial_refresh only applies when HA is restarting with an existing
         # entry — on a fresh setup or reconfigure we always do a full blocking refresh
@@ -238,35 +239,83 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options update."""
+    """Handle options update — clean up deselected service/region entities then reload."""
+    from homeassistant.helpers import entity_registry as er
+    entity_reg = er.async_get(hass)
+
+    # ----------------------------------------------------------------
+    # Clean up entities for deselected services
+    # ----------------------------------------------------------------
+    old_services = set(entry.options.get("_old_services", list(DEFAULT_SERVICES)))
+    new_services = set(entry.data.get(CONF_SERVICES, list(DEFAULT_SERVICES)))
+    removed_services = old_services - new_services
+
+    if removed_services:
+        _LOGGER.info("Removing entities for deselected services: %s", removed_services)
+        _SERVICE_ENTITY_PATTERNS = {
+            COORDINATOR_EC2: "_ec2_i_",
+            COORDINATOR_RDS: "_rds_",
+            COORDINATOR_LAMBDA: "_lambda_",
+            COORDINATOR_LOADBALANCER: "_load_balancer_",
+            COORDINATOR_ASG: "_auto_scaling_group_",
+            COORDINATOR_DYNAMODB: "_dynamodb_",
+            COORDINATOR_ELASTICACHE: "_elasticache_",
+            COORDINATOR_ECS: "_ecs_",
+            COORDINATOR_EKS: "_eks_",
+            COORDINATOR_EBS: "_ebs_",
+            COORDINATOR_SNS: "_sns_",
+            COORDINATOR_SQS: "_sqs_",
+            COORDINATOR_S3: "_s3_bucket_",
+            COORDINATOR_CLOUDWATCH_ALARMS: "_alarm_",
+            COORDINATOR_ELASTIC_IPS: "_eip_",
+            COORDINATOR_CLASSIC_LB: "_classic_lb_",
+            COORDINATOR_EFS: "_efs_fs_",
+            COORDINATOR_KINESIS: "_kinesis_",
+            COORDINATOR_BEANSTALK: "_beanstalk_",
+            COORDINATOR_API_GATEWAY: "_apigw_",
+            COORDINATOR_VPC: "_vpc_vpc_",
+            COORDINATOR_ACM: "_acm_",
+            COORDINATOR_ECR: "_ecr_",
+            COORDINATOR_CLOUDTRAIL: "_cloudtrail_",
+            COORDINATOR_CLOUDFRONT: "_cloudfront_",
+            COORDINATOR_ROUTE53: "_route_53_",
+            COORDINATOR_IAM: "_iam_",
+            COORDINATOR_COST: "_cost_",
+            COORDINATOR_REDSHIFT: "_redshift_",
+        }
+        to_remove = []
+        for svc in removed_services:
+            pattern = _SERVICE_ENTITY_PATTERNS.get(svc)
+            if not pattern:
+                continue
+            for entity_entry in list(entity_reg.entities.values()):
+                if (entity_entry.config_entry_id == entry.entry_id
+                        and pattern in entity_entry.unique_id):
+                    to_remove.append(entity_entry.entity_id)
+        for entity_id in to_remove:
+            entity_reg.async_remove(entity_id)
+        _LOGGER.info("Removed %d entities for deselected services", len(to_remove))
+
+    # ----------------------------------------------------------------
+    # Clean up entities for deselected regions
+    # ----------------------------------------------------------------
     old_region_mode = entry.options.get("_old_region_mode", REGION_MODE_ALL)
     old_regions = entry.options.get("_old_regions", [])
-
     new_region_mode = entry.data.get(CONF_REGION_MODE, REGION_MODE_ALL)
     new_regions = entry.data.get(CONF_REGIONS, [])
 
-    if old_region_mode == REGION_MODE_ALL:
-        old_active_regions = set(AWS_REGIONS)
-    else:
-        old_active_regions = set(old_regions)
-
-    if new_region_mode == REGION_MODE_ALL:
-        new_active_regions = set(AWS_REGIONS)
-    else:
-        new_active_regions = set(new_regions)
-
+    old_active_regions = set(AWS_REGIONS) if old_region_mode == REGION_MODE_ALL else set(old_regions)
+    new_active_regions = set(AWS_REGIONS) if new_region_mode == REGION_MODE_ALL else set(new_regions)
     removed_regions = old_active_regions - new_active_regions
 
     if removed_regions:
-        from homeassistant.helpers import entity_registry as er
-        entity_reg = er.async_get(hass)
         _LOGGER.info("Removing entities for deselected regions: %s", removed_regions)
         to_remove = []
         for entity_entry in list(entity_reg.entities.values()):
             if entity_entry.config_entry_id == entry.entry_id:
                 for region in removed_regions:
                     region_normalized = region.replace("-", "_")
-                    if f"_{region_normalized}_" in entity_entry.entity_id:
+                    if f"_{region_normalized}_" in entity_entry.unique_id:
                         to_remove.append(entity_entry.entity_id)
                         break
         for entity_id in to_remove:

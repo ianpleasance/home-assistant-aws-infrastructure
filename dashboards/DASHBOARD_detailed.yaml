@@ -37,11 +37,13 @@ views:
           | ☸️ EKS Clusters | {{ state_attr('sensor.aws_live_global_summary',
           'eks_clusters') }} |
 
-          | 📈 Auto Scaling Groups | {{ state_attr('sensor.aws_live_global_summary', 'auto_scaling_groups') }} |
+          | 📈 Auto Scaling Groups | {{
+          state_attr('sensor.aws_live_global_summary', 'auto_scaling_groups') }}
+          |
 
-          | 🌿 Beanstalk Environments | {{ state_attr('sensor.aws_live_global_summary', 'beanstalk_environments') | default(0) }} |
-
-
+          | 🌿 Beanstalk Environments | {{
+          state_attr('sensor.aws_live_global_summary', 'beanstalk_environments')
+          | default(0) }} |
       - type: markdown
         content: >
           ## 🗄️ Data & Storage
@@ -67,11 +69,17 @@ views:
           'ebs_volumes') }} ({{ state_attr('sensor.aws_live_global_summary',
           'ebs_unattached') }} unattached) |
 
-          | 🗂️ EFS File Systems | {{ state_attr('sensor.aws_live_global_summary', 'efs_file_systems') | default(0) }} |
+          | 🗂️ EFS File Systems | {{
+          state_attr('sensor.aws_live_global_summary', 'efs_file_systems') |
+          default(0) }} |
 
-          | 🐳 ECR Repositories | {{ state_attr('sensor.aws_live_global_summary', 'ecr_repositories') | default(0) }} |
+          | 🐳 ECR Repositories | {{
+          state_attr('sensor.aws_live_global_summary', 'ecr_repositories') |
+          default(0) }} |
 
-          | 🗃️ Redshift Clusters | {{ state_attr('sensor.aws_live_global_summary', 'redshift_clusters') | default(0) }} |
+          | 🗃️ Redshift Clusters | {{
+          state_attr('sensor.aws_live_global_summary', 'redshift_clusters') |
+          default(0) }} |
       - type: markdown
         content: >
           ## 🌐 Networking & Messaging
@@ -81,13 +89,19 @@ views:
 
           |----------|-------|
 
-          | 🏗️ VPCs | {{ state_attr('sensor.aws_live_global_summary', 'vpcs') | default(0) }} |
+          | 🏗️ VPCs | {{ state_attr('sensor.aws_live_global_summary', 'vpcs') |
+          default(0) }} |
 
-          | 🌐 Route 53 Hosted Zones | {{ state_attr('sensor.aws_live_global_summary', 'route53_zones') | default(0) }} |
+          | 🌐 Route 53 Hosted Zones | {{
+          state_attr('sensor.aws_live_global_summary', 'route53_zones') |
+          default(0) }} |
 
-          | 🔌 API Gateways | {{ state_attr('sensor.aws_live_global_summary', 'api_gateways') | default(0) }} |
+          | 🔌 API Gateways | {{ state_attr('sensor.aws_live_global_summary',
+          'api_gateways') | default(0) }} |
 
-          | ☁️ CloudFront Distributions | {{ state_attr('sensor.aws_live_global_summary', 'cloudfront_distributions') | default(0) }} |
+          | ☁️ CloudFront Distributions | {{
+          state_attr('sensor.aws_live_global_summary',
+          'cloudfront_distributions') | default(0) }} |
 
           | 🌐 ALB/NLB Load Balancers | {{
           state_attr('sensor.aws_live_global_summary', 'load_balancers') }} |
@@ -100,7 +114,8 @@ views:
           'elastic_ips') }} ({{ state_attr('sensor.aws_live_global_summary',
           'elastic_ips_unattached') }} unattached) |
 
-          | 🌊 Kinesis Streams | {{ state_attr('sensor.aws_live_global_summary', 'kinesis_streams') | default(0) }} |
+          | 🌊 Kinesis Streams | {{ state_attr('sensor.aws_live_global_summary',
+          'kinesis_streams') | default(0) }} |
 
           | 🔔 SNS Topics | {{ state_attr('sensor.aws_live_global_summary',
           'sns_topics') }} |
@@ -116,13 +131,32 @@ views:
 
           |----------|-------|
 
-          | 🔐 ACM Certificates | {{ state_attr('sensor.aws_live_global_summary', 'acm_certificates') | default(0) }}{% if state_attr('sensor.aws_live_global_summary', 'acm_expiring_30d') | default(0) > 0 %} ⚠️ {{ state_attr('sensor.aws_live_global_summary', 'acm_expiring_30d') }} expiring{% endif %} |
+          | 🔐 ACM Certificates | {{
+          state_attr('sensor.aws_live_global_summary', 'acm_certificates') |
+          default(0) }}{% if state_attr('sensor.aws_live_global_summary',
+          'acm_expiring_30d') | int(0) > 0 %} ⚠️ {{
+          state_attr('sensor.aws_live_global_summary', 'acm_expiring_30d') }}
+          expiring{% endif %} |
 
-          | 🛡️ CloudTrail Trails | {{ state_attr('sensor.aws_live_global_summary', 'cloudtrail_trails') | default(0) }} ({{ state_attr('sensor.aws_live_global_summary', 'cloudtrail_logging') | default(0) }} logging){% if state_attr('sensor.aws_live_global_summary', 'cloudtrail_trails') | default(0) > state_attr('sensor.aws_live_global_summary', 'cloudtrail_logging') | default(0) %} ⚠️{% endif %} |
+          | 🛡️ CloudTrail Trails | {{
+          state_attr('sensor.aws_live_global_summary', 'cloudtrail_trails') |
+          default(0) }} ({{ state_attr('sensor.aws_live_global_summary',
+          'cloudtrail_logging') | default(0) }} logging){% if
+          state_attr('sensor.aws_live_global_summary', 'cloudtrail_trails') |
+          int(0) > state_attr('sensor.aws_live_global_summary',
+          'cloudtrail_logging') | default(0) %} ⚠️{% endif %} |
 
-          | 👤 IAM Users | {{ state_attr('sensor.aws_live_global_summary', 'iam_users') | default(0) }}{% if state_attr('sensor.aws_live_global_summary', 'iam_users_no_mfa') | default(0) > 0 %} ⚠️ {{ state_attr('sensor.aws_live_global_summary', 'iam_users_no_mfa') }} no MFA{% endif %} |
+          | 👤 IAM Users | {{ state_attr('sensor.aws_live_global_summary',
+          'iam_users') | default(0) }}{% if
+          state_attr('sensor.aws_live_global_summary', 'iam_users_no_mfa') |
+          int(0) > 0 %} ⚠️ {{ state_attr('sensor.aws_live_global_summary',
+          'iam_users_no_mfa') }} no MFA{% endif %} |
 
-          | 🔑 IAM Roles | {{ state_attr('sensor.aws_live_global_summary', 'iam_roles') | default(0) }}{% if state_attr('sensor.aws_live_global_summary', 'iam_roles_unused_90d') | default(0) > 0 %} ⚠️ {{ state_attr('sensor.aws_live_global_summary', 'iam_roles_unused_90d') }} unused{% endif %} |
+          | 🔑 IAM Roles | {{ state_attr('sensor.aws_live_global_summary',
+          'iam_roles') | default(0) }}{% if
+          state_attr('sensor.aws_live_global_summary', 'iam_roles_unused_90d') |
+          int(0) > 0 %} ⚠️ {{ state_attr('sensor.aws_live_global_summary',
+          'iam_roles_unused_90d') }} unused{% endif %} |
       - type: markdown
         content: >
           ## 📊 Monitoring
@@ -182,7 +216,8 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_ec2_i_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') -%}
+          state.entity_id and state.state not in ('unavailable', 'unknown') and
+          'global' not in state.entity_id -%}
 
           {%- set instance_id = state.attributes.instance_id |
           default('Unknown') -%}
@@ -215,11 +250,14 @@ views:
 
           - **Key**: {{ state.attributes.key_name | default('None') }}
 
-          - **Platform**: {{ state.attributes.platform | default('linux') }} / {{ state.attributes.architecture | default('N/A') }}
+          - **Platform**: {{ state.attributes.platform | default('linux') }} /
+          {{ state.attributes.architecture | default('N/A') }}
 
-          - **Security Groups**: {{ state.attributes.security_groups | default([]) | join(', ') }}
+          - **Security Groups**: {{ state.attributes.security_groups |
+          default([]) | join(', ') }}
 
-          - **IAM Profile**: {{ state.attributes.iam_profile | default('None') }}
+          - **IAM Profile**: {{ state.attributes.iam_profile | default('None')
+          }}
 
           {% if tags | length > 1 -%}
 
@@ -261,7 +299,9 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_lambda_'
-          in state.entity_id and '_lambda_count' not in state.entity_id -%}
+          in state.entity_id and state.state not in ('unavailable', 'unknown')
+          and 'global' not in state.entity_id and '_lambda_count' not in
+          state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -309,8 +349,9 @@ views:
           # 🗃️ Redshift Clusters
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'redshift_clusters') | default(0) | int(0) %}
-          **{{ n }} {{ 'cluster' if n == 1 else 'clusters' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'redshift_clusters') | default(0) | int(0) %} **{{ n }} {{ 'cluster'
+          if n == 1 else 'clusters' }}**
 
 
           ---
@@ -318,12 +359,15 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_redshift_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and '_redshift_clusters' not in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_redshift_'
+          in state.entity_id and state.state not in ('unavailable', 'unknown')
+          and 'global' not in state.entity_id and '_redshift_clusters' not in
+          state.entity_id -%}
 
-          {%- set cluster_id = state.attributes.identifier | default('Unknown') -%}
-          {%- set status = state.state -%}
-          {%- set icon = '🟢' if status == 'available' else '🟡' if status == 'paused' else '🔴' if status in ('deleting', 'failed') else '⚫' %}
+          {%- set cluster_id = state.attributes.identifier | default('Unknown')
+          -%} {%- set status = state.state -%} {%- set icon = '🟢' if status ==
+          'available' else '🟡' if status == 'paused' else '🔴' if status in
+          ('deleting', 'failed') else '⚫' %}
 
 
           ### {{ icon }} {{ cluster_id }}
@@ -336,17 +380,21 @@ views:
 
           - **Database**: {{ state.attributes.db_name | default('N/A') }}
 
-          - **Endpoint**: {{ state.attributes.endpoint | default('N/A') }}:{{ state.attributes.port | default('') }}
+          - **Endpoint**: {{ state.attributes.endpoint | default('N/A') }}:{{
+          state.attributes.port | default('') }}
 
           - **VPC**: {{ state.attributes.vpc_id | default('N/A') }}
 
           - **AZ**: {{ state.attributes.availability_zone | default('N/A') }}
 
-          - **Encrypted**: {{ '✅' if state.attributes.encrypted else '❌' }}
+          - **Encrypted**: {{ '✅' if state.attributes.encrypted | default(false)
+          else '❌' }}
 
-          - **Public**: {{ '✅' if state.attributes.publicly_accessible else '❌' }}
+          - **Public**: {{ '✅' if state.attributes.publicly_accessible |
+          default(false) else '❌' }}
 
-          - **Version**: {{ state.attributes.engine_version | default(state.attributes.cluster_version) | default('N/A') }}
+          - **Version**: {{ state.attributes.engine_version |
+          default(state.attributes.cluster_version) | default('N/A') }}
 
           - **Created**: {{ state.attributes.created_time | default('N/A') }}
 
@@ -356,8 +404,9 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_redshift_') |
-          rejectattr('entity_id', 'search', '_redshift_clusters') | list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search', '_redshift_')
+          | rejectattr('entity_id', 'search', '_redshift_clusters') | list |
+          length == 0 -%}
 
           _No Redshift clusters found_
 
@@ -382,8 +431,9 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_rds_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and '_rds_count' not in state.entity_id
-          and 'global' not in state.entity_id -%}
+          state.entity_id and state.state not in ('unavailable', 'unknown') and
+          '_rds_count' not in state.entity_id and 'global' not in
+          state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -404,23 +454,31 @@ views:
 
           - **Status**: {{ db_status }}
 
-          - **Engine**: {{ state.attributes.engine | default('N/A') }} {{ state.attributes.engine_version | default('') }}
+          - **Engine**: {{ state.attributes.engine | default('N/A') }} {{
+          state.attributes.engine_version | default('') }}
 
           - **Class**: {{ state.attributes.db_instance_class | default('N/A') }}
 
-          - **Storage**: {{ state.attributes.allocated_storage | default('N/A') }} GB ({{ state.attributes.storage_type | default('N/A') }})
+          - **Storage**: {{ state.attributes.allocated_storage | default('N/A')
+          }} GB ({{ state.attributes.storage_type | default('N/A') }})
 
-          - **Endpoint**: {{ state.attributes.endpoint | default('N/A') }}:{{ state.attributes.port | default('') }}
+          - **Endpoint**: {{ state.attributes.endpoint | default('N/A') }}:{{
+          state.attributes.port | default('') }}
 
-          - **Multi-AZ**: {{ '✅' if state.attributes.multi_az else '❌' }}
+          - **Multi-AZ**: {{ '✅' if state.attributes.multi_az | default(false)
+          else '❌' }}
 
-          - **Public**: {{ '✅' if state.attributes.publicly_accessible else '❌' }}
+          - **Public**: {{ '✅' if state.attributes.publicly_accessible |
+          default(false) else '❌' }}
 
-          - **Deletion Protection**: {{ '✅' if state.attributes.deletion_protection else '❌' }}
+          - **Deletion Protection**: {{ '✅' if
+          state.attributes.deletion_protection | default(false) else '❌' }}
 
-          - **Backup Retention**: {{ state.attributes.backup_retention_days | default(0) }} days
+          - **Backup Retention**: {{ state.attributes.backup_retention_days |
+          default(0) }} days
 
-          - **Performance Insights**: {{ '✅' if state.attributes.performance_insights else '❌' }}
+          - **Performance Insights**: {{ '✅' if
+          state.attributes.performance_insights | default(false) else '❌' }}
 
 
           {% endif -%}
@@ -429,8 +487,8 @@ views:
 
 
           {% if states.sensor | selectattr('entity_id', 'search', '_rds_') |
-          rejectattr('entity_id', 'search', '_rds_count') | rejectattr('entity_id', 'search', 'global') | list | length == 0
-          -%}
+          rejectattr('entity_id', 'search', '_rds_count') |
+          rejectattr('entity_id', 'search', 'global') | list | length == 0 -%}
 
           _No RDS databases found_
 
@@ -444,8 +502,9 @@ views:
           # 📊 DynamoDB Tables
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'dynamodb_tables') | int(0) %}
-          **{{ n }} {{ 'table' if n == 1 else 'tables' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'dynamodb_tables') | int(0) %} **{{ n }} {{ 'table' if n == 1 else
+          'tables' }}**
 
 
           ---
@@ -454,7 +513,9 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_dynamodb_'
-          in state.entity_id and '_dynamodb_count' not in state.entity_id -%}
+          in state.entity_id and state.state not in ('unavailable', 'unknown')
+          and 'global' not in state.entity_id and '_dynamodb_count' not in
+          state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -482,19 +543,25 @@ views:
 
           - **Created**: {{ state.attributes.created | default('N/A') }}
 
-          - **Billing**: {{ state.attributes.billing_mode | default('PROVISIONED') }}
+          - **Billing**: {{ state.attributes.billing_mode |
+          default('PROVISIONED') }}
 
-          {%- if state.attributes.billing_mode | default('PROVISIONED') == 'PROVISIONED' %}
+          {%- if state.attributes.billing_mode | default('PROVISIONED') ==
+          'PROVISIONED' %}
 
-          - **RCU / WCU**: {{ state.attributes.read_capacity_units | default(0) }} / {{ state.attributes.write_capacity_units | default(0) }}
+          - **RCU / WCU**: {{ state.attributes.read_capacity_units | default(0)
+          }} / {{ state.attributes.write_capacity_units | default(0) }}
 
           {%- endif %}
 
-          - **Streams**: {{ '✅' if state.attributes.stream_enabled else '❌' }}
+          - **Streams**: {{ '✅' if state.attributes.stream_enabled |
+          default(false) else '❌' }}
 
-          - **Encryption**: {{ state.attributes.encryption_type | default('DISABLED') }}
+          - **Encryption**: {{ state.attributes.encryption_type |
+          default('DISABLED') }}
 
-          - **GSI / LSI**: {{ state.attributes.global_indexes | default(0) }} / {{ state.attributes.local_indexes | default(0) }}
+          - **GSI / LSI**: {{ state.attributes.global_indexes | default(0) }} /
+          {{ state.attributes.local_indexes | default(0) }}
 
           - **Class**: {{ state.attributes.table_class | default('STANDARD') }}
 
@@ -532,7 +599,8 @@ views:
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and
           '_elasticache_' in state.entity_id and '_elasticache_count' not in
-          state.entity_id -%}
+          state.entity_id and state.state != 'unavailable' and state.state !=
+          'unknown' and 'global' not in state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -553,7 +621,8 @@ views:
 
           - **Status**: {{ cluster_status }}
 
-          - **Engine**: {{ state.attributes.engine | default('N/A') }} {{ state.attributes.engine_version | default('') }}
+          - **Engine**: {{ state.attributes.engine | default('N/A') }} {{
+          state.attributes.engine_version | default('') }}
 
           - **Node Type**: {{ state.attributes.node_type | default('N/A') }}
 
@@ -561,13 +630,17 @@ views:
 
           - **AZ**: {{ state.attributes.preferred_az | default('N/A') }}
 
-          - **At-Rest Encryption**: {{ '✅' if state.attributes.at_rest_encryption else '❌' }}
+          - **At-Rest Encryption**: {{ '✅' if
+          state.attributes.at_rest_encryption | default(false) else '❌' }}
 
-          - **In-Transit Encryption**: {{ '✅' if state.attributes.in_transit_encryption else '❌' }}
+          - **In-Transit Encryption**: {{ '✅' if
+          state.attributes.in_transit_encryption | default(false) else '❌' }}
 
-          - **Snapshot Retention**: {{ state.attributes.snapshot_retention_days | default(0) }} days
+          - **Snapshot Retention**: {{ state.attributes.snapshot_retention_days
+          | default(0) }} days
 
-          - **Parameter Group**: {{ state.attributes.parameter_group | default('N/A') }}
+          - **Parameter Group**: {{ state.attributes.parameter_group |
+          default('N/A') }}
 
 
           {% endif -%}
@@ -602,7 +675,9 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_ecs_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and 'global' not in state.entity_id and '_ecs_count' not in state.entity_id -%}
+          state.entity_id and state.state not in ('unavailable', 'unknown') and
+          'global' not in state.entity_id and '_ecs_count' not in
+          state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -623,11 +698,14 @@ views:
 
           - **Running Tasks**: {{ running_tasks }}
 
-          - **Pending Tasks**: {{ state.attributes.pending_tasks | default('N/A') }}
+          - **Pending Tasks**: {{ state.attributes.pending_tasks |
+          default('N/A') }}
 
-          - **Services**: {{ state.attributes.active_services | default('N/A') }}
+          - **Services**: {{ state.attributes.active_services | default('N/A')
+          }}
 
-          - **Instances**: {{ state.attributes.registered_instances | default('N/A') }}
+          - **Instances**: {{ state.attributes.registered_instances |
+          default('N/A') }}
 
 
           {% endif -%}
@@ -658,7 +736,9 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_eks_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and 'global' not in state.entity_id and '_eks_count' not in state.entity_id -%}
+          state.entity_id and state.state not in ('unavailable', 'unknown') and
+          'global' not in state.entity_id and '_eks_count' not in
+          state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -717,7 +797,9 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_s3_' in
-          state.entity_id and 'global' not in state.entity_id and '_s3_count' not in state.entity_id -%}
+          state.entity_id and state.state not in ('unavailable', 'unknown') and
+          'global' not in state.entity_id and '_s3_count' not in state.entity_id
+          -%}
 
           {%- set bucket_name = state.attributes.bucket_name |
           default('Unknown') -%}
@@ -749,9 +831,11 @@ views:
           # 💿 EBS Volumes
 
 
-          {% set vol = state_attr('sensor.aws_live_global_summary', 'ebs_volumes') | int(0) %}
-          {% set unat = state_attr('sensor.aws_live_global_summary', 'ebs_unattached') | int(0) %}
-          **{{ vol }} {{ 'volume' if vol == 1 else 'volumes' }}** ({{ unat }} unattached)
+          {% set vol = state_attr('sensor.aws_live_global_summary',
+          'ebs_volumes') | int(0) %} {% set unat =
+          state_attr('sensor.aws_live_global_summary', 'ebs_unattached') |
+          int(0) %} **{{ vol }} {{ 'volume' if vol == 1 else 'volumes' }}** ({{
+          unat }} unattached)
 
 
           ---
@@ -760,7 +844,8 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_ebs_vol_'
-          in state.entity_id -%}
+          in state.entity_id and state.state not in ('unavailable', 'unknown')
+          and 'global' not in state.entity_id -%}
 
           {%- set volume_id = state.attributes.volume_id | default('Unknown')
           -%}
@@ -806,8 +891,9 @@ views:
           # 🗂️ EFS File Systems
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'efs_file_systems') | default(0) | int(0) %}
-          **{{ n }} {{ 'file system' if n == 1 else 'file systems' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'efs_file_systems') | default(0) | int(0) %} **{{ n }} {{ 'file
+          system' if n == 1 else 'file systems' }}**
 
 
           ---
@@ -815,13 +901,14 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_efs_fs_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_efs_fs_'
+          in state.entity_id and state.state not in ('unavailable', 'unknown')
+          and 'global' not in state.entity_id -%}
 
-          {%- set fs_id = state.attributes.file_system_id | default('Unknown') -%}
-          {%- set fs_name = state.attributes.name | default(fs_id) -%}
-          {%- set fs_state = state.state -%}
-          {%- set icon = '🟢' if fs_state == 'available' else '⚫' %}
+          {%- set fs_id = state.attributes.file_system_id | default('Unknown')
+          -%} {%- set fs_name = state.attributes.name | default(fs_id) -%} {%-
+          set fs_state = state.state -%} {%- set icon = '🟢' if fs_state ==
+          'available' else '⚫' %}
 
 
           ### {{ icon }} {{ fs_name }}
@@ -832,11 +919,14 @@ views:
 
           - **Size**: {{ state.attributes.size_gb | default(0) }} GB
 
-          - **Mount Targets**: {{ state.attributes.number_of_mount_targets | default(0) }}
+          - **Mount Targets**: {{ state.attributes.number_of_mount_targets |
+          default(0) }}
 
-          - **Performance Mode**: {{ state.attributes.performance_mode | default('N/A') }}
+          - **Performance Mode**: {{ state.attributes.performance_mode |
+          default('N/A') }}
 
-          - **Throughput Mode**: {{ state.attributes.throughput_mode | default('N/A') }}
+          - **Throughput Mode**: {{ state.attributes.throughput_mode |
+          default('N/A') }}
 
           - **Encrypted**: {{ state.attributes.encrypted | default('N/A') }}
 
@@ -848,8 +938,8 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_efs_fs_') | list
-          | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search', '_efs_fs_') |
+          list | length == 0 -%}
 
           _No EFS file systems found_
 
@@ -863,8 +953,9 @@ views:
           # 🌊 Kinesis Streams
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'kinesis_streams') | default(0) | int(0) %}
-          **{{ n }} {{ 'stream' if n == 1 else 'streams' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'kinesis_streams') | default(0) | int(0) %} **{{ n }} {{ 'stream' if n
+          == 1 else 'streams' }}**
 
 
           ---
@@ -872,12 +963,15 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_kinesis_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and 'global' not in state.entity_id and '_kinesis_count' not in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_kinesis_'
+          in state.entity_id and state.state not in ('unavailable', 'unknown')
+          and 'global' not in state.entity_id and '_kinesis_count' not in
+          state.entity_id -%}
 
           {%- set stream_name = state.attributes.name | default('Unknown') -%}
-          {%- set stream_status = state.state -%}
-          {%- set icon = '🟢' if stream_status == 'ACTIVE' else '🟡' if stream_status == 'CREATING' else '⚫' %}
+          {%- set stream_status = state.state -%} {%- set icon = '🟢' if
+          stream_status == 'ACTIVE' else '🟡' if stream_status == 'CREATING'
+          else '⚫' %}
 
 
           ### {{ icon }} {{ stream_name }}
@@ -888,7 +982,8 @@ views:
 
           - **Shards**: {{ state.attributes.shard_count | default('N/A') }}
 
-          - **Retention**: {{ state.attributes.retention_hours | default('N/A') }} hours
+          - **Retention**: {{ state.attributes.retention_hours | default('N/A')
+          }} hours
 
           - **Consumers**: {{ state.attributes.consumer_count | default(0) }}
 
@@ -899,7 +994,8 @@ views:
 
 
           {% if states.sensor | selectattr('entity_id', 'search', '_kinesis_') |
-          rejectattr('entity_id', 'search', '_kinesis_count') | list | length == 0 -%}
+          rejectattr('entity_id', 'search', '_kinesis_count') | list | length ==
+          0 -%}
 
           _No Kinesis streams found_
 
@@ -919,7 +1015,9 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_sns_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and 'global' not in state.entity_id and '_sns_count' not in state.entity_id -%}
+          state.entity_id and state.state not in ('unavailable', 'unknown') and
+          'global' not in state.entity_id and '_sns_count' not in
+          state.entity_id -%}
 
           {%- set topic_name = state.attributes.topic_name | default('Unknown')
           -%}
@@ -954,8 +1052,8 @@ views:
           # 📬 SQS Queues
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'sqs_queues') | int(0) %}
-          **{{ n }} {{ 'queue' if n == 1 else 'queues' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary', 'sqs_queues')
+          | int(0) %} **{{ n }} {{ 'queue' if n == 1 else 'queues' }}**
 
 
           ---
@@ -964,7 +1062,9 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_sqs_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and 'global' not in state.entity_id and '_sqs_count' not in state.entity_id -%}
+          state.entity_id and state.state not in ('unavailable', 'unknown') and
+          'global' not in state.entity_id and '_sqs_count' not in
+          state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -983,19 +1083,25 @@ views:
 
           - **Messages Available**: {{ messages }}
 
-          - **In Flight**: {{ state.attributes.messages_in_flight | default('N/A') }}
+          - **In Flight**: {{ state.attributes.messages_in_flight |
+          default('N/A') }}
 
-          - **Delayed**: {{ state.attributes.messages_delayed | default('N/A') }}
+          - **Delayed**: {{ state.attributes.messages_delayed | default('N/A')
+          }}
 
           - **Type**: {{ 'FIFO' if state.attributes.fifo else 'Standard' }}
 
-          - **Visibility Timeout**: {{ state.attributes.visibility_timeout_seconds | default(30) }}s
+          - **Visibility Timeout**: {{
+          state.attributes.visibility_timeout_seconds | default(30) }}s
 
-          - **Retention**: {{ ((state.attributes.message_retention_seconds | default(345600)) / 86400) | round(1) }} days
+          - **Retention**: {{ ((state.attributes.message_retention_seconds |
+          default(345600)) / 86400) | round(1) }} days
 
-          - **Max Message Size**: {{ ((state.attributes.max_message_size_bytes | default(262144)) / 1024) | round(0) | int }} KB
+          - **Max Message Size**: {{ ((state.attributes.max_message_size_bytes |
+          default(262144)) / 1024) | round(0) | int }} KB
 
-          - **Encrypted**: {{ '✅' if state.attributes.kms_key | default('') else '❌' }}
+          - **Encrypted**: {{ '✅' if state.attributes.kms_key | default('') else
+          '❌' }}
 
           - **URL**: {{ state.attributes.url | default('N/A') }}
 
@@ -1032,7 +1138,8 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and
-          '_load_balancer_' in state.entity_id -%}
+          '_load_balancer_' in state.entity_id and state.state not in
+          ('unavailable', 'unknown') and 'global' not in state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -1088,7 +1195,8 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and
-          '_classic_lb_' in state.entity_id -%}
+          '_classic_lb_' in state.entity_id and state.state not in
+          ('unavailable', 'unknown') and 'global' not in state.entity_id -%}
 
           {%- set lb_name = state.attributes.name | default('Unknown') -%}
 
@@ -1138,9 +1246,11 @@ views:
           # 🔢 Elastic IPs
 
 
-          {% set eips = state_attr('sensor.aws_live_global_summary', 'elastic_ips') | int(0) %}
-          {% set unat = state_attr('sensor.aws_live_global_summary', 'elastic_ips_unattached') | int(0) %}
-          **{{ eips }} {{ 'IP' if eips == 1 else 'IPs' }}** ({{ unat }} unattached)
+          {% set eips = state_attr('sensor.aws_live_global_summary',
+          'elastic_ips') | int(0) %} {% set unat =
+          state_attr('sensor.aws_live_global_summary', 'elastic_ips_unattached')
+          | int(0) %} **{{ eips }} {{ 'IP' if eips == 1 else 'IPs' }}** ({{ unat
+          }} unattached)
 
 
           ---
@@ -1149,7 +1259,9 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_eip_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and '_eip_count' not in state.entity_id -%}
+          state.entity_id and state.state not in ('unavailable', 'unknown') and
+          'global' not in state.entity_id and '_eip_count' not in
+          state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -1169,7 +1281,8 @@ views:
 
           - **Status**: {{ state.state }}
 
-          - **Allocation ID**: {{ state.attributes.allocation_id | default('N/A') }}
+          - **Allocation ID**: {{ state.attributes.allocation_id |
+          default('N/A') }}
 
           - **Associated with**: {{ state.attributes.associated_with |
           default('None') }}
@@ -1207,7 +1320,8 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and
-          'auto_scaling_group' in state.entity_id -%}
+          'auto_scaling_group' in state.entity_id and state.state not in
+          ('unavailable', 'unknown') and 'global' not in state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -1226,21 +1340,31 @@ views:
           - **Current**: {{ instance_count }} {{ 'instance' if instance_count ==
           1 else 'instances' }}
 
-          - **Desired**: {{ state.attributes.desired_capacity | default('N/A') }}
+          - **Desired**: {{ state.attributes.desired_capacity | default('N/A')
+          }}
 
-          - **Range**: {{ state.attributes.min_size | default('N/A') }} - {{ state.attributes.max_size | default('N/A') }}
+          - **Range**: {{ state.attributes.min_size | default('N/A') }} - {{
+          state.attributes.max_size | default('N/A') }}
 
-          - **Health Check**: {{ state.attributes.health_check_type | default('N/A') }}
+          - **Health Check**: {{ state.attributes.health_check_type |
+          default('N/A') }}
 
-          - **Launch Template**: {{ state.attributes.launch_template | default('N/A') }}{% if state.attributes.launch_template_version | default('') %} ({{ state.attributes.launch_template_version }}){% endif %}
+          - **Launch Template**: {{ state.attributes.launch_template |
+          default('N/A') }}{% if state.attributes.launch_template_version |
+          default('') %} ({{ state.attributes.launch_template_version }}){%
+          endif %}
 
-          - **AZs**: {{ state.attributes.availability_zones | default([]) | join(', ') }}
+          - **AZs**: {{ state.attributes.availability_zones | default([]) |
+          join(', ') }}
 
-          - **Termination Policy**: {{ state.attributes.termination_policies | default([]) | join(', ') }}
+          - **Termination Policy**: {{ state.attributes.termination_policies |
+          default([]) | join(', ') }}
 
-          {%- if state.attributes.suspended_processes | default([]) | length > 0 %}
+          {%- if state.attributes.suspended_processes | default([]) | length > 0
+          %}
 
-          - **Suspended**: {{ state.attributes.suspended_processes | join(', ') }}
+          - **Suspended**: {{ state.attributes.suspended_processes | join(', ')
+          }}
 
           {% endif %}
 
@@ -1278,7 +1402,9 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_alarm_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and 'global' not in state.entity_id and '_alarm_count' not in state.entity_id -%}
+          state.entity_id and state.state not in ('unavailable', 'unknown') and
+          'global' not in state.entity_id and '_alarm_count' not in
+          state.entity_id -%}
 
           {%- set parts = state.entity_id.replace('sensor.aws_live_',
           '').split('_') -%}
@@ -1330,9 +1456,12 @@ views:
           # 🔐 ACM Certificates
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'acm_certificates') | default(0) | int(0) %}
-          {% set expiring = state_attr('sensor.aws_live_global_summary', 'acm_expiring_30d') | default(0) | int(0) %}
-          **{{ n }} {{ 'certificate' if n == 1 else 'certificates' }}**{% if expiring > 0 %} — ⚠️ **{{ expiring }} expiring within 30 days**{% endif %}
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'acm_certificates') | default(0) | int(0) %} {% set expiring =
+          state_attr('sensor.aws_live_global_summary', 'acm_expiring_30d') |
+          default(0) | int(0) %} **{{ n }} {{ 'certificate' if n == 1 else
+          'certificates' }}**{% if expiring > 0 %} — ⚠️ **{{ expiring }}
+          expiring within 30 days**{% endif %}
 
 
           ---
@@ -1341,31 +1470,35 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_acm_' in
-          state.entity_id and state.state != 'unavailable' and 'global' not in state.entity_id and '_acm_certificates' not in state.entity_id -%}
+          state.entity_id and state.state != 'unavailable' and 'global' not in
+          state.entity_id and '_acm_certificates' not in state.entity_id -%}
 
           {%- set domain = state.attributes.domain_name | default('Unknown') -%}
-          {%- set days = state.state | int(0) -%}
-          {%- set status = state.attributes.status | default('') -%}
-          {%- set icon = '🔴' if days < 0 else '🟠' if days <= 7 else '🟡' if days <= 30 else '🟢' %}
+          {%- set days = state.state | int(0) -%} {%- set status =
+          state.attributes.status | default('') -%} {%- set icon = '🔴' if days
+          < 0 else '🟠' if days <= 7 else '🟡' if days <= 30 else '🟢' %}
 
 
           ### {{ icon }} {{ domain }}
 
           - **Status**: {{ status }}
 
-          - **Days Until Expiry**: {{ days }}{% if days < 0 %} ⚠️ EXPIRED{% elif days <= 30 %} ⚠️ expiring soon{% endif %}
+          - **Days Until Expiry**: {{ days }}{% if days < 0 %} ⚠️ EXPIRED{% elif
+          days <= 30 %} ⚠️ expiring soon{% endif %}
 
           - **Type**: {{ state.attributes.type | default('N/A') }}
 
           - **Issuer**: {{ state.attributes.issuer | default('N/A') }}
 
-          - **Key Algorithm**: {{ state.attributes.key_algorithm | default('N/A') }}
+          - **Key Algorithm**: {{ state.attributes.key_algorithm |
+          default('N/A') }}
 
           - **Not Before**: {{ state.attributes.not_before | default('N/A') }}
 
           - **Not After**: {{ state.attributes.not_after | default('N/A') }}
 
-          - **Renewal**: {{ state.attributes.renewal_eligibility | default('N/A') }}
+          - **Renewal**: {{ state.attributes.renewal_eligibility |
+          default('N/A') }}
 
           {%- set in_use = state.attributes.in_use_by | default([]) %}
 
@@ -1375,7 +1508,8 @@ views:
 
           {%- endif %}
 
-          {%- set sans = state.attributes.subject_alternative_names | default([]) %}
+          {%- set sans = state.attributes.subject_alternative_names |
+          default([]) %}
 
           {%- if sans | length > 1 %}
 
@@ -1390,7 +1524,8 @@ views:
 
 
           {% if states.sensor | selectattr('entity_id', 'search', '_acm_') |
-          rejectattr('entity_id', 'search', '_acm_certificates') | list | length == 0 -%}
+          rejectattr('entity_id', 'search', '_acm_certificates') | list | length
+          == 0 -%}
 
           _No ACM certificates found_
 
@@ -1404,15 +1539,23 @@ views:
           # 👤 IAM Overview
 
 
-          {% set summary = state_attr('sensor.aws_live_global_iam_summary', 'total_users') | default(0) | int(0) %}
-          {% set no_mfa = state_attr('sensor.aws_live_global_iam_summary', 'users_no_mfa') | default(0) | int(0) %}
-          {% set old_pw = state_attr('sensor.aws_live_global_iam_summary', 'users_old_password_90d') | default(0) | int(0) %}
-          {% set not_logged = state_attr('sensor.aws_live_global_iam_summary', 'users_not_logged_in_90d') | default(0) | int(0) %}
-          {% set old_keys = state_attr('sensor.aws_live_global_iam_summary', 'users_old_keys_90d') | default(0) | int(0) %}
-          {% set roles = state_attr('sensor.aws_live_global_iam_summary', 'total_roles') | default(0) | int(0) %}
-          {% set unused_roles = state_attr('sensor.aws_live_global_iam_summary', 'roles_unused_90d') | default(0) | int(0) %}
-          {% set root_mfa = state_attr('sensor.aws_live_global_iam_summary', 'root_mfa_enabled') %}
-          {% set root_keys = state_attr('sensor.aws_live_global_iam_summary', 'root_access_keys') | default(0) | int(0) %}
+          {% set summary = state_attr('sensor.aws_live_global_iam_summary',
+          'total_users') | default(0) | int(0) %} {% set no_mfa =
+          state_attr('sensor.aws_live_global_iam_summary', 'users_no_mfa') |
+          default(0) | int(0) %} {% set old_pw =
+          state_attr('sensor.aws_live_global_iam_summary',
+          'users_old_password_90d') | default(0) | int(0) %} {% set not_logged =
+          state_attr('sensor.aws_live_global_iam_summary',
+          'users_not_logged_in_90d') | default(0) | int(0) %} {% set old_keys =
+          state_attr('sensor.aws_live_global_iam_summary', 'users_old_keys_90d')
+          | default(0) | int(0) %} {% set roles =
+          state_attr('sensor.aws_live_global_iam_summary', 'total_roles') |
+          default(0) | int(0) %} {% set unused_roles =
+          state_attr('sensor.aws_live_global_iam_summary', 'roles_unused_90d') |
+          default(0) | int(0) %} {% set root_mfa =
+          state_attr('sensor.aws_live_global_iam_summary', 'root_mfa_enabled')
+          %} {% set root_keys = state_attr('sensor.aws_live_global_iam_summary',
+          'root_access_keys') | default(0) | int(0) %}
 
 
           | Metric | Value |
@@ -1423,49 +1566,68 @@ views:
 
           | 🔑 Total Roles | {{ roles }} |
 
-          | 🔐 MFA Devices In Use | {{ state_attr('sensor.aws_live_global_iam_summary', 'mfa_devices_in_use') | default(0) }} |
+          | 🔐 MFA Devices In Use | {{
+          state_attr('sensor.aws_live_global_iam_summary', 'mfa_devices_in_use')
+          | default(0) }} |
 
           | 🛡️ Root MFA | {{ '✅' if root_mfa else '❌ WARNING' }} |
 
-          | 🔑 Root Access Keys | {{ '❌ WARNING — keys exist' if root_keys > 0 else '✅ None' }} |
+          | 🔑 Root Access Keys | {{ '❌ WARNING — keys exist' if root_keys > 0
+          else '✅ None' }} |
 
 
-          {% if no_mfa > 0 or old_pw > 0 or not_logged > 0 or old_keys > 0 or unused_roles > 0 %}
+          {% if no_mfa > 0 or old_pw > 0 or not_logged > 0 or old_keys > 0 or
+          unused_roles > 0 %}
 
           ### ⚠️ Security Findings
 
-          {% if no_mfa > 0 %}- **{{ no_mfa }} user(s) with console access but no MFA**
-          {% endif %}{% if old_pw > 0 %}- **{{ old_pw }} user(s) with password unchanged >90 days**
-          {% endif %}{% if not_logged > 0 %}- **{{ not_logged }} user(s) not logged in >90 days**
-          {% endif %}{% if old_keys > 0 %}- **{{ old_keys }} user(s) with access keys >90 days old**
-          {% endif %}{% if unused_roles > 0 %}- **{{ unused_roles }} role(s) unused >90 days**
-          {% endif %}
+          {% if no_mfa > 0 %}- **{{ no_mfa }} user(s) with console access but no
+          MFA** {% endif %}{% if old_pw > 0 %}- **{{ old_pw }} user(s) with
+          password unchanged >90 days** {% endif %}{% if not_logged > 0 %}- **{{
+          not_logged }} user(s) not logged in >90 days** {% endif %}{% if
+          old_keys > 0 %}- **{{ old_keys }} user(s) with access keys >90 days
+          old** {% endif %}{% if unused_roles > 0 %}- **{{ unused_roles }}
+          role(s) unused >90 days** {% endif %}
 
           {% endif %}
 
 
           ### 🔐 Password Policy
 
-          {% set pp = state_attr('sensor.aws_live_global_iam_password_policy', 'min_length') %}
-          {% if pp %}
+          {% set pp = state_attr('sensor.aws_live_global_iam_password_policy',
+          'min_length') %} {% if pp %}
 
           | Setting | Value |
 
           |---------|-------|
 
-          | Min Length | {{ state_attr('sensor.aws_live_global_iam_password_policy', 'min_length') }} |
+          | Min Length | {{
+          state_attr('sensor.aws_live_global_iam_password_policy', 'min_length')
+          }} |
 
-          | Uppercase | {{ '✅' if state_attr('sensor.aws_live_global_iam_password_policy', 'require_uppercase') else '❌' }} |
+          | Uppercase | {{ '✅' if
+          state_attr('sensor.aws_live_global_iam_password_policy',
+          'require_uppercase') else '❌' }} |
 
-          | Lowercase | {{ '✅' if state_attr('sensor.aws_live_global_iam_password_policy', 'require_lowercase') else '❌' }} |
+          | Lowercase | {{ '✅' if
+          state_attr('sensor.aws_live_global_iam_password_policy',
+          'require_lowercase') else '❌' }} |
 
-          | Numbers | {{ '✅' if state_attr('sensor.aws_live_global_iam_password_policy', 'require_numbers') else '❌' }} |
+          | Numbers | {{ '✅' if
+          state_attr('sensor.aws_live_global_iam_password_policy',
+          'require_numbers') else '❌' }} |
 
-          | Symbols | {{ '✅' if state_attr('sensor.aws_live_global_iam_password_policy', 'require_symbols') else '❌' }} |
+          | Symbols | {{ '✅' if
+          state_attr('sensor.aws_live_global_iam_password_policy',
+          'require_symbols') else '❌' }} |
 
-          | Max Age | {{ state_attr('sensor.aws_live_global_iam_password_policy', 'max_password_age') | default('No expiry') }} days |
+          | Max Age | {{
+          state_attr('sensor.aws_live_global_iam_password_policy',
+          'max_password_age') | default('No expiry') }} days |
 
-          | Reuse Prevention | {{ state_attr('sensor.aws_live_global_iam_password_policy', 'password_reuse_prevention') | default('None') }} |
+          | Reuse Prevention | {{
+          state_attr('sensor.aws_live_global_iam_password_policy',
+          'password_reuse_prevention') | default('None') }} |
 
           {% else %}
 
@@ -1479,36 +1641,48 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_iam_user_' in state.entity_id and 'global' in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_iam_user_'
+          in state.entity_id and state.state not in ('unavailable', 'unknown')
+          and 'global' in state.entity_id -%}
 
           {%- set username = state.attributes.username | default('Unknown') -%}
-          {%- set days = state.state | int(-1) -%}
-          {%- set no_mfa = state.attributes.password_enabled and not state.attributes.mfa_active -%}
-          {%- set old_key = state.attributes.oldest_key_age_days is not none and state.attributes.oldest_key_age_days > 90 -%}
-          {%- set icon = '⚠️' if (no_mfa or old_key or (days > 90)) else '✅' %}
+          {%- set days = state.state | int(-1) -%} {%- set no_mfa =
+          state.attributes.password_enabled and not state.attributes.mfa_active
+          -%} {%- set old_key = state.attributes.oldest_key_age_days is not none
+          and state.attributes.oldest_key_age_days > 90 -%} {%- set icon = '⚠️'
+          if (no_mfa or old_key or (days > 90)) else '✅' %}
 
 
           ### {{ icon }} {{ username }}
 
-          - **Console Access**: {{ '✅' if state.attributes.password_enabled else '❌ API only' }}
+          - **Console Access**: {{ '✅' if state.attributes.password_enabled else
+          '❌ API only' }}
 
-          - **MFA**: {{ '✅' if state.attributes.mfa_active else ('❌ WARNING' if state.attributes.password_enabled else '—') }}
+          - **MFA**: {{ '✅' if state.attributes.mfa_active else ('❌ WARNING' if
+          state.attributes.password_enabled else '—') }}
 
-          - **Last Login**: {% if state.state == 'None' or state.state == 'unknown' %}Never{% else %}{{ days }} days ago{% endif %}
+          - **Last Login**: {% if state.state == 'None' or state.state ==
+          'unknown' %}Never{% else %}{{ days }} days ago{% endif %}
 
-          - **Password Age**: {{ state.attributes.password_last_changed_days | default('N/A') }} days
+          - **Password Age**: {{ state.attributes.password_last_changed_days |
+          default('N/A') }} days
 
-          - **Active Keys**: {{ state.attributes.active_key_count | default(0) }}
+          - **Active Keys**: {{ state.attributes.active_key_count | default(0)
+          }}
 
           {%- if state.attributes.key1_active %}
 
-          - **Key 1 Age**: {{ state.attributes.key1_age_days | default('N/A') }} days (last used: {{ state.attributes.key1_last_used_days | default('never') }} days ago)
+          - **Key 1 Age**: {{ state.attributes.key1_age_days | default('N/A') }}
+          days (last used: {{ state.attributes.key1_last_used_days |
+          default('never') }} days ago)
 
           {%- endif %}
 
           {%- if state.attributes.key2_active %}
 
-          - **Key 2 Age**: {{ state.attributes.key2_age_days | default('N/A') }} days (last used: {{ state.attributes.key2_last_used_days | default('never') }} days ago)
+          - **Key 2 Age**: {{ state.attributes.key2_age_days | default('N/A') }}
+          days (last used: {{ state.attributes.key2_last_used_days |
+          default('never') }} days ago)
 
           {%- endif %}
 
@@ -1518,7 +1692,8 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_global_iam_user_') | list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search',
+          '_global_iam_user_') | list | length == 0 -%}
 
           _No IAM users found_
 
@@ -1530,23 +1705,31 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_iam_role_' in state.entity_id and 'global' in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_iam_role_'
+          in state.entity_id and state.state not in ('unavailable', 'unknown')
+          and 'global' in state.entity_id -%}
 
-          {%- set role_name = state.attributes.name | default('Unknown') -%}
-          {%- set days = state.state | int(-1) -%}
-          {%- set unused = days > 90 -%}
+          {%- set role_name = state.attributes.name | default('Unknown') -%} {%-
+          set days = state.state | int(-1) -%} {%- set unused = days > 90 -%}
           {%- set icon = '⚠️' if unused else '✅' %}
 
 
           ### {{ icon }} {{ role_name }}
 
-          - **Last Used**: {% if state.state == 'None' or state.state == 'unknown' %}Never{% else %}{{ days }} days ago{% if state.attributes.last_used_region %} ({{ state.attributes.last_used_region | default('N/A') }}){% endif %}{% endif %}
+          - **Last Used**: {% if state.state == 'None' or state.state ==
+          'unknown' %}Never{% else %}{{ days }} days ago{% if
+          state.attributes.last_used_region %} ({{
+          state.attributes.last_used_region | default('N/A') }}){% endif %}{%
+          endif %}
 
-          - **Created**: {{ state.attributes.created_days_ago | default('N/A') }} days ago
+          - **Created**: {{ state.attributes.created_days_ago | default('N/A')
+          }} days ago
 
-          - **Max Session**: {{ state.attributes.max_session_duration | default('N/A') }}s
+          - **Max Session**: {{ state.attributes.max_session_duration |
+          default('N/A') }}s
 
-          - **Permissions Boundary**: {{ '✅' if state.attributes.has_permissions_boundary else '—' }}
+          - **Permissions Boundary**: {{ '✅' if
+          state.attributes.has_permissions_boundary else '—' }}
 
           {%- if state.attributes.description %}
 
@@ -1560,7 +1743,8 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_global_iam_role_') | list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search',
+          '_global_iam_role_') | list | length == 0 -%}
 
           _No customer-managed IAM roles found_
 
@@ -1574,9 +1758,12 @@ views:
           # 🛡️ CloudTrail Trails
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'cloudtrail_trails') | default(0) | int(0) %}
-          {% set logging = state_attr('sensor.aws_live_global_summary', 'cloudtrail_logging') | default(0) | int(0) %}
-          **{{ n }} {{ 'trail' if n == 1 else 'trails' }}** — {{ logging }} logging{% if n > logging %} — ⚠️ **{{ n - logging }} not logging**{% endif %}
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'cloudtrail_trails') | default(0) | int(0) %} {% set logging =
+          state_attr('sensor.aws_live_global_summary', 'cloudtrail_logging') |
+          default(0) | int(0) %} **{{ n }} {{ 'trail' if n == 1 else 'trails'
+          }}** — {{ logging }} logging{% if n > logging %} — ⚠️ **{{ n - logging
+          }} not logging**{% endif %}
 
 
           ---
@@ -1584,27 +1771,34 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_cloudtrail_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and '_cloudtrail_trails' not in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and
+          '_cloudtrail_' in state.entity_id and state.state not in
+          ('unavailable', 'unknown') and 'global' not in state.entity_id and
+          '_cloudtrail_trails' not in state.entity_id -%}
 
           {%- set trail_name = state.attributes.name | default('Unknown') -%}
-          {%- set is_logging = state.state == 'logging' -%}
-          {%- set icon = '🟢' if is_logging else '🔴' %}
+          {%- set is_logging = state.state == 'logging' -%} {%- set icon = '🟢'
+          if is_logging else '🔴' %}
 
 
           ### {{ icon }} {{ trail_name }}
 
           - **Status**: {{ '✅ Logging' if is_logging else '❌ Not Logging' }}
 
-          - **Multi-Region**: {{ '✅' if state.attributes.is_multi_region else '❌' }}
+          - **Multi-Region**: {{ '✅' if state.attributes.is_multi_region |
+          default(false) else '❌' }}
 
-          - **Organization Trail**: {{ '✅' if state.attributes.is_organization else '❌' }}
+          - **Organization Trail**: {{ '✅' if state.attributes.is_organization |
+          default(false) else '❌' }}
 
-          - **Log File Validation**: {{ '✅' if state.attributes.log_file_validation else '❌' }}
+          - **Log File Validation**: {{ '✅' if
+          state.attributes.log_file_validation | default(false) else '❌' }}
 
-          - **Management Events**: {{ '✅' if state.attributes.management_events else '❌' }}
+          - **Management Events**: {{ '✅' if state.attributes.management_events
+          | default(false) else '❌' }}
 
-          - **Data Events**: {{ state.attributes.data_event_count | default(0) }}
+          - **Data Events**: {{ state.attributes.data_event_count | default(0)
+          }}
 
           - **S3 Bucket**: {{ state.attributes.s3_bucket | default('N/A') }}
 
@@ -1622,13 +1816,15 @@ views:
 
           {%- if state.attributes.latest_delivery %}
 
-          - **Latest Delivery**: {{ state.attributes.latest_delivery | default('N/A') }}
+          - **Latest Delivery**: {{ state.attributes.latest_delivery |
+          default('N/A') }}
 
           {%- endif %}
 
           {%- if state.attributes.latest_error %}
 
-          - **⚠️ Latest Error**: {{ state.attributes.latest_error | default('N/A') }}
+          - **⚠️ Latest Error**: {{ state.attributes.latest_error |
+          default('N/A') }}
 
           {%- endif %}
 
@@ -1638,8 +1834,9 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_cloudtrail_') |
-          rejectattr('entity_id', 'search', '_cloudtrail_trails') | list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search',
+          '_cloudtrail_') | rejectattr('entity_id', 'search',
+          '_cloudtrail_trails') | list | length == 0 -%}
 
           _No CloudTrail trails found_
 
@@ -1653,8 +1850,9 @@ views:
           # 🐳 ECR Repositories
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'ecr_repositories') | default(0) | int(0) %}
-          **{{ n }} {{ 'repository' if n == 1 else 'repositories' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'ecr_repositories') | default(0) | int(0) %} **{{ n }} {{ 'repository'
+          if n == 1 else 'repositories' }}**
 
 
           ---
@@ -1663,10 +1861,12 @@ views:
           {% for state in states.sensor -%}
 
           {%- if state.entity_id.startswith('sensor.aws_live_') and '_ecr_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and 'global' not in state.entity_id and '_ecr_repositories' not in state.entity_id -%}
+          state.entity_id and state.state not in ('unavailable', 'unknown') and
+          'global' not in state.entity_id and '_ecr_repositories' not in
+          state.entity_id -%}
 
-          {%- set repo_name = state.attributes.name | default('Unknown') -%}
-          {%- set image_count = state.state | int(0) %}
+          {%- set repo_name = state.attributes.name | default('Unknown') -%} {%-
+          set image_count = state.state | int(0) %}
 
 
           ### 🐳 {{ repo_name }}
@@ -1675,11 +1875,14 @@ views:
 
           - **URI**: `{{ state.attributes.uri | default('N/A') }}`
 
-          - **Tag Mutability**: {{ state.attributes.image_tag_mutability | default('N/A') }}
+          - **Tag Mutability**: {{ state.attributes.image_tag_mutability |
+          default('N/A') }}
 
-          - **Scan on Push**: {{ '✅' if state.attributes.scan_on_push else '❌' }}
+          - **Scan on Push**: {{ '✅' if state.attributes.scan_on_push |
+          default(false) else '❌' }}
 
-          - **Encryption**: {{ state.attributes.encryption_type | default('N/A') }}
+          - **Encryption**: {{ state.attributes.encryption_type | default('N/A')
+          }}
 
           - **Created**: {{ state.attributes.created_at | default('N/A') }}
 
@@ -1690,7 +1893,8 @@ views:
 
 
           {% if states.sensor | selectattr('entity_id', 'search', '_ecr_') |
-          rejectattr('entity_id', 'search', '_ecr_repositories') | list | length == 0 -%}
+          rejectattr('entity_id', 'search', '_ecr_repositories') | list | length
+          == 0 -%}
 
           _No ECR repositories found_
 
@@ -1704,8 +1908,8 @@ views:
           # 🏗️ VPCs
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'vpcs') | default(0) | int(0) %}
-          **{{ n }} {{ 'VPC' if n == 1 else 'VPCs' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary', 'vpcs') |
+          default(0) | int(0) %} **{{ n }} {{ 'VPC' if n == 1 else 'VPCs' }}**
 
 
           ---
@@ -1713,14 +1917,15 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_vpc_vpc_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_vpc_vpc_'
+          in state.entity_id and state.state not in ('unavailable', 'unknown')
+          and 'global' not in state.entity_id -%}
 
-          {%- set vpc_id = state.attributes.vpc_id | default('Unknown') -%}
-          {%- set vpc_name = state.attributes.name | default(vpc_id) -%}
-          {%- set vpc_state = state.state -%}
-          {%- set icon = '🟢' if vpc_state == 'available' else '⚫' %}
-          {%- set default_tag = ' (default)' if state.attributes.is_default else '' %}
+          {%- set vpc_id = state.attributes.vpc_id | default('Unknown') -%} {%-
+          set vpc_name = state.attributes.name | default(vpc_id) -%} {%- set
+          vpc_state = state.state -%} {%- set icon = '🟢' if vpc_state ==
+          'available' else '⚫' %} {%- set default_tag = ' (default)' if
+          state.attributes.is_default else '' %}
 
 
           ### {{ icon }} {{ vpc_name }}{{ default_tag }}
@@ -1733,15 +1938,21 @@ views:
 
           - **Tenancy**: {{ state.attributes.tenancy | default('N/A') }}
 
-          - **Internet Gateway**: {{ state.attributes.internet_gateway | default('None') }}
+          - **Internet Gateway**: {{ state.attributes.internet_gateway |
+          default('None') }}
 
-          - **NAT Gateways**: {{ state.attributes.nat_gateway_count | default(0) }}
+          - **NAT Gateways**: {{ state.attributes.nat_gateway_count | default(0)
+          }}
 
-          - **Peering Connections**: {{ state.attributes.peering_connection_count | default(0) }}
+          - **Peering Connections**: {{
+          state.attributes.peering_connection_count | default(0) }}
 
-          - **VPN Connections**: {{ state.attributes.vpn_connection_count | default(0) }}
+          - **VPN Connections**: {{ state.attributes.vpn_connection_count |
+          default(0) }}
 
-          - **Subnets**: {{ state.attributes.subnet_count | default(0) }} ({{ state.attributes.public_subnet_count | default(0) }} public, {{ state.attributes.private_subnet_count | default(0) }} private)
+          - **Subnets**: {{ state.attributes.subnet_count | default(0) }} ({{
+          state.attributes.public_subnet_count | default(0) }} public, {{
+          state.attributes.private_subnet_count | default(0) }} private)
 
           {%- set subnets = state.attributes.subnets | default([]) %}
 
@@ -1754,7 +1965,9 @@ views:
 
           {%- for subnet in subnets %}
 
-          | {{ subnet.subnet_id }} | {{ subnet.name | default('—') }} | {{ subnet.cidr_block }} | {{ subnet.availability_zone }} | {{ subnet.available_ips }} | {{ '✅' if subnet.public else '🔒' }} |
+          | {{ subnet.subnet_id }} | {{ subnet.name | default('—') }} | {{
+          subnet.cidr_block }} | {{ subnet.availability_zone }} | {{
+          subnet.available_ips }} | {{ '✅' if subnet.public else '🔒' }} |
 
           {%- endfor %}
 
@@ -1775,7 +1988,8 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_vpc_vpc_') | list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search', '_vpc_vpc_') |
+          list | length == 0 -%}
 
           _No VPCs found_
 
@@ -1789,8 +2003,9 @@ views:
           # ☁️ CloudFront Distributions
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'cloudfront_distributions') | default(0) | int(0) %}
-          **{{ n }} {{ 'distribution' if n == 1 else 'distributions' }}** (global)
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'cloudfront_distributions') | default(0) | int(0) %} **{{ n }} {{
+          'distribution' if n == 1 else 'distributions' }}** (global)
 
 
           ---
@@ -1798,13 +2013,16 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_cloudfront_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and '_cloudfront_distributions' not in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and
+          '_cloudfront_' in state.entity_id and state.state not in
+          ('unavailable', 'unknown') and '_cloudfront_distributions' not in
+          state.entity_id -%}
 
-          {%- set dist_id = state.attributes.distribution_id | default('Unknown') -%}
-          {%- set status = state.state -%}
-          {%- set enabled = state.attributes.enabled | default(false) -%}
-          {%- set icon = '🟢' if status == 'Deployed' and enabled else '🟡' if status == 'InProgress' else '⚫' %}
+          {%- set dist_id = state.attributes.distribution_id |
+          default('Unknown') -%} {%- set status = state.state -%} {%- set
+          enabled = state.attributes.enabled | default(false) -%} {%- set icon =
+          '🟢' if status == 'Deployed' and enabled else '🟡' if status ==
+          'InProgress' else '⚫' %}
 
 
           ### {{ icon }} {{ dist_id }}
@@ -1823,9 +2041,11 @@ views:
 
           {%- endif %}
 
-          - **Origins**: {{ state.attributes.origins | default([]) | join(', ') }}
+          - **Origins**: {{ state.attributes.origins | default([]) | join(', ')
+          }}
 
-          - **HTTP Version**: {{ state.attributes.http_version | default('N/A') }}
+          - **HTTP Version**: {{ state.attributes.http_version | default('N/A')
+          }}
 
           - **Price Class**: {{ state.attributes.price_class | default('N/A') }}
 
@@ -1835,13 +2055,17 @@ views:
 
           {%- endif %}
 
-          - **Last Modified**: {{ state.attributes.last_modified | default('N/A') }}
+          - **Last Modified**: {{ state.attributes.last_modified |
+          default('N/A') }}
 
-          - **Architecture**: {{ state.attributes.architectures | default(['x86_64']) | join(', ') }}
+          - **Architecture**: {{ state.attributes.architectures |
+          default(['x86_64']) | join(', ') }}
 
-          - **Package Type**: {{ state.attributes.package_type | default('Zip') }}
+          - **Package Type**: {{ state.attributes.package_type | default('Zip')
+          }}
 
-          - **Ephemeral Storage**: {{ state.attributes.ephemeral_storage_mb | default(512) }} MB
+          - **Ephemeral Storage**: {{ state.attributes.ephemeral_storage_mb |
+          default(512) }} MB
 
           - **Layers**: {{ state.attributes.layers_count | default(0) }}
 
@@ -1853,8 +2077,9 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_cloudfront_') |
-          rejectattr('entity_id', 'search', '_cloudfront_distributions') | list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search',
+          '_cloudfront_') | rejectattr('entity_id', 'search',
+          '_cloudfront_distributions') | list | length == 0 -%}
 
           _No CloudFront distributions found_
 
@@ -1868,8 +2093,9 @@ views:
           # 🔌 API Gateway
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'api_gateways') | default(0) | int(0) %}
-          **{{ n }} {{ 'API' if n == 1 else 'APIs' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'api_gateways') | default(0) | int(0) %} **{{ n }} {{ 'API' if n == 1
+          else 'APIs' }}**
 
 
           ---
@@ -1877,12 +2103,15 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_api_gw_' in
-          state.entity_id and '_api_gateways' not in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_api_gw_'
+          in state.entity_id and state.state not in ('unavailable', 'unknown')
+          and 'global' not in state.entity_id and '_api_gateways' not in
+          state.entity_id -%}
 
-          {%- set api_name = state.attributes.name | default('Unknown') -%}
-          {%- set api_type = state.state -%}
-          {%- set icon = '🔵' if api_type == 'REST' else '🟢' if api_type == 'HTTP' else '🟣' if api_type == 'WEBSOCKET' else '⚫' %}
+          {%- set api_name = state.attributes.name | default('Unknown') -%} {%-
+          set api_type = state.state -%} {%- set icon = '🔵' if api_type ==
+          'REST' else '🟢' if api_type == 'HTTP' else '🟣' if api_type ==
+          'WEBSOCKET' else '⚫' %}
 
 
           ### {{ icon }} {{ api_name }}
@@ -1893,7 +2122,8 @@ views:
 
           {%- if state.attributes.endpoint_type %}
 
-          - **Endpoint Type**: {{ state.attributes.endpoint_type | default('N/A') }}
+          - **Endpoint Type**: {{ state.attributes.endpoint_type |
+          default('N/A') }}
 
           {%- endif %}
 
@@ -1918,7 +2148,8 @@ views:
 
 
           {% if states.sensor | selectattr('entity_id', 'search', '_api_gw_') |
-          rejectattr('entity_id', 'search', '_api_gateways') | list | length == 0 -%}
+          rejectattr('entity_id', 'search', '_api_gateways') | list | length ==
+          0 -%}
 
           _No API Gateways found_
 
@@ -1932,8 +2163,9 @@ views:
           # 🌐 Route 53 Hosted Zones
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'route53_zones') | default(0) | int(0) %}
-          **{{ n }} {{ 'hosted zone' if n == 1 else 'hosted zones' }}** (global)
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'route53_zones') | default(0) | int(0) %} **{{ n }} {{ 'hosted zone'
+          if n == 1 else 'hosted zones' }}** (global)
 
 
           ---
@@ -1941,13 +2173,14 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_route_53_' in
-          state.entity_id and '_route_53_hosted' not in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and '_route_53_'
+          in state.entity_id and state.state not in ('unavailable', 'unknown')
+          and '_route_53_hosted' not in state.entity_id -%}
 
-          {%- set zone_name = state.attributes.name | default('Unknown') -%}
-          {%- set record_count = state.state | int(0) -%}
-          {%- set private = state.attributes.private | default(false) -%}
-          {%- set icon = '🔒' if private else '🌐' %}
+          {%- set zone_name = state.attributes.name | default('Unknown') -%} {%-
+          set record_count = state.state | int(0) -%} {%- set private =
+          state.attributes.private | default(false) -%} {%- set icon = '🔒' if
+          private else '🌐' %}
 
 
           ### {{ icon }} {{ zone_name }}
@@ -1970,8 +2203,9 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_route_53_') |
-          rejectattr('entity_id', 'search', '_route_53_hosted') | list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search', '_route_53_')
+          | rejectattr('entity_id', 'search', '_route_53_hosted') | list |
+          length == 0 -%}
 
           _No Route 53 hosted zones found_
 
@@ -1985,8 +2219,9 @@ views:
           # 🌿 Elastic Beanstalk Environments
 
 
-          {% set n = state_attr('sensor.aws_live_global_summary', 'beanstalk_environments') | default(0) | int(0) %}
-          **{{ n }} {{ 'environment' if n == 1 else 'environments' }}**
+          {% set n = state_attr('sensor.aws_live_global_summary',
+          'beanstalk_environments') | default(0) | int(0) %} **{{ n }} {{
+          'environment' if n == 1 else 'environments' }}**
 
 
           ---
@@ -1994,29 +2229,36 @@ views:
 
           {% for state in states.sensor -%}
 
-          {%- if state.entity_id.startswith('sensor.aws_live_') and '_beanstalk_' in
-          state.entity_id and state.state not in ('unavailable', 'unknown') and '_beanstalk_count' not in state.entity_id -%}
+          {%- if state.entity_id.startswith('sensor.aws_live_') and
+          '_beanstalk_' in state.entity_id and state.state not in
+          ('unavailable', 'unknown') and 'global' not in state.entity_id and
+          '_beanstalk_count' not in state.entity_id -%}
 
-          {%- set env_name = state.attributes.name | default('Unknown') -%}
-          {%- set health = state.state -%}
-          {%- set icon = '🟢' if health == 'Green' else '🟡' if health == 'Yellow' else '🔴' if health == 'Red' else '⚫' %}
+          {%- set env_name = state.attributes.name | default('Unknown') -%} {%-
+          set health = state.state -%} {%- set icon = '🟢' if health == 'Green'
+          else '🟡' if health == 'Yellow' else '🔴' if health == 'Red' else '⚫'
+          %}
 
 
           ### {{ icon }} {{ env_name }}
 
-          - **Application**: {{ state.attributes.application_name | default('N/A') }}
+          - **Application**: {{ state.attributes.application_name |
+          default('N/A') }}
 
           - **Health**: {{ health }}
 
-          - **Health Status**: {{ state.attributes.health_status | default('N/A') }}
+          - **Health Status**: {{ state.attributes.health_status |
+          default('N/A') }}
 
           - **Status**: {{ state.attributes.status | default('N/A') }}
 
-          - **Tier**: {{ state.attributes.tier_name | default('N/A') }} ({{ state.attributes.tier_type | default('N/A') }})
+          - **Tier**: {{ state.attributes.tier_name | default('N/A') }} ({{
+          state.attributes.tier_type | default('N/A') }})
 
           - **CNAME**: {{ state.attributes.cname | default('N/A') }}
 
-          - **Solution Stack**: {{ state.attributes.solution_stack | default('N/A') }}
+          - **Solution Stack**: {{ state.attributes.solution_stack |
+          default('N/A') }}
 
           - **Updated**: {{ state.attributes.date_updated | default('N/A') }}
 
@@ -2026,8 +2268,9 @@ views:
           {%- endfor %}
 
 
-          {% if states.sensor | selectattr('entity_id', 'search', '_beanstalk_') |
-          rejectattr('entity_id', 'search', '_beanstalk_count') | list | length == 0 -%}
+          {% if states.sensor | selectattr('entity_id', 'search', '_beanstalk_')
+          | rejectattr('entity_id', 'search', '_beanstalk_count') | list |
+          length == 0 -%}
 
           _No Beanstalk environments found_
 
@@ -2132,3 +2375,4 @@ views:
           _Service breakdown will appear after 24 hours_
 
           {% endif %}
+

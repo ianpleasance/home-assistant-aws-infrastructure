@@ -581,3 +581,4 @@ views:
               service: notify.mobile_app
               data:
                 message: "AWS cost yesterday exceeded expected budget"
+

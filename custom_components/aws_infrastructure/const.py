@@ -15,6 +15,10 @@ CONF_REFRESH_INTERVAL = "refresh_interval_minutes"
 CONF_COST_REFRESH_INTERVAL = "cost_refresh_interval"
 CONF_CREATE_INDIVIDUAL_COUNT_SENSORS = "create_individual_count_sensors"
 CONF_SKIP_INITIAL_REFRESH = "skip_initial_refresh"
+CONF_SERVICES = "services"
+
+# Special select-all sentinel value
+SELECT_ALL_SERVICES = "__select_all__"
 
 # Region mode options
 REGION_MODE_ALL = "all"
@@ -86,6 +90,220 @@ COORDINATOR_REDSHIFT = "redshift"
 
 # Attribution
 ATTRIBUTION = "Data provided by Amazon Web Services"
+
+# ============================================================================
+# SERVICE DEFINITIONS
+# ============================================================================
+
+# Ordered list for UI — separators use "__sep_" prefix
+SERVICE_UI_ORDER = [
+    ("__sep_compute__",        "── Compute ─────────────────────────"),
+    (COORDINATOR_EC2,          "EC2 Instances"),
+    (COORDINATOR_LAMBDA,       "Lambda Functions"),
+    (COORDINATOR_ASG,          "Auto Scaling Groups"),
+    (COORDINATOR_ECS,          "ECS Clusters"),
+    (COORDINATOR_EKS,          "EKS Clusters"),
+    (COORDINATOR_BEANSTALK,    "Elastic Beanstalk"),
+    ("__sep_data__",           "── Databases & Storage ─────────────"),
+    (COORDINATOR_RDS,          "RDS Databases"),
+    (COORDINATOR_REDSHIFT,     "Redshift"),
+    (COORDINATOR_DYNAMODB,     "DynamoDB"),
+    (COORDINATOR_ELASTICACHE,  "ElastiCache"),
+    (COORDINATOR_S3,           "S3 Buckets"),
+    (COORDINATOR_EBS,          "EBS Volumes"),
+    (COORDINATOR_EFS,          "EFS File Systems"),
+    (COORDINATOR_ECR,          "ECR Repositories"),
+    ("__sep_network__",        "── Networking ──────────────────────"),
+    (COORDINATOR_VPC,          "VPC"),
+    (COORDINATOR_LOADBALANCER, "ALB / NLB Load Balancers"),
+    (COORDINATOR_CLASSIC_LB,   "Classic Load Balancers"),
+    (COORDINATOR_ELASTIC_IPS,  "Elastic IPs"),
+    (COORDINATOR_API_GATEWAY,  "API Gateway"),
+    (COORDINATOR_CLOUDFRONT,   "CloudFront (global)"),
+    (COORDINATOR_ROUTE53,      "Route 53 (global)"),
+    ("__sep_messaging__",      "── Messaging & Streaming ───────────"),
+    (COORDINATOR_SNS,          "SNS Topics"),
+    (COORDINATOR_SQS,          "SQS Queues"),
+    (COORDINATOR_KINESIS,      "Kinesis Streams"),
+    ("__sep_security__",       "── Security & Compliance ───────────"),
+    (COORDINATOR_IAM,          "IAM (global)"),
+    (COORDINATOR_ACM,          "ACM Certificates"),
+    (COORDINATOR_CLOUDTRAIL,   "CloudTrail"),
+    ("__sep_monitoring__",     "── Monitoring & Cost ───────────────"),
+    (COORDINATOR_CLOUDWATCH_ALARMS, "CloudWatch Alarms"),
+    (COORDINATOR_COST,         "Cost Explorer (global)"),
+]
+
+# All real service keys (excludes separators and select-all sentinel)
+ALL_SERVICE_KEYS: list[str] = [
+    key for key, _ in SERVICE_UI_ORDER
+    if not key.startswith("__sep_") and key != SELECT_ALL_SERVICES
+]
+
+# Services selected by default
+DEFAULT_SERVICES = {
+    COORDINATOR_EC2,
+    COORDINATOR_LAMBDA,
+    COORDINATOR_ASG,
+    COORDINATOR_RDS,
+    COORDINATOR_S3,
+    COORDINATOR_EBS,
+    COORDINATOR_VPC,
+    COORDINATOR_LOADBALANCER,
+    COORDINATOR_ELASTIC_IPS,
+    COORDINATOR_CLOUDWATCH_ALARMS,
+    COORDINATOR_COST,
+}
+
+# IAM actions required per service
+SERVICE_IAM_ACTIONS: dict[str, list[str]] = {
+    COORDINATOR_EC2: [
+        "ec2:DescribeInstances",
+        "ec2:DescribeRegions",
+    ],
+    COORDINATOR_LAMBDA: [
+        "lambda:ListFunctions",
+    ],
+    COORDINATOR_ASG: [
+        "autoscaling:DescribeAutoScalingGroups",
+    ],
+    COORDINATOR_ECS: [
+        "ecs:DescribeClusters",
+        "ecs:ListClusters",
+    ],
+    COORDINATOR_EKS: [
+        "eks:DescribeCluster",
+        "eks:ListClusters",
+    ],
+    COORDINATOR_BEANSTALK: [
+        "elasticbeanstalk:DescribeEnvironments",
+    ],
+    COORDINATOR_RDS: [
+        "rds:DescribeDBInstances",
+    ],
+    COORDINATOR_REDSHIFT: [
+        "redshift:DescribeClusters",
+    ],
+    COORDINATOR_DYNAMODB: [
+        "dynamodb:DescribeTable",
+        "dynamodb:ListTables",
+    ],
+    COORDINATOR_ELASTICACHE: [
+        "elasticache:DescribeCacheClusters",
+    ],
+    COORDINATOR_S3: [
+        "s3:GetBucketLocation",
+        "s3:ListAllMyBuckets",
+    ],
+    COORDINATOR_EBS: [
+        "ec2:DescribeVolumes",
+    ],
+    COORDINATOR_EFS: [
+        "elasticfilesystem:DescribeFileSystems",
+    ],
+    COORDINATOR_ECR: [
+        "ecr:DescribeImages",
+        "ecr:DescribeRepositories",
+    ],
+    COORDINATOR_VPC: [
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeNatGateways",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcPeeringConnections",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeVpnConnections",
+    ],
+    COORDINATOR_LOADBALANCER: [
+        "elasticloadbalancing:DescribeLoadBalancers",
+    ],
+    COORDINATOR_CLASSIC_LB: [
+        "elasticloadbalancing:DescribeLoadBalancers",
+    ],
+    COORDINATOR_ELASTIC_IPS: [
+        "ec2:DescribeAddresses",
+    ],
+    COORDINATOR_API_GATEWAY: [
+        "apigateway:GET",
+    ],
+    COORDINATOR_CLOUDFRONT: [
+        "cloudfront:ListDistributions",
+    ],
+    COORDINATOR_ROUTE53: [
+        "route53:ListHostedZones",
+    ],
+    COORDINATOR_SNS: [
+        "sns:GetTopicAttributes",
+        "sns:ListTopics",
+    ],
+    COORDINATOR_SQS: [
+        "sqs:GetQueueAttributes",
+        "sqs:ListQueues",
+    ],
+    COORDINATOR_KINESIS: [
+        "kinesis:DescribeStreamSummary",
+        "kinesis:ListStreams",
+    ],
+    COORDINATOR_IAM: [
+        "iam:GenerateCredentialReport",
+        "iam:GetAccountPasswordPolicy",
+        "iam:GetAccountSummary",
+        "iam:GetCredentialReport",
+        "iam:ListRoles",
+    ],
+    COORDINATOR_ACM: [
+        "acm:DescribeCertificate",
+        "acm:ListCertificates",
+    ],
+    COORDINATOR_CLOUDTRAIL: [
+        "cloudtrail:DescribeTrails",
+        "cloudtrail:GetEventSelectors",
+        "cloudtrail:GetTrailStatus",
+    ],
+    COORDINATOR_CLOUDWATCH_ALARMS: [
+        "cloudwatch:DescribeAlarms",
+    ],
+    COORDINATOR_COST: [
+        "ce:GetCostAndUsage",
+    ],
+}
+
+# Always required regardless of service selection
+ALWAYS_REQUIRED_IAM_ACTIONS = [
+    "sts:GetCallerIdentity",
+]
+
+
+def get_iam_policy(selected_services: set[str]) -> dict:
+    """Generate minimum IAM policy JSON for the given service selection."""
+    actions: set[str] = set(ALWAYS_REQUIRED_IAM_ACTIONS)
+    for svc in selected_services:
+        actions.update(SERVICE_IAM_ACTIONS.get(svc, []))
+    return {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "HomeAssistantAWSMonitoring",
+                "Effect": "Allow",
+                "Action": sorted(actions),
+                "Resource": "*",
+            }
+        ],
+    }
+
+
+def get_new_iam_actions(old_services: set[str], new_services: set[str]) -> list[str]:
+    """Return IAM actions needed for newly added services (not in old set)."""
+    added = new_services - old_services
+    old_actions: set[str] = set(ALWAYS_REQUIRED_IAM_ACTIONS)
+    for svc in old_services:
+        old_actions.update(SERVICE_IAM_ACTIONS.get(svc, []))
+    new_actions: set[str] = set()
+    for svc in added:
+        for action in SERVICE_IAM_ACTIONS.get(svc, []):
+            if action not in old_actions:
+                new_actions.add(action)
+    return sorted(new_actions)
+
 
 # AWS Service name to slug mapping for cost sensors
 SERVICE_SLUG_MAP = {
