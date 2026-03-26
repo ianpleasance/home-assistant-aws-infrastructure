@@ -180,7 +180,7 @@ views:
 
           - **EKS Clusters:** {{ eks_count }}
 
-          - Auto Scaling Groups: {{ asg_count }}
+          - **Auto Scaling Groups:** {{ asg_count }}
 
 
           ### 🗄️ Data & Storage
