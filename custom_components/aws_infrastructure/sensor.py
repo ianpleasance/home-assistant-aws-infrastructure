@@ -3886,9 +3886,22 @@ class AwsIAMUserSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self) -> int | None:
-        """Return days since last console login (None if never logged in)."""
+        """Return days since most recent activity (console login or key use).
+
+        Most users have no console access, so password_last_used_days is None
+        for them. Fall back to the most recent key activity so the sensor
+        always has a meaningful state instead of showing Unknown.
+        """
         user = self._get_user()
-        return user.get("password_last_used_days") if user else None
+        if not user:
+            return None
+        candidates = [
+            user.get("password_last_used_days"),
+            user.get("key1_last_used_days"),
+            user.get("key2_last_used_days"),
+        ]
+        values = [v for v in candidates if v is not None]
+        return min(values) if values else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -3942,9 +3955,20 @@ class AwsIAMRoleSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self) -> int | None:
-        """Return days since last used (None if never used)."""
+        """Return days since last used, or days since creation if never used.
+
+        AWS only tracks role last-used for recent activity, so last_used_days
+        is None for roles that haven't been assumed recently. Fall back to
+        created_days_ago so the sensor always has a meaningful state instead
+        of showing Unknown.
+        """
         role = self._get_role()
-        return role.get("last_used_days") if role else None
+        if not role:
+            return None
+        last_used = role.get("last_used_days")
+        if last_used is not None:
+            return last_used
+        return role.get("created_days_ago")
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
