@@ -33,6 +33,10 @@ DEFAULT_SKIP_INITIAL_REFRESH = False
 MIN_REFRESH_INTERVAL = 1
 MAX_REFRESH_INTERVAL = 1440
 
+# Maximum number of EBS snapshots to store in sensor attributes per region.
+# Snapshots are sorted newest-first before truncation.
+MAX_EBS_SNAPSHOTS = 50
+
 # AWS Regions
 AWS_REGIONS = {
     "us-east-1": "US East (N. Virginia) [us-east-1]",
@@ -196,6 +200,7 @@ SERVICE_IAM_ACTIONS: dict[str, list[str]] = {
         "s3:ListAllMyBuckets",
     ],
     COORDINATOR_EBS: [
+        "ec2:DescribeSnapshots",
         "ec2:DescribeVolumes",
     ],
     COORDINATOR_EFS: [

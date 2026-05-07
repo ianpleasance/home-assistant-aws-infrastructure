@@ -54,6 +54,12 @@ views:
           {% set ebs_unattached = state_attr('sensor.aws_live_global_summary',
           'ebs_unattached') | int(0) %}
 
+          {% set ebs_snapshots = state_attr('sensor.aws_live_global_summary',
+          'ebs_snapshots') | default(0) | int(0) %}
+
+          {% set ebs_snapshot_size_gb = state_attr('sensor.aws_live_global_summary',
+          'ebs_snapshot_size_gb') | default(0) %}
+
           {% set sns_count = state_attr('sensor.aws_live_global_summary',
           'sns_topics') | int(0) %}
 
@@ -203,6 +209,8 @@ views:
           - **Redshift Clusters:** {{ redshift_count }}
 
           - **EBS Volumes:** {{ ebs_count }} ({{ ebs_unattached }} unattached)
+
+          - **EBS Snapshots:** {{ ebs_snapshots }} ({{ ebs_snapshot_size_gb }} GB)
 
 
           ### 🌐 Networking & Messaging
@@ -486,6 +494,9 @@ views:
           | 💿 EBS Volumes | {{ state.attributes.ebs_volumes | default(0) }} ({{
           state.attributes.ebs_unattached | default(0) }} unattached) |
 
+          | 📸 EBS Snapshots | {{ state.attributes.ebs_snapshots | default(0) }}
+          ({{ state.attributes.ebs_snapshot_size_gb | default(0) }} GB) |
+
 
           #### 🌐 Networking & Messaging
 
@@ -581,4 +592,3 @@ views:
               service: notify.mobile_app
               data:
                 message: "AWS cost yesterday exceeded expected budget"
-

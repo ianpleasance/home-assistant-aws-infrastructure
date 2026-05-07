@@ -260,6 +260,11 @@ async def async_setup_entry(
                 if uid not in registered_ids:
                     registered_ids.add(uid)
                     new_entities.append(AwsEBSCountSensor(coordinator, account_name, region))
+            # Snapshot summary sensor — always created (not gated on create_individual)
+            uid = f"aws_{account_name}_{region_n}_ebs_snapshots"
+            if uid not in registered_ids:
+                registered_ids.add(uid)
+                new_entities.append(AwsEBSSnapshotsSensor(coordinator, account_name, region))
             if coordinator.data:
                 for volume in coordinator.data.get("volumes", []):
                     v_n = volume["id"].replace("-", "_")
@@ -673,6 +678,8 @@ async def async_setup_entry(
                             for v in data.get("volumes", []):
                                 v_n = v["id"].replace("-", "_")
                                 current_ids.add(f"aws_{account_name}_{region_n}_ebs_{v_n}")
+                            # Snapshot summary sensor is permanent — always keep it
+                            current_ids.add(f"aws_{account_name}_{region_n}_ebs_snapshots")
                         elif key == COORDINATOR_SNS:
                             for t in data.get("topics", []):
                                 t_n = t["name"].replace("-", "_").replace(".", "_")
@@ -913,6 +920,7 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
             (COORDINATOR_ECS, "clusters"),
             (COORDINATOR_EKS, "clusters"),
             (COORDINATOR_EBS, "volumes"),
+            (COORDINATOR_EBS, "snapshots"),
             (COORDINATOR_SNS, "topics"),
             (COORDINATOR_SQS, "queues"),
             (COORDINATOR_S3, "buckets"),
@@ -978,9 +986,12 @@ class AwsRegionSummarySensor(CoordinatorEntity, SensorEntity):
         if COORDINATOR_EBS in self._coordinators and self._coordinators[COORDINATOR_EBS].data:
             volumes = self._coordinators[COORDINATOR_EBS].data.get("volumes", [])
             attached = sum(1 for v in volumes if v.get("attached_to"))
+            snapshots = self._coordinators[COORDINATOR_EBS].data.get("snapshots", [])
             attrs["ebs_volumes"] = len(volumes)
             attrs["ebs_attached"] = attached
             attrs["ebs_unattached"] = len(volumes) - attached
+            attrs["ebs_snapshots"] = self._coordinators[COORDINATOR_EBS].data.get("total_snapshot_count", len(snapshots))
+            attrs["ebs_snapshot_size_gb"] = self._coordinators[COORDINATOR_EBS].data.get("total_snapshot_size_gb", 0)
 
         if COORDINATOR_SNS in self._coordinators and self._coordinators[COORDINATOR_SNS].data:
             attrs["sns_topics"] = len(self._coordinators[COORDINATOR_SNS].data.get("topics", []))
@@ -1063,6 +1074,7 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 (COORDINATOR_ECS, "clusters"),
                 (COORDINATOR_EKS, "clusters"),
                 (COORDINATOR_EBS, "volumes"),
+                (COORDINATOR_EBS, "snapshots"),
                 (COORDINATOR_SNS, "topics"),
                 (COORDINATOR_SQS, "queues"),
                 (COORDINATOR_S3, "buckets"),
@@ -1166,7 +1178,8 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
             "rds_instances": 0, "load_balancers": 0, "auto_scaling_groups": 0,
             "dynamodb_tables": 0, "elasticache_clusters": 0, "ecs_clusters": 0,
             "eks_clusters": 0, "ebs_volumes": 0, "ebs_attached": 0,
-            "ebs_unattached": 0, "sns_topics": 0, "sqs_queues": 0,
+            "ebs_unattached": 0, "ebs_snapshots": 0, "ebs_snapshot_size_gb": 0,
+            "sns_topics": 0, "sqs_queues": 0,
             "s3_buckets": 0, "cloudwatch_alarms": 0, "cloudwatch_alarms_alarm": 0,
             "elastic_ips": 0, "elastic_ips_unattached": 0,
             "classic_load_balancers": 0,
@@ -1269,6 +1282,8 @@ class AwsGlobalSummarySensor(CoordinatorEntity, SensorEntity):
                 totals["ebs_volumes"] += len(volumes)
                 totals["ebs_attached"] += sum(1 for v in volumes if v.get("attached_to"))
                 totals["ebs_unattached"] += sum(1 for v in volumes if not v.get("attached_to"))
+                totals["ebs_snapshots"] += len(region_coordinators[COORDINATOR_EBS].data.get("snapshots", []))
+                totals["ebs_snapshot_size_gb"] += region_coordinators[COORDINATOR_EBS].data.get("total_snapshot_size_gb", 0)
 
             if COORDINATOR_SNS in region_coordinators and region_coordinators[COORDINATOR_SNS].data:
                 topics = region_coordinators[COORDINATOR_SNS].data.get("topics", [])
@@ -2300,11 +2315,67 @@ class AwsEBSCountSensor(CoordinatorEntity, SensorEntity):
         if self.coordinator.data:
             volumes = self.coordinator.data.get("volumes", [])
             attached = sum(1 for v in volumes if v.get("attached_to"))
+            snapshots = self.coordinator.data.get("snapshots", [])
             return {
                 "total_volumes": len(volumes),
                 "attached": attached,
                 "unattached": len(volumes) - attached,
                 "total_size_gb": sum(v.get("size", 0) for v in volumes),
+                "total_snapshots": len(snapshots),
+                "total_snapshot_size_gb": self.coordinator.data.get("total_snapshot_size_gb", 0),
+                "snapshots_truncated": self.coordinator.data.get("snapshots_truncated", False),
+                "last_updated": dt_util.now(),
+            }
+        return {"last_updated": dt_util.now()}
+
+
+class AwsEBSSnapshotsSensor(CoordinatorEntity, SensorEntity):
+    """Sensor showing EBS snapshot count and details for a region.
+
+    Native value: total number of snapshots owned by this account in this region.
+    Attributes: the most recent MAX_EBS_SNAPSHOTS snapshots sorted newest-first,
+    plus total storage consumed across all snapshots.
+
+    A single sensor per region is used rather than one sensor per snapshot —
+    accounts may have hundreds or thousands of snapshots and individual sensors
+    would flood the entity registry.
+    """
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:camera"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, account_name: str, region: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._account_name = account_name
+        self._region = region
+        region_normalized = region.replace("-", "_")
+        self._attr_unique_id = f"aws_{account_name}_{region_normalized}_ebs_snapshots"
+        self._attr_name = "EBS Snapshots"
+        self._attr_device_info = _make_device_info(account_name, region)
+
+    @property
+    def native_value(self) -> int:
+        """Return the total number of EBS snapshots in this region."""
+        if self.coordinator.data:
+            return len(self.coordinator.data.get("snapshots", []))
+        return 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return snapshot list and storage summary.
+
+        The snapshots list contains up to MAX_EBS_SNAPSHOTS entries sorted
+        newest-first. If snapshots_truncated is True there are more snapshots
+        in the account than are shown here.
+        """
+        if self.coordinator.data:
+            return {
+                "snapshots": self.coordinator.data.get("snapshots", []),
+                "total_snapshot_size_gb": self.coordinator.data.get("total_snapshot_size_gb", 0),
+                "snapshots_truncated": self.coordinator.data.get("snapshots_truncated", False),
                 "last_updated": dt_util.now(),
             }
         return {"last_updated": dt_util.now()}

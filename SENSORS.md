@@ -226,6 +226,23 @@ sensor.aws_{account}_global_{resource_id}
 
 ---
 
+### EBS Volume Count
+**Entity ID:** `sensor.aws_{account}_{region}_ebs_count`
+**Native value:** Total number of EBS volumes in the region
+*(Only created when "Create individual count sensors" is enabled in integration options.)*
+
+| Attribute | Description |
+|-----------|-------------|
+| `total_volumes` | Total number of EBS volumes |
+| `attached` | Number of volumes attached to an instance |
+| `unattached` | Number of volumes not attached to any instance |
+| `total_size_gb` | Combined size of all volumes in GB |
+| `total_snapshots` | Total number of EBS snapshots owned in this region |
+| `total_snapshot_size_gb` | Combined size of all snapshots in GB |
+| `snapshots_truncated` | `True` if there are more than 50 snapshots (details sensor shows newest 50 only) |
+
+---
+
 ### EBS Volumes
 **Entity ID:** `sensor.aws_{account}_{region}_ebs_{volume_id}`
 **Native value:** Volume state (`in-use`, `available`, `creating`, etc.)
@@ -242,6 +259,34 @@ sensor.aws_{account}_global_{resource_id}
 | `attached_to` | Instance ID the volume is attached to |
 | `encrypted` | Whether the volume is encrypted |
 | `created` | Volume creation timestamp |
+
+---
+
+### EBS Snapshots
+**Entity ID:** `sensor.aws_{account}_{region}_ebs_snapshots`
+**Native value:** Total number of EBS snapshots owned by this account in the region
+
+A single sensor per region is used rather than one sensor per snapshot, as accounts can have hundreds or thousands of snapshots. The sensor stores the most recent 50 snapshots as attributes, sorted newest-first.
+
+| Attribute | Description |
+|-----------|-------------|
+| `snapshots` | List of up to 50 snapshots, each containing the fields below |
+| `total_snapshot_size_gb` | Combined `VolumeSize` across **all** snapshots in the region (not just the listed 50) |
+| `snapshots_truncated` | `True` if there are more than 50 snapshots; only the newest 50 are listed |
+
+Each entry in `snapshots` contains:
+
+| Field | Description |
+|-------|-------------|
+| `snapshot_id` | Snapshot ID (e.g. `snap-0abc123`) |
+| `volume_id` | ID of the source volume |
+| `volume_size` | Size of the source volume at time of snapshot, in GB |
+| `start_time` | Snapshot creation timestamp (ISO 8601) |
+| `state` | Snapshot state (`pending`, `completed`, `error`) |
+| `progress` | Completion percentage (e.g. `100%`) — useful when `state` is `pending` |
+| `description` | Snapshot description |
+| `name` | Value of the `Name` tag, if set |
+| `encrypted` | Whether the snapshot is encrypted |
 
 ---
 
@@ -651,7 +696,7 @@ sensor.aws_{account}_global_{resource_id}
 **Entity ID:** `sensor.aws_{account}_{region}_summary`
 **Native value:** Total resource count for that region
 
-Contains counts for all services in that region as attributes.
+Contains counts for all services in that region as attributes, including `ebs_snapshots` and `ebs_snapshot_size_gb`.
 
 ---
 
@@ -673,7 +718,10 @@ Contains counts for all services in that region as attributes.
 | `elasticache_clusters` | ElastiCache clusters |
 | `s3_buckets` | S3 buckets |
 | `ebs_volumes` | EBS volumes |
-| `ebs_unattached` | Unattached EBS volumes |
+| `ebs_attached` | EBS volumes attached to an instance |
+| `ebs_unattached` | EBS volumes not attached to any instance |
+| `ebs_snapshots` | EBS snapshots (across all monitored regions) |
+| `ebs_snapshot_size_gb` | Combined size of all EBS snapshots in GB |
 | `efs_file_systems` | EFS file systems |
 | `ecr_repositories` | ECR repositories |
 | `redshift_clusters` | Redshift clusters |

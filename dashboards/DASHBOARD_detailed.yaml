@@ -69,6 +69,10 @@ views:
           'ebs_volumes') }} ({{ state_attr('sensor.aws_live_global_summary',
           'ebs_unattached') }} unattached) |
 
+          | 📸 EBS Snapshots | {{ state_attr('sensor.aws_live_global_summary',
+          'ebs_snapshots') | default(0) }} ({{ state_attr('sensor.aws_live_global_summary',
+          'ebs_snapshot_size_gb') | default(0) }} GB) |
+
           | 🗂️ EFS File Systems | {{
           state_attr('sensor.aws_live_global_summary', 'efs_file_systems') |
           default(0) }} |
@@ -884,6 +888,83 @@ views:
           list | length == 0 -%}
 
           _No EBS volumes found_
+
+          {% endif %}
+      - type: markdown
+        content: >
+          # 📸 EBS Snapshots
+
+
+          {% set snap_sensor = states.sensor | selectattr('entity_id', 'search',
+          '_ebs_snapshots') | rejectattr('entity_id', 'search', 'global') |
+          list %}
+
+          {% set total_snaps = state_attr('sensor.aws_live_global_summary',
+          'ebs_snapshots') | default(0) | int(0) %}
+
+          {% set total_size = state_attr('sensor.aws_live_global_summary',
+          'ebs_snapshot_size_gb') | default(0) %}
+
+          **{{ total_snaps }} {{ 'snapshot' if total_snaps == 1 else 'snapshots'
+          }}** across all regions • **{{ total_size }} GB** total
+
+
+          ---
+
+
+          {% for sensor in snap_sensor -%}
+
+          {%- if sensor.state not in ('unavailable', 'unknown') -%}
+
+          {%- set snaps = sensor.attributes.snapshots | default([]) -%}
+
+          {%- set region_n = sensor.entity_id | replace('sensor.aws_live_', '') |
+          replace('_ebs_snapshots', '') -%}
+
+          {%- set region = region_n | replace('_', '-') -%}
+
+          {%- set truncated = sensor.attributes.snapshots_truncated |
+          default(false) -%}
+
+          {%- set size = sensor.attributes.total_snapshot_size_gb | default(0) %}
+
+
+          ## 🌍 {{ region | upper }} — {{ sensor.state }} {{ 'snapshot' if
+          sensor.state | int(0) == 1 else 'snapshots' }} ({{ size }} GB){% if
+          truncated %} ⚠️ showing newest 50{% endif %}
+
+
+          {% if snaps | length > 0 %}
+
+          | Snapshot | Volume | Size | State | Name | Date |
+
+          |----------|--------|------|-------|------|------|
+
+          {%- for snap in snaps %}
+
+          | `{{ snap.snapshot_id }}` | `{{ snap.volume_id }}` | {{
+          snap.volume_size }} GB | {% if snap.state == 'completed' %}✅{% elif
+          snap.state == 'pending' %}🔄 {{ snap.progress }}{% else %}❌{% endif
+          %} | {{ snap.name | default('—') }} | {{ snap.start_time[:10] if
+          snap.start_time else 'N/A' }} |
+
+          {%- endfor %}
+
+          {% else %}
+
+          _No snapshots in this region_
+
+          {% endif %}
+
+
+          {% endif -%}
+
+          {%- endfor %}
+
+
+          {% if snap_sensor | length == 0 %}
+
+          _No EBS snapshot sensors found — ensure EBS Volumes is enabled_
 
           {% endif %}
       - type: markdown
@@ -2375,4 +2456,3 @@ views:
           _Service breakdown will appear after 24 hours_
 
           {% endif %}
-

@@ -45,6 +45,7 @@ Use this if you want to monitor all 28 supported services:
                 "ec2:DescribeInternetGateways",
                 "ec2:DescribeNatGateways",
                 "ec2:DescribeRegions",
+                "ec2:DescribeSnapshots",
                 "ec2:DescribeSubnets",
                 "ec2:DescribeVolumes",
                 "ec2:DescribeVpcPeeringConnections",
@@ -204,9 +205,10 @@ If you only want to monitor specific services, use the minimum permissions below
 </details>
 
 <details>
-<summary><b>EBS Volumes</b></summary>
+<summary><b>EBS Volumes & Snapshots</b></summary>
 
 ```json
+                "ec2:DescribeSnapshots",
                 "ec2:DescribeVolumes",
 ```
 

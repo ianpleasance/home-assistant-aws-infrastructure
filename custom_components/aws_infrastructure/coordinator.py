@@ -708,19 +708,21 @@ class AwsEBSCoordinator(AwsBaseCoordinator):
         )
 
     def _fetch_data(self) -> dict:
-        """Fetch EBS volumes data."""
+        """Fetch EBS volumes and snapshots data."""
+        from .const import MAX_EBS_SNAPSHOTS
+
+        ec2_client = self.aws_client.get_ec2_client()
+
+        # ----------------------------------------------------------------
+        # Volumes
+        # ----------------------------------------------------------------
+        volumes = []
         try:
-            ec2_client = self.aws_client.get_ec2_client()
-            
-            # Get all volumes
-            volumes = []
             paginator = ec2_client.get_paginator('describe_volumes')
             for page in paginator.paginate():
                 for volume in page.get('Volumes', []):
-                    # Check if attached
                     attachments = volume.get('Attachments', [])
                     attached_to = attachments[0].get('InstanceId') if attachments else None
-                    
                     volumes.append({
                         'id': volume.get('VolumeId'),
                         'size': volume.get('Size', 0),
@@ -733,11 +735,60 @@ class AwsEBSCoordinator(AwsBaseCoordinator):
                         'encrypted': volume.get('Encrypted', False),
                         'created': str(volume.get('CreateTime', '')),
                     })
-            
-            return {"volumes": volumes}
         except Exception as err:
-            _LOGGER.error("%s [account=%s region=%s]: %s", "Error fetching EBS", self.account_name, self.region, err)
-            return {"volumes": []}
+            _LOGGER.error(
+                "%s [account=%s region=%s]: %s",
+                "Error fetching EBS volumes", self.account_name, self.region, err,
+            )
+
+        # ----------------------------------------------------------------
+        # Snapshots — owner filter is mandatory; without it the API returns
+        # every public snapshot on AWS (millions of entries).
+        # Results are sorted newest-first and truncated to MAX_EBS_SNAPSHOTS
+        # before storage to keep HA attribute payloads bounded.
+        # ----------------------------------------------------------------
+        snapshots = []
+        snapshots_truncated = False
+        total_snapshot_size_gb = 0
+        try:
+            all_snapshots = []
+            paginator = ec2_client.get_paginator('describe_snapshots')
+            for page in paginator.paginate(OwnerIds=['self']):
+                for snap in page.get('Snapshots', []):
+                    tags = {t['Key']: t['Value'] for t in snap.get('Tags', [])}
+                    all_snapshots.append({
+                        'snapshot_id': snap.get('SnapshotId'),
+                        'volume_id': snap.get('VolumeId'),
+                        'volume_size': snap.get('VolumeSize', 0),
+                        'start_time': str(snap.get('StartTime', '')),
+                        'state': snap.get('State'),
+                        'progress': snap.get('Progress', ''),
+                        'description': snap.get('Description', ''),
+                        'name': tags.get('Name', ''),
+                        'encrypted': snap.get('Encrypted', False),
+                    })
+                    total_snapshot_size_gb += snap.get('VolumeSize', 0)
+
+            # Sort newest-first using the ISO start_time string (lexicographic
+            # sort works correctly for ISO 8601 timestamps).
+            all_snapshots.sort(key=lambda s: s['start_time'], reverse=True)
+
+            if len(all_snapshots) > MAX_EBS_SNAPSHOTS:
+                snapshots_truncated = True
+            snapshots = all_snapshots[:MAX_EBS_SNAPSHOTS]
+
+        except Exception as err:
+            _LOGGER.error(
+                "%s [account=%s region=%s]: %s",
+                "Error fetching EBS snapshots", self.account_name, self.region, err,
+            )
+
+        return {
+            "volumes": volumes,
+            "snapshots": snapshots,
+            "snapshots_truncated": snapshots_truncated,
+            "total_snapshot_size_gb": total_snapshot_size_gb,
+        }
 
 
 class AwsSNSCoordinator(AwsBaseCoordinator):
