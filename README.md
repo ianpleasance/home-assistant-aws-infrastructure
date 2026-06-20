@@ -131,6 +131,8 @@ The complete policy for all 28 services:
 
 > ⚠️ **Cost Explorer charges $0.01 per API call** (~$0.60/month at default 24h refresh). Deselect Cost Explorer during setup if not needed.
 
+Note that if you apply AWS service credits then in the period the credit is being used the cost values returned from the AWS API are $-0.00 - once the credit balance has been completely used then cost figures will return as normal.
+
 ## Documentation
 
 - [Sensor Reference (SENSORS.md)](SENSORS.md) — every sensor, its native value, and all attributes
