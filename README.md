@@ -1,7 +1,8 @@
 # AWS Infrastructure Monitor for Home Assistant
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-c62828.svg)](https://github.com/hacs/integration)
+[![version](https://img.shields.io/github/v/release/ianpleasance/home-assistant-aws-infrastructure?display_name=tag&sort=semver&color=blue&label=version)](https://github.com/ianpleasance/home-assistant-aws-infrastructure/releases/latest)
+[![license](https://img.shields.io/github/license/ianpleasance/home-assistant-aws-infrastructure)](LICENSE)
 
 A comprehensive Home Assistant integration for monitoring your AWS infrastructure. Monitor only the services you use — a minimum IAM policy is generated automatically during setup.
 
